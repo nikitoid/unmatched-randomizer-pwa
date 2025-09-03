@@ -48,10 +48,10 @@
         >
           <svg
             x-show="!isDark"
-            xmlns="http://www.w3.org/2000/svg"
+            xmlns="http://www.w.org/2000/svg"
             width="24"
             height="24"
-            viewBox="0 0 24 24"
+            viewBox="0 0 24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
@@ -71,10 +71,10 @@
           </svg>
           <svg
             x-show="isDark"
-            xmlns="http://www.w3.org/2000/svg"
+            xmlns="http://www.w.org/2000/svg"
             width="24"
             height="24"
-            viewBox="0 0 24 24"
+            viewBox="0 0 24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
@@ -118,7 +118,7 @@
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
                   height="24"
-                  viewBox="0 0 24 24"
+                  viewBox="0 0 24"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
@@ -302,38 +302,30 @@
       <!-- Модальное окно Результатов -->
       <div
         x-show="isResultsModalOpen"
-        class="fixed inset-0 z-40"
+        x-transition:enter="ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        @click.self="isResultsModalOpen = false"
+        class="fixed inset-0 bg-black bg-opacity-60 flex items-end justify-center z-40"
         style="display: none"
       >
-        <!-- Backdrop -->
-        <div
-          @click="isResultsModalOpen = false"
-          x-show="isResultsModalOpen"
-          x-transition:enter="ease-out duration-300"
-          x-transition:enter-start="opacity-0"
-          x-transition:enter-end="opacity-100"
-          x-transition:leave="ease-in duration-200"
-          x-transition:leave-start="opacity-100"
-          x-transition:leave-end="opacity-0"
-          class="absolute inset-0 bg-black bg-opacity-60"
-        ></div>
-
         <!-- Sliding Panel -->
         <div
           id="results-panel"
-          class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-2xl shadow-2xl p-4 transform transition-transform duration-300 ease-out"
-          :class="{'translate-y-0': isResultsModalOpen, 'translate-y-full': !isResultsModalOpen}"
+          @click.stop
+          x-show="isResultsModalOpen"
+          x-transition:enter="ease-out duration-300"
+          x-transition:enter-start="translate-y-full"
+          x-transition:enter-end="translate-y-0"
+          x-transition:leave="ease-in duration-200"
+          x-transition:leave-start="translate-y-0"
+          x-transition:leave-end="translate-y-full"
+          class="w-full max-w-md bg-white dark:bg-gray-800 rounded-t-2xl shadow-2xl p-4"
         >
-          <div
-            id="drag-handle"
-            class="w-full flex justify-center py-2 cursor-grab"
-          >
-            <div
-              class="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"
-            ></div>
-          </div>
-
-          <div class="relative flex justify-center items-center mb-4">
+          <div class="relative flex justify-center items-center mb-4 pt-2">
             <h3 class="text-xl font-bold text-gray-900 dark:text-white">
               Результаты
             </h3>
@@ -358,7 +350,6 @@
           </div>
 
           <section id="results-content" class="w-full text-base">
-            <!-- Уменьшил шрифт с text-lg до text-base -->
             <div
               id="player1"
               class="py-3 border-b border-gray-200 dark:border-gray-700"
@@ -406,13 +397,12 @@
 
       // ВАШИ КЛЮЧИ FIREBASE
       const firebaseConfig = {
-        apiKey: "AIzaSyBSvSbR_NJj7riu0HZPz3nile1X4tuxfsI",
-        authDomain: "unmatched-randomizer.firebaseapp.com",
-        projectId: "unmatched-randomizer",
-        storageBucket: "unmatched-randomizer.firebasestorage.app",
-        messagingSenderId: "168086799887",
-        appId: "1:168086799887:web:3c8af51f935999b7d6c57a",
-        measurementId: "G-GEQPMK68B0",
+        apiKey: "...",
+        authDomain: "...",
+        projectId: "...",
+        storageBucket: "...",
+        messagingSenderId: "...",
+        appId: "...",
       };
 
       const app = initializeApp(firebaseConfig);

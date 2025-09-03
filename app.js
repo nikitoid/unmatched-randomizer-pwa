@@ -99,45 +99,6 @@ $(document).ready(function () {
     displayResults();
   }
 
-  // --- Логика свайпа для закрытия модального окна результатов ---
-  function setupSwipeToClose() {
-    const panel = document.getElementById("results-panel");
-    const handle = document.getElementById("drag-handle");
-    let startY;
-
-    const onTouchStart = (e) => {
-      startY = e.touches[0].clientY;
-      panel.style.transition = "none"; // Отключаем анимацию во время свайпа
-    };
-
-    const onTouchMove = (e) => {
-      const currentY = e.touches[0].clientY;
-      let deltaY = currentY - startY;
-      if (deltaY < 0) deltaY = 0; // Не даем свайпать вверх
-
-      panel.style.transform = `translateY(${deltaY}px)`;
-    };
-
-    const onTouchEnd = (e) => {
-      const currentY = e.changedTouches[0].clientY;
-      const deltaY = currentY - startY;
-      panel.style.transition = "transform 0.3s ease-out"; // Включаем анимацию обратно
-
-      if (deltaY > 100) {
-        // Если свайпнули достаточно далеко
-        // Закрываем модальное окно через Alpine
-        const alpineComponent = document.querySelector("[x-data]").__x;
-        alpineComponent.data.isResultsModalOpen = false;
-      } else {
-        panel.style.transform = "translateY(0)"; // Возвращаем панель на место
-      }
-    };
-
-    handle.addEventListener("touchstart", onTouchStart, { passive: true });
-    handle.addEventListener("touchmove", onTouchMove, { passive: true });
-    handle.addEventListener("touchend", onTouchEnd);
-  }
-
   // --- Инициализация и обработчики событий ---
   function initApp() {
     const settingsBtn = $("#settings-btn");
@@ -165,8 +126,6 @@ $(document).ready(function () {
         settingsBtn.removeClass("hidden");
       }
     );
-
-    setupSwipeToClose();
 
     // -- ОБРАБОТЧИКИ СОБЫТИЙ --
     $("#generate-btn").on("click", generateTeams);

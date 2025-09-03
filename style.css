@@ -1,13 +1,7 @@
-/* Убираем старые переменные, т.к. Tailwind теперь управляет темами */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 body {
   -webkit-tap-highlight-color: transparent; /* Убирает синюю подсветку при тапе на iOS */
-}
-
-/* Оставляем только правило для свайпа, убираем конфликтующий transform */
-#results-panel {
-  touch-action: none; /* Предотвращает прокрутку страницы при свайпе панели */
 }
