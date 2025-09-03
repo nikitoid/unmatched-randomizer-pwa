@@ -13,7 +13,7 @@ $(document).ready(function () {
   const db = window.db; // Получаем инстанс Firestore из index.html
   const listsDocRef = doc(db, "lists", "main"); // Ссылка на наш единственный документ
   const PWD_HASH =
-    "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"; // sha256
+    "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"; // sha256 from '1234'
 
   // --- Вспомогательные функции ---
   async function sha256(message) {
@@ -133,11 +133,6 @@ $(document).ready(function () {
     $("#login-btn").on("click", async () => {
       const password = $("#password-input").val();
       const hash = await sha256(password);
-
-      // Для отладки: выводим хэши в консоль
-      console.log("Введенный пароль:", password);
-      console.log("Сгенерированный хэш:", hash);
-      console.log("Ожидаемый хэш:     ", PWD_HASH);
 
       if (hash === PWD_HASH) {
         $("#password-section").addClass("hidden");
