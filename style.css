@@ -221,8 +221,7 @@ button:hover {
   width: 100%;
   cursor: grab;
   touch-action: none;
-  /* Удалены flex-свойства */
-  position: relative;
+  /* Позиционирование удалено, чтобы кнопка не привязывалась к этому блоку */
 }
 
 .drag-handle {
