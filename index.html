@@ -1,65 +1,21 @@
 <!DOCTYPE html>
-<html lang="ru" data-theme="dark">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#1a1a1a" />
     <title>Unmatched Randomizer</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="manifest" href="manifest.json" />
-    <meta name="theme-color" content="#1a1a1a" />
+    <link rel="apple-touch-icon" href="icons/icon-192.png" />
   </head>
   <body>
     <div class="container">
       <header>
         <h1>Unmatched Randomizer</h1>
-      </header>
-
-      <main>
-        <div class="controls">
-          <div class="list-settings-wrapper">
-            <select id="hero-list-select">
-              <option value="default">Default</option>
-            </select>
-            <button
-              class="icon-btn"
-              id="settings-btn"
-              aria-label="Настройки списков"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-              >
-                <path
-                  d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
-                ></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
-            </button>
-          </div>
-          <button class="primary-btn" id="generate-btn">
-            СГЕНЕРИРОВАТЬ КОМАНДЫ
-          </button>
-        </div>
-      </main>
-
-      <footer class="version-info" id="version-info"></footer>
-    </div>
-
-    <!-- Modal Structure -->
-    <div class="modal-overlay hidden" id="modal-overlay">
-      <div class="modal" id="modal">
-        <button
-          class="modal-close-btn icon-btn"
-          id="modal-close-btn"
-          aria-label="Закрыть"
-        >
+        <!-- Кнопка настроек -->
+        <button id="settings-btn" class="icon-btn">
+          <!-- SVG иконка шестерёнки -->
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
@@ -71,27 +27,50 @@
             stroke-linecap="round"
             stroke-linejoin="round"
           >
-            <line x1="18" y1="6" x2="6" y2="18"></line>
-            <line x1="6" y1="6" x2="18" y2="18"></line>
+            <path
+              d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+            ></path>
+            <circle cx="12" cy="12" r="3"></circle>
           </svg>
         </button>
-        <div class="modal-drag-area" id="modal-drag-area">
-          <div class="drag-handle"></div>
+      </header>
+
+      <main>
+        <div class="settings-panel">
+          <label for="hero-list-select">Список героев:</label>
+          <select id="hero-list-select">
+            <option value="default">Default</option>
+            <!-- Сюда будут добавляться другие списки -->
+          </select>
         </div>
-        <div class="modal-content">
-          <div class="results" id="results-container">
-            <h2>Результаты</h2>
-            <div id="results-output"></div>
-            <div class="actions-panel">
-              <button id="reroll-teams-btn">Перемешать команды</button>
-              <button id="reroll-heroes-btn">Перемешать героев</button>
-              <button id="new-heroes-btn">Новые герои</button>
-            </div>
+
+        <button id="generate-btn" class="btn-main">
+          СГЕНЕРИРОВАТЬ КОМАНДЫ
+        </button>
+
+        <!-- Секция результатов (изначально скрыта) -->
+        <section id="results-section" class="hidden">
+          <h2>Команды:</h2>
+          <div class="teams-grid">
+            <div class="player-row" id="player1">Игрок 1</div>
+            <div class="player-row" id="player2">Игрок 2</div>
+            <div class="player-row" id="player3">Игрок 3</div>
+            <div class="player-row" id="player4">Игрок 4</div>
           </div>
+        </section>
+
+        <!-- Панель с доп. кнопками (изначально скрыта) -->
+        <div id="controls-panel" class="controls hidden">
+          <button id="remix-teams-btn">Перемешать команды</button>
+          <button id="remix-heroes-btn">Перемешать героев</button>
+          <button id="reset-btn">Полный сброс</button>
         </div>
-      </div>
+      </main>
     </div>
 
+    <!-- Подключаем jQuery с CDN для упрощения работы с DOM -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- Основной скрипт приложения -->
     <script src="app.js"></script>
   </body>
 </html>
