@@ -2,36 +2,36 @@ $(document).ready(function () {
   // --- Глобальные переменные ---
   let currentPlayers = [];
   let currentHeroes = [];
-  let heroData = {}; // Кэш для данных с сервера
+  let heroData = {}; // Локальный кэш данных
+  const CACHE_KEY = "heroListsCache";
+
+  // --- Функции для работы с кэшем (localStorage) ---
+  function saveDataToCache(data) {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  }
+
+  function loadDataFromCache() {
+    const data = localStorage.getItem(CACHE_KEY);
+    return data ? JSON.parse(data) : null;
+  }
 
   // --- Функции для работы с API ---
-
-  /**
-   * Загружает списки героев с сервера.
-   * @returns {Promise<object>} - Объект со списками героев.
-   */
   async function loadListsFromServer() {
-    try {
-      const response = await fetch("/api/lists");
-      if (!response.ok) {
-        throw new Error("Network response was not ok");
-      }
-      heroData = await response.json();
-      return heroData;
-    } catch (error) {
-      console.error("Failed to fetch lists:", error);
-      alert("Не удалось загрузить списки с сервера!");
-      return null;
+    const response = await fetch("/api/lists");
+    if (!response.ok) {
+      throw new Error(
+        `Network response was not ok, status: ${response.status}`
+      );
     }
+    return await response.json();
   }
 
   // --- Функции для обновления UI ---
-
-  /**
-   * Заполняет выпадающие списки (select) на основе данных с сервера.
-   */
   function populateSelects(data) {
-    if (!data) return;
+    if (!data || !data.lists) {
+      console.error("Попытка заполнить списки неверными данными", data);
+      return;
+    }
     const mainSelect = $("#hero-list");
     const modalSelect = $("#modal-list-select");
 
@@ -39,38 +39,29 @@ $(document).ready(function () {
     modalSelect.empty();
 
     for (const listName in data.lists) {
-      mainSelect.append(
-        $("<option>", {
-          value: listName,
-          text: listName,
-        })
-      );
-      modalSelect.append(
-        $("<option>", {
-          value: listName,
-          text: listName,
-        })
-      );
+      mainSelect.append($("<option>", { value: listName, text: listName }));
+      modalSelect.append($("<option>", { value: listName, text: listName }));
     }
     mainSelect.val(data.selected);
     modalSelect.val(data.selected);
     updateModalTextarea();
   }
 
-  /**
-   * Обновляет textarea в модальном окне на основе выбранного списка.
-   */
   function updateModalTextarea() {
     const selectedList = $("#modal-list-select").val();
     if (selectedList && heroData.lists && heroData.lists[selectedList]) {
-      const heroesText = heroData.lists[selectedList].join("\n");
-      $("#heroes-textarea").val(heroesText);
+      $("#heroes-textarea").val(heroData.lists[selectedList].join("\n"));
     }
   }
 
   // --- Основная логика рандомизации ---
-
   function generateTeams() {
+    if (!heroData.selected || !heroData.lists) {
+      alert(
+        "Списки героев не загружены. Проверьте соединение с сервером или попробуйте перезагрузить страницу."
+      );
+      return;
+    }
     const selectedListName = heroData.selected;
     const heroes = heroData.lists[selectedListName];
 
@@ -80,8 +71,7 @@ $(document).ready(function () {
     }
 
     currentPlayers = [1, 2, 3, 4].sort(() => Math.random() - 0.5);
-    const shuffledHeroes = [...heroes].sort(() => Math.random() - 0.5);
-    currentHeroes = shuffledHeroes.slice(0, 4);
+    currentHeroes = [...heroes].sort(() => Math.random() - 0.5).slice(0, 4);
 
     displayResults();
     $("#results-section, #controls-panel").removeClass("hidden");
@@ -103,17 +93,39 @@ $(document).ready(function () {
   function rerollHeroes() {
     const heroes = heroData.lists[heroData.selected];
     if (!heroes || heroes.length < 4) return;
-
-    const shuffledHeroes = [...heroes].sort(() => Math.random() - 0.5);
-    currentHeroes = shuffledHeroes.slice(0, 4);
+    currentHeroes = [...heroes].sort(() => Math.random() - 0.5).slice(0, 4);
     displayResults();
   }
 
   // --- Инициализация и обработчики событий ---
-
   async function initApp() {
-    const data = await loadListsFromServer();
-    populateSelects(data);
+    const settingsBtn = $("#settings-btn");
+    const syncIndicator = $("#update-indicator");
+
+    syncIndicator.removeClass("hidden");
+    settingsBtn.addClass("hidden");
+
+    try {
+      const serverData = await loadListsFromServer();
+      heroData = serverData;
+      saveDataToCache(serverData);
+      console.log("Данные успешно загружены с сервера и кэшированы.");
+    } catch (error) {
+      console.warn(
+        "Не удалось подключиться к серверу. Загрузка данных из кэша.",
+        error
+      );
+      heroData = loadDataFromCache();
+      if (!heroData) {
+        alert(
+          "Ошибка сети. Не удалось загрузить данные ни с сервера, ни из локального кэша."
+        );
+      }
+    } finally {
+      populateSelects(heroData);
+      syncIndicator.addClass("hidden");
+      settingsBtn.removeClass("hidden");
+    }
 
     // -- Обработчики главного экрана --
     $("#generate-btn").on("click", generateTeams);
@@ -123,7 +135,7 @@ $(document).ready(function () {
 
     $("#hero-list").on("change", async function () {
       const password = prompt("Для смены списка по-умолчанию введите пароль:");
-      if (!password) return populateSelects(heroData); // Сбрасываем выбор если отмена
+      if (!password) return populateSelects(heroData);
 
       try {
         const response = await fetch("/api/lists", {
@@ -133,7 +145,9 @@ $(document).ready(function () {
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.message);
+
         heroData = result.data;
+        saveDataToCache(heroData); // Обновляем кэш
         populateSelects(heroData);
       } catch (error) {
         alert(`Ошибка: ${error.message}`);
@@ -142,8 +156,7 @@ $(document).ready(function () {
     });
 
     // -- Обработчики модального окна --
-    // Теперь пароль не проверяется на клиенте
-    $("#login-btn").on("click", async function () {
+    $("#login-btn").on("click", () => {
       $("#password-section").addClass("hidden");
       $("#management-section").removeClass("hidden");
     });
@@ -152,8 +165,8 @@ $(document).ready(function () {
 
     $("#save-list-btn").on("click", async function () {
       const listName = $("#modal-list-select").val();
-      const heroesText = $("#heroes-textarea").val();
-      const heroes = heroesText
+      const heroes = $("#heroes-textarea")
+        .val()
         .split("\n")
         .map((h) => h.trim())
         .filter((h) => h);
@@ -175,6 +188,7 @@ $(document).ready(function () {
         if (!response.ok) throw new Error(result.message);
 
         heroData = result.data;
+        saveDataToCache(heroData);
         populateSelects(heroData);
         alert(`Список "${listName}" сохранен!`);
       } catch (error) {
@@ -192,12 +206,17 @@ $(document).ready(function () {
         const response = await fetch("/api/lists", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: newName, password: password }),
+          body: JSON.stringify({
+            name: newName,
+            password: password,
+            selected: heroData.selected,
+          }),
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.message);
 
         heroData = result.data;
+        saveDataToCache(heroData);
         populateSelects(heroData);
         $("#modal-list-select").val(newName);
         updateModalTextarea();
@@ -224,6 +243,7 @@ $(document).ready(function () {
           if (!response.ok) throw new Error(result.message);
 
           heroData = result.data;
+          saveDataToCache(heroData);
           populateSelects(heroData);
           alert(`Список "${listName}" удален!`);
         } catch (error) {
@@ -233,6 +253,5 @@ $(document).ready(function () {
     });
   }
 
-  // Запускаем приложение
   initApp();
 });
