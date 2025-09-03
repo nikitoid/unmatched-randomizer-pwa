@@ -221,9 +221,7 @@ button:hover {
   width: 100%;
   cursor: grab;
   touch-action: none;
-  display: flex;
-  justify-content: center;
-  /* Добавлено для позиционирования кнопки */
+  /* Удалены flex-свойства */
   position: relative;
 }
 
@@ -232,10 +230,11 @@ button:hover {
   height: 5px;
   background-color: var(--border-color);
   border-radius: 2.5px;
+  /* Добавлено для центрирования */
+  margin: 0 auto;
 }
 
 .modal-close-btn {
-  /* Изменено для корректного позиционирования */
   position: absolute;
   top: 10px;
   right: 10px;
