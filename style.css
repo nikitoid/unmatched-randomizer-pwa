@@ -212,8 +212,7 @@ button:hover {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
-  /* Устанавливаем как контекст позиционирования */
-  position: relative;
+  /* Я убрал конфликтующее свойство position: relative; отсюда */
 }
 
 .modal.hidden {
