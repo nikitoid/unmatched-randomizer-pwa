@@ -56,7 +56,7 @@ header {
 }
 
 header.hidden-by-modal {
-  transform: translateY(-100vh);
+  transform: translateY(-200%);
 }
 
 header h1 {
