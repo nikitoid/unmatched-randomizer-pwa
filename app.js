@@ -20,7 +20,7 @@ $(document).ready(function () {
   async function sha256(message) {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-    const hashArray = Array.from(new UintArray(hashBuffer));
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
     const hashHex = hashArray
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
@@ -183,7 +183,8 @@ $(document).ready(function () {
       await setDoc(listsDocRef, heroData);
 
       // ИСПРАВЛЕНО: Закрываем модальное окно и сбрасываем "Последнюю генерацию"
-      document.dispatchEvent(new CustomEvent("close-modals"));
+      const appState = document.querySelector("[x-data]").__x.$data;
+      appState.isResultsModalOpen = false;
       localStorage.removeItem("lastGeneration");
       $("#show-last-gen-btn").addClass("hidden");
     } catch (error) {
