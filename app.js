@@ -21,7 +21,8 @@ const resultsSection = document.getElementById("results-section");
 const actionsPanel = document.getElementById("actions-panel");
 const rerollTeamsBtn = document.getElementById("reroll-teams-btn");
 const rerollHeroesBtn = document.getElementById("reroll-heroes-btn");
-const fullResetBtn = document.getElementById("full-reset-btn");
+// Кнопка "Полный сброс" заменена на "Новые герои"
+const newHeroesBtn = document.getElementById("new-heroes-btn");
 const playerRows = [
   document.getElementById("player-1"),
   document.getElementById("player-2"),
@@ -99,7 +100,7 @@ function rerollTeams() {
 }
 
 /**
- * Перемешивает только героев
+ * Перемешивает только текущих героев между собой
  */
 function rerollHeroes() {
   currentState.heroes = shuffleArray(currentState.heroes);
@@ -107,14 +108,22 @@ function rerollHeroes() {
 }
 
 /**
- * Полный сброс, аналогично первой генерации
+ * Заменяет текущих героев на 4 новых из общего списка, сохраняя порядок игроков
  */
-function fullReset() {
-  generateTeams();
+function getNewHeroes() {
+  const shuffledHeroes = shuffleArray(defaultHeroes);
+  // Проверяем, чтобы новые герои не совпадали полностью со старыми
+  // Это редкий случай, но возможный. Простая проверка для улучшения UX.
+  let newHeroesSet = shuffledHeroes.slice(0, 4);
+  if (newHeroesSet.every((hero) => currentState.heroes.includes(hero))) {
+    newHeroesSet = shuffledHeroes.slice(1, 5); // Берем другой срез, если вдруг выпало то же самое
+  }
+  currentState.heroes = newHeroesSet;
+  renderResults();
 }
 
 // --- Обработчики событий ---
 generateBtn.addEventListener("click", generateTeams);
 rerollTeamsBtn.addEventListener("click", rerollTeams);
 rerollHeroesBtn.addEventListener("click", rerollHeroes);
-fullResetBtn.addEventListener("click", fullReset);
+newHeroesBtn.addEventListener("click", getNewHeroes);
