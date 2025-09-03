@@ -12,42 +12,17 @@
     <div class="container">
       <header>
         <h1>Unmatched Randomizer</h1>
-      </header>
-
-      <main>
-        <div class="controls">
-          <label for="hero-list-select">Список героев:</label>
-          <select name="hero-list" id="hero-list-select">
-            <option value="default">Default</option>
-          </select>
-          <button id="generate-btn" class="primary-btn">
-            СГЕНЕРИРОВАТЬ КОМАНДЫ
-          </button>
-        </div>
-
-        <section id="results-section" class="results hidden">
-          <h2>Результаты:</h2>
-          <div class="player-row" id="player-1">Игрок 1: ...</div>
-          <div class="player-row" id="player-2">Игрок 2: ...</div>
-          <div class="player-row" id="player-3">Игрок 3: ...</div>
-          <div class="player-row" id="player-4">Игрок 4: ...</div>
-        </section>
-
-        <div id="actions-panel" class="actions-panel hidden">
-          <button id="reroll-teams-btn">Перемешать команды</button>
-          <button id="reroll-heroes-btn">Перемешать героев</button>
-          <!-- Кнопка "Полный сброс" заменена на "Новые герои" -->
-          <button id="new-heroes-btn">Новые герои</button>
-        </div>
-      </main>
-
-      <footer>
-        <button id="settings-btn" aria-label="Настройки списков героев">
+        <!-- Кнопка настроек перенесена в шапку -->
+        <button
+          id="settings-btn"
+          class="icon-btn"
+          aria-label="Настройки списков героев"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
-            viewBox="0 0 24"
+            viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
@@ -60,8 +35,68 @@
             ></path>
           </svg>
         </button>
-      </footer>
+      </header>
+
+      <main>
+        <div class="controls">
+          <label for="hero-list-select">Список героев:</label>
+          <select name="hero-list" id="hero-list-select">
+            <option value="default">Default</option>
+          </select>
+          <button id="generate-btn" class="primary-btn">
+            СГЕНЕРИРОВАТЬ КОМАНДЫ
+          </button>
+        </div>
+      </main>
+
+      <!-- Старый footer удален -->
     </div>
+
+    <!-- Новая структура для модального окна -->
+    <div id="modal-overlay" class="modal-overlay hidden"></div>
+    <div id="results-modal" class="modal hidden">
+      <div id="modal-drag-area" class="modal-drag-area">
+        <div class="drag-handle"></div>
+      </div>
+      <button
+        id="modal-close-btn"
+        class="icon-btn modal-close-btn"
+        aria-label="Закрыть"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="24"
+          height="24"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+
+      <div class="modal-content">
+        <!-- Секции с результатами и кнопками теперь здесь -->
+        <section id="results-section" class="results">
+          <h2>Результаты:</h2>
+          <div class="player-row" id="player-1">Игрок 1: ...</div>
+          <div class="player-row" id="player-2">Игрок 2: ...</div>
+          <div class="player-row" id="player-3">Игрок 3: ...</div>
+          <div class="player-row" id="player-4">Игрок 4: ...</div>
+        </section>
+
+        <div id="actions-panel" class="actions-panel">
+          <button id="reroll-teams-btn">Перемешать команды</button>
+          <button id="reroll-heroes-btn">Перемешать героев</button>
+          <button id="new-heroes-btn">Новые герои</button>
+        </div>
+      </div>
+    </div>
+
     <script src="app.js"></script>
   </body>
 </html>

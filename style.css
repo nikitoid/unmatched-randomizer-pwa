@@ -1,70 +1,92 @@
-/* --- Переменные для тем --- */
 :root {
   --bg-color: #1a1a1a;
-  --text-color: #e2e2e2;
-  --primary-color: #3498db;
-  --primary-text-color: #ffffff;
-  --secondary-color: #2c3e50;
-  --surface-color: #2c2c2c;
-  --border-color: #444444;
-  --danger-color: #e74c3c;
+  --bg-color-secondary: #2a2a2a;
+  --text-color: #e0e0e0;
+  --primary-color: #2c3e50;
+  --primary-color-hover: #34495e;
+  --danger-color: #c0392b;
+  --danger-color-hover: #e74c3c;
+  --border-color: #444;
 }
 
 [data-theme="light"] {
   --bg-color: #f4f4f4;
-  --text-color: #1a1a1a;
-  --primary-color: #2980b9;
-  --secondary-color: #ecf0f1;
-  --surface-color: #ffffff;
+  --bg-color-secondary: #ffffff;
+  --text-color: #333333;
+  --primary-color: #3498db;
+  --primary-color-hover: #5dade2;
+  --danger-color: #e74c3c;
+  --danger-color-hover: #f1948a;
   --border-color: #dddddd;
-}
-
-/* --- Базовые стили --- */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif;
+  margin: 0;
   background-color: var(--bg-color);
   color: var(--text-color);
-  line-height: 1.6;
-  transition: background-color 0.3s, color 0.3s;
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
   min-height: 100vh;
-  text-align: center;
+  padding: 1rem;
+  box-sizing: border-box;
 }
 
 .container {
-  width: 90%;
+  width: 100%;
   max-width: 500px;
-  padding: 2rem;
-  background-color: var(--surface-color);
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  padding: 1rem;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-h1 {
-  margin-bottom: 1.5rem;
-  color: var(--primary-color);
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  margin-bottom: 2rem;
 }
 
-/* --- Элементы управления --- */
+header h1 {
+  margin: 0;
+  font-size: 1.8rem;
+  text-align: center;
+  flex-grow: 1;
+}
+
+.icon-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+  color: var(--text-color);
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.icon-btn:hover {
+  opacity: 1;
+}
+
+.icon-btn svg {
+  width: 28px;
+  height: 28px;
+}
+
+main {
+  width: 100%;
+}
+
 .controls {
   display: flex;
   flex-direction: column;
   gap: 1rem;
   margin-bottom: 2rem;
-}
-
-label {
-  font-size: 0.9rem;
-  text-align: left;
 }
 
 select,
@@ -74,87 +96,131 @@ button {
   padding: 0.8rem;
   border-radius: 8px;
   border: 1px solid var(--border-color);
-  background-color: var(--bg-color);
+  background-color: var(--bg-color-secondary);
   color: var(--text-color);
   cursor: pointer;
   transition: background-color 0.2s, box-shadow 0.2s;
 }
 
-select:focus,
-button:focus {
-  outline: none;
-  box-shadow: 0 0 0 3px var(--primary-color);
+button:hover {
+  box-shadow: 0 0 5px rgba(255, 255, 255, 0.1);
 }
 
-button.primary-btn {
+.primary-btn {
   background-color: var(--primary-color);
-  color: var(--primary-text-color);
-  border: none;
+  color: white;
   font-weight: bold;
-}
-
-button.primary-btn:hover {
-  opacity: 0.9;
-}
-
-button.danger-btn {
-  background-color: var(--danger-color);
-  color: var(--primary-text-color);
   border: none;
 }
 
-/* --- Секция результатов --- */
+.primary-btn:hover {
+  background-color: var(--primary-color-hover);
+}
+
+.danger-btn {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.danger-btn:hover {
+  background-color: var(--danger-color-hover);
+}
+
 .results {
-  margin-top: 2rem;
-  padding: 1rem;
-  background-color: var(--bg-color);
+  background-color: var(--bg-color-secondary);
+  padding: 1.5rem;
   border-radius: 8px;
-  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .results h2 {
-  margin-bottom: 1rem;
+  margin-top: 0;
+  text-align: center;
 }
 
 .player-row {
-  padding: 0.5rem;
-  border-bottom: 1px solid var(--border-color);
+  padding: 0.5rem 0;
+  font-size: 1.1rem;
 }
 
-.player-row:last-child {
-  border-bottom: none;
-}
-
-/* --- Панель действий --- */
 .actions-panel {
-  margin-top: 1.5rem;
-  display: flex;
-  justify-content: center;
-  gap: 0.75rem;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+  margin-top: 1rem;
 }
 
-/* --- Футер и кнопка настроек --- */
-footer {
-  margin-top: 2rem;
-  border-top: 1px solid var(--border-color);
-  padding-top: 1rem;
-  display: flex;
-  justify-content: flex-end;
+.actions-panel #new-heroes-btn {
+  grid-column: 1 / -1; /* Кнопка занимает всю ширину */
 }
 
-#settings-btn {
-  background: none;
-  border: none;
-  padding: 0.5rem;
-  color: var(--text-color);
-}
-
-#settings-btn svg {
-  display: block;
-}
-
-/* --- Вспомогательный класс --- */
 .hidden {
   display: none !important;
+}
+
+/* --- Modal Styles --- */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.6);
+  z-index: 1000;
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+.modal-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.modal {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: var(--bg-color-secondary);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+  box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+  transform: translateY(0);
+  transition: transform 0.3s ease-in-out;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modal.hidden {
+  transform: translateY(100%);
+}
+
+.modal-drag-area {
+  padding: 1rem 0;
+  width: 100%;
+  cursor: grab;
+  touch-action: none; /* Важно для жестов свайпа */
+  display: flex;
+  justify-content: center;
+}
+
+.drag-handle {
+  width: 40px;
+  height: 5px;
+  background-color: var(--border-color);
+  border-radius: 2.5px;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+}
+
+.modal-content {
+  padding: 0 1.5rem 1.5rem;
+  overflow-y: auto;
 }

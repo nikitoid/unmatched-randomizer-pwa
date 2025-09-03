@@ -17,11 +17,8 @@ if ("serviceWorker" in navigator) {
 
 // --- DOM Элементы ---
 const generateBtn = document.getElementById("generate-btn");
-const resultsSection = document.getElementById("results-section");
-const actionsPanel = document.getElementById("actions-panel");
 const rerollTeamsBtn = document.getElementById("reroll-teams-btn");
 const rerollHeroesBtn = document.getElementById("reroll-heroes-btn");
-// Кнопка "Полный сброс" заменена на "Новые герои"
 const newHeroesBtn = document.getElementById("new-heroes-btn");
 const playerRows = [
   document.getElementById("player-1"),
@@ -29,6 +26,12 @@ const playerRows = [
   document.getElementById("player-3"),
   document.getElementById("player-4"),
 ];
+
+// Элементы модального окна
+const resultsModal = document.getElementById("results-modal");
+const modalOverlay = document.getElementById("modal-overlay");
+const modalCloseBtn = document.getElementById("modal-close-btn");
+const modalDragArea = document.getElementById("modal-drag-area");
 
 // --- Исходные данные ---
 const defaultHeroes = [
@@ -49,12 +52,6 @@ let currentState = {
 };
 
 // --- Вспомогательные функции ---
-
-/**
- * Перемешивает массив в случайном порядке (алгоритм Фишера—Йетса)
- * @param {Array} array Массив для перемешивания
- * @returns {Array} Перемешанный массив
- */
 function shuffleArray(array) {
   const newArray = [...array];
   for (let i = newArray.length - 1; i > 0; i--) {
@@ -64,9 +61,6 @@ function shuffleArray(array) {
   return newArray;
 }
 
-/**
- * Отображает результаты в DOM
- */
 function renderResults() {
   for (let i = 0; i < 4; i++) {
     playerRows[
@@ -75,48 +69,82 @@ function renderResults() {
   }
 }
 
-// --- Основные функции ---
+// --- Функции модального окна ---
+let touchStartY = 0;
+let touchMoveY = 0;
 
-/**
- * Генерирует новые команды и героев
- */
+function openModal() {
+  resultsModal.classList.remove("hidden");
+  modalOverlay.classList.remove("hidden");
+}
+
+function closeModal() {
+  resultsModal.classList.add("hidden");
+  modalOverlay.classList.add("hidden");
+  // Сбрасываем инлайновые стили трансформации после свайпа
+  resultsModal.style.transform = "";
+}
+
+function handleTouchStart(e) {
+  touchStartY = e.touches[0].clientY;
+  resultsModal.style.transition = "none"; // Отключаем анимацию во время свайпа
+}
+
+function handleTouchMove(e) {
+  touchMoveY = e.touches[0].clientY;
+  const deltaY = touchMoveY - touchStartY;
+
+  // Позволяем свайпать только вниз
+  if (deltaY > 0) {
+    e.preventDefault(); // Предотвращаем скролл страницы
+    resultsModal.style.transform = `translateY(${deltaY}px)`;
+  }
+}
+
+function handleTouchEnd() {
+  const deltaY = touchMoveY - touchStartY;
+
+  // Включаем анимацию для плавного закрытия или возврата
+  resultsModal.style.transition = "transform 0.3s ease-in-out";
+
+  // Если свайпнули достаточно далеко (больше 100px), закрываем окно
+  if (deltaY > 100) {
+    closeModal();
+  } else {
+    // Иначе возвращаем окно на место
+    resultsModal.style.transform = "translateY(0)";
+  }
+
+  // Сбрасываем координаты
+  touchStartY = 0;
+  touchMoveY = 0;
+}
+
+// --- Основные функции ---
 function generateTeams() {
   currentState.players = shuffleArray([1, 2, 3, 4]);
   const shuffledHeroes = shuffleArray(defaultHeroes);
   currentState.heroes = shuffledHeroes.slice(0, 4);
 
   renderResults();
-
-  resultsSection.classList.remove("hidden");
-  actionsPanel.classList.remove("hidden");
+  openModal();
 }
 
-/**
- * Перемешивает только номера игроков
- */
 function rerollTeams() {
   currentState.players = shuffleArray(currentState.players);
   renderResults();
 }
 
-/**
- * Перемешивает только текущих героев между собой
- */
 function rerollHeroes() {
   currentState.heroes = shuffleArray(currentState.heroes);
   renderResults();
 }
 
-/**
- * Заменяет текущих героев на 4 новых из общего списка, сохраняя порядок игроков
- */
 function getNewHeroes() {
   const shuffledHeroes = shuffleArray(defaultHeroes);
-  // Проверяем, чтобы новые герои не совпадали полностью со старыми
-  // Это редкий случай, но возможный. Простая проверка для улучшения UX.
   let newHeroesSet = shuffledHeroes.slice(0, 4);
   if (newHeroesSet.every((hero) => currentState.heroes.includes(hero))) {
-    newHeroesSet = shuffledHeroes.slice(1, 5); // Берем другой срез, если вдруг выпало то же самое
+    newHeroesSet = shuffledHeroes.slice(1, 5);
   }
   currentState.heroes = newHeroesSet;
   renderResults();
@@ -127,3 +155,14 @@ generateBtn.addEventListener("click", generateTeams);
 rerollTeamsBtn.addEventListener("click", rerollTeams);
 rerollHeroesBtn.addEventListener("click", rerollHeroes);
 newHeroesBtn.addEventListener("click", getNewHeroes);
+
+// Обработчики для модального окна
+modalCloseBtn.addEventListener("click", closeModal);
+modalOverlay.addEventListener("click", closeModal);
+modalDragArea.addEventListener("touchstart", handleTouchStart, {
+  passive: false,
+});
+modalDragArea.addEventListener("touchmove", handleTouchMove, {
+  passive: false,
+});
+modalDragArea.addEventListener("touchend", handleTouchEnd);
