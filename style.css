@@ -52,11 +52,14 @@ body {
 header {
   width: 100%;
   margin-bottom: 2rem;
-  transition: transform 0.3s ease-in-out;
+  opacity: 1;
+  transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out;
 }
 
 header.hidden-by-modal {
   transform: translateY(-200%);
+  opacity: 0;
+  pointer-events: none; /* Чтобы нельзя было случайно выделить невидимый текст */
 }
 
 header h1 {
