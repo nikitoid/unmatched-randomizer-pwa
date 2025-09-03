@@ -1,96 +1,20 @@
-/* :root содержит переменные, которые можно легко менять */
+/* Убираем почти все стили, так как теперь их контролирует Tailwind */
+/* Оставляем только переменные темы и базовые стили для body */
+
 :root {
-  /* Светлая тема */
-  --bg-color-light: #f0f2f5;
-  --text-color-light: #1c1e21;
-  --primary-color-light: #1877f2;
-  --card-bg-light: #ffffff;
-  --border-color-light: #dddfe2;
-
-  /* Темная тема */
-  --bg-color-dark: #121212;
-  --text-color-dark: #e4e6eb;
-  --primary-color-dark: #2d88ff;
-  --card-bg-dark: #1e1e1e;
-  --border-color-dark: #3a3b3c;
-}
-
-/* По умолчанию используем темную тему */
-body {
-  --bg-color: var(--bg-color-dark);
-  --text-color: var(--text-color-dark);
-  --primary-color: var(--primary-color-dark);
-  --card-bg: var(--card-bg-dark);
-  --border-color: var(--border-color-dark);
-
-  /* Добавляем класс для переключения на светлую тему */
-  &.light-theme {
-    --bg-color: var(--bg-color-light);
-    --text-color: var(--text-color-light);
-    --primary-color: var(--primary-color-light);
-    --card-bg: var(--card-bg-light);
-    --border-color: var(--border-color-light);
-  }
-}
-
-/* Базовые стили */
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+  --primary-bg: #1a202c; /* соответствует bg-gray-900 */
+  --secondary-bg: #2d3748; /* соответствует bg-gray-800 */
+  --text-primary: #edf2f7; /* соответствует text-gray-200 */
+  --accent-color: #3182ce; /* соответствует bg-blue-600 */
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
-  background-color: var(--bg-color);
-  color: var(--text-color);
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  min-height: 100vh;
-  padding: 20px;
-  transition: background-color 0.3s, color 0.3s;
+  background-color: var(--primary-bg);
+  color: var(--text-primary);
+  font-family: sans-serif; /* Tailwind подключит свой шрифт по умолчанию */
 }
 
-.container {
-  width: 100%;
-  max-width: 500px;
-  text-align: center;
-}
-
-header {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  margin-bottom: 2rem;
-}
-
-header h1 {
-  font-size: 1.8rem;
-  color: var(--primary-color);
-}
-
-.icon-btn {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: var(--text-color);
-  cursor: pointer;
-  padding: 8px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.icon-btn:hover {
-  background-color: var(--border-color);
-}
-
+/* Анимация для иконки-загрузчика */
 #update-indicator svg {
   animation: spin 2s linear infinite;
 }
@@ -102,97 +26,4 @@ header h1 {
   to {
     transform: rotate(360deg);
   }
-}
-
-main {
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.settings-panel {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 10px;
-}
-
-select {
-  padding: 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-  background-color: var(--card-bg);
-  color: var(--text-color);
-  font-size: 1rem;
-}
-
-.btn-main {
-  padding: 15px 20px;
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #fff;
-  background-color: var(--primary-color);
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: background-color 0.2s, transform 0.2s;
-}
-
-.btn-main:hover {
-  opacity: 0.9;
-}
-.btn-main:active {
-  transform: scale(0.98);
-}
-
-#results-section {
-  background-color: var(--card-bg);
-  padding: 1rem;
-  border-radius: 12px;
-  border: 1px solid var(--border-color);
-}
-
-.teams-grid {
-  display: grid;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.player-row {
-  padding: 1rem;
-  background-color: var(--bg-color);
-  border-radius: 8px;
-  text-align: left;
-  font-weight: 500;
-}
-
-.controls {
-  display: flex;
-  justify-content: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.controls button {
-  padding: 10px 15px;
-  background-color: var(--card-bg);
-  color: var(--text-color);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.controls button:hover {
-  background-color: var(--border-color);
-}
-
-footer {
-  margin-top: 2rem;
-  color: var(--border-color);
-  font-size: 0.8rem;
-}
-
-/* Утилитарный класс для скрытия элементов */
-.hidden {
-  display: none !important;
 }
