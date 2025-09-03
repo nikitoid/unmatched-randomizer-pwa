@@ -32,6 +32,7 @@
       class="container mx-auto p-4 flex flex-col items-center min-h-screen justify-center relative overflow-hidden"
       x-data="appState"
       @keydown.escape.window="isSettingsModalOpen = false; isResultsModalOpen = false"
+      @open-results.window="isResultsModalOpen = true"
     >
       <!-- Кнопка переключения темы -->
       <div class="absolute top-4 left-4">
@@ -178,7 +179,117 @@
           @click.away="isSettingsModalOpen = false"
           class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md"
         >
-          <!-- Содержимое модального окна настроек -->
+          <div id="password-section">
+            <h3 class="text-xl font-bold mb-4 text-gray-900 dark:text-white">
+              Доступ к настройкам
+            </h3>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
+              Для изменения списков героев введите пароль.
+            </p>
+            <input
+              type="password"
+              id="password-input"
+              class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-center w-full p-2 rounded-lg mb-4"
+              placeholder="••••"
+            />
+            <button
+              id="login-btn"
+              class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-transform transform active:scale-95"
+            >
+              Войти
+            </button>
+          </div>
+
+          <div id="management-section" class="hidden">
+            <div class="flex justify-between items-center mb-4">
+              <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+                Управление списками
+              </h3>
+              <button
+                @click="isSettingsModalOpen = false"
+                class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
+              >
+                <svg
+                  class="w-6 h-6"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M6 18L18 6M6 6l12 12"
+                  ></path>
+                </svg>
+              </button>
+            </div>
+
+            <div class="space-y-4">
+              <div>
+                <label
+                  for="modal-list-select"
+                  class="block mb-2 text-sm font-medium text-gray-500 dark:text-gray-400"
+                  >Редактировать список:</label
+                >
+                <select
+                  id="modal-list-select"
+                  class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 w-full p-2 rounded-lg"
+                ></select>
+              </div>
+              <div>
+                <textarea
+                  id="heroes-textarea"
+                  rows="6"
+                  class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 w-full p-2 rounded-lg"
+                  placeholder="Каждый герой с новой строки..."
+                ></textarea>
+              </div>
+              <div class="grid grid-cols-2 gap-2">
+                <button
+                  id="save-list-btn"
+                  class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-sm"
+                >
+                  Сохранить
+                </button>
+                <button
+                  id="set-default-btn"
+                  class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 font-bold py-2 px-3 rounded-lg text-sm"
+                >
+                  Сделать по умолч.
+                </button>
+              </div>
+              <hr class="border-gray-300 dark:border-gray-600" />
+              <div>
+                <label
+                  for="new-list-name"
+                  class="block mb-2 text-sm font-medium text-gray-500 dark:text-gray-400"
+                  >Создать новый список:</label
+                >
+                <input
+                  type="text"
+                  id="new-list-name"
+                  class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 w-full p-2 rounded-lg"
+                  placeholder="Название нового списка"
+                />
+                <button
+                  id="create-list-btn"
+                  class="w-full mt-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg text-sm"
+                >
+                  Создать
+                </button>
+              </div>
+              <hr class="border-gray-300 dark:border-gray-600" />
+              <div>
+                <button
+                  id="delete-list-btn"
+                  class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-sm"
+                >
+                  Удалить выбранный список
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -321,6 +432,21 @@
               this.isDark = false;
               document.documentElement.classList.remove("dark");
             }
+
+            // Следим за закрытием окна настроек, чтобы сбросить его
+            this.$watch("isSettingsModalOpen", (isOpen) => {
+              if (!isOpen) {
+                setTimeout(() => {
+                  document
+                    .querySelector("#password-section")
+                    .classList.remove("hidden");
+                  document
+                    .querySelector("#management-section")
+                    .classList.add("hidden");
+                  document.querySelector("#password-input").value = "";
+                }, 300); // Задержка для анимации закрытия
+              }
+            });
           },
           toggleTheme() {
             this.isDark = !this.isDark;

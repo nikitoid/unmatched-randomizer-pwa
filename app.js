@@ -13,7 +13,7 @@ $(document).ready(function () {
   const db = window.db; // Получаем инстанс Firestore из index.html
   const listsDocRef = doc(db, "lists", "main"); // Ссылка на наш единственный документ
   const PWD_HASH =
-    "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"; // sha256 from '1234'
+    "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4";
 
   // --- Вспомогательные функции ---
   async function sha256(message) {
@@ -72,9 +72,8 @@ $(document).ready(function () {
 
     displayResults();
 
-    // Открываем модальное окно результатов через Alpine.js
-    const alpineComponent = document.querySelector("[x-data]").__x;
-    alpineComponent.data.isResultsModalOpen = true;
+    // Открываем модальное окно через кастомное событие
+    window.dispatchEvent(new CustomEvent("open-results"));
   }
 
   function displayResults() {
@@ -104,7 +103,7 @@ $(document).ready(function () {
   function setupSwipeToClose() {
     const panel = document.getElementById("results-panel");
     const handle = document.getElementById("drag-handle");
-    let startY, startHeight;
+    let startY;
 
     const onTouchStart = (e) => {
       startY = e.touches[0].clientY;
@@ -126,9 +125,9 @@ $(document).ready(function () {
 
       if (deltaY > 100) {
         // Если свайпнули достаточно далеко
+        // Закрываем модальное окно через Alpine
         const alpineComponent = document.querySelector("[x-data]").__x;
         alpineComponent.data.isResultsModalOpen = false;
-        // Сброс transform будет обработан Alpine.js через классы
       } else {
         panel.style.transform = "translateY(0)"; // Возвращаем панель на место
       }
@@ -187,25 +186,6 @@ $(document).ready(function () {
         alert("Неверный пароль!");
       }
     });
-
-    const settingsModal = document.querySelector(
-      '[x-show="isSettingsModalOpen"]'
-    );
-    const observer = new MutationObserver((mutations) => {
-      for (let mutation of mutations) {
-        if (
-          mutation.attributeName === "style" &&
-          settingsModal.style.display === "none"
-        ) {
-          setTimeout(() => {
-            $("#password-section").removeClass("hidden");
-            $("#management-section").addClass("hidden");
-            $("#password-input").val("");
-          }, 300);
-        }
-      }
-    });
-    observer.observe(settingsModal, { attributes: true });
 
     $("#modal-list-select").on("change", updateModalTextarea);
 
