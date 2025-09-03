@@ -1,7 +1,7 @@
 // Убедимся, что DOM полностью загружен
 $(document).ready(function () {
   // Версия приложения (должна совпадать с версией кэша в service-worker.js)
-  const APP_VERSION = "v2";
+  const APP_VERSION = "v3";
   $("#app-version").text(`Версия: ${APP_VERSION}`);
 
   // Регистрация Service Worker для PWA
