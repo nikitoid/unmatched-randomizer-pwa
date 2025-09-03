@@ -1,25 +1,35 @@
 // Импортируем функции Firestore из глобального window
 import {
   doc,
-  getDoc,
-  setDoc,
   onSnapshot,
+  setDoc,
 } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
 
 $(document).ready(function () {
-  // --- Глобальные переменные ---
+  // --- Глобальные переменные и константы ---
   let currentPlayers = [];
   let currentHeroes = [];
   let heroData = {}; // Локальная копия данных из Firestore
   const db = window.db; // Получаем инстанс Firestore из index.html
+  const listsDocRef = doc(db, "lists", "main"); // Ссылка на наш единственный документ
+  const PWD_HASH =
+    "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92"; // sha256 from '1234'
 
-  // --- Ссылка на наш единственный документ в Firestore ---
-  const listsDocRef = doc(db, "lists", "main");
+  // --- Вспомогательные функции ---
+  async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return hashHex;
+  }
 
   // --- Функции для обновления UI ---
   function populateSelects(data) {
     if (!data || !data.lists) return;
-    heroData = data; // Обновляем локальный кэш
+    heroData = data;
 
     const mainSelect = $("#hero-list");
     const modalSelect = $("#modal-list-select");
@@ -45,11 +55,11 @@ $(document).ready(function () {
 
   // --- Основная логика рандомизации ---
   function generateTeams() {
-    if (!heroData.selected || !heroData.lists) {
-      alert("Данные о героях еще не загружены.");
+    const selectedListName = $("#hero-list").val(); // Берем текущее значение из главного селекта
+    if (!selectedListName || !heroData.lists[selectedListName]) {
+      alert("Данные о героях еще не загружены или список пуст.");
       return;
     }
-    const selectedListName = heroData.selected;
     const heroes = heroData.lists[selectedListName];
 
     if (!heroes || heroes.length < 4) {
@@ -78,39 +88,33 @@ $(document).ready(function () {
   }
 
   function rerollHeroes() {
-    const heroes = heroData.lists[heroData.selected];
+    const selectedListName = $("#hero-list").val();
+    const heroes = heroData.lists[selectedListName];
     if (!heroes || heroes.length < 4) return;
     currentHeroes = [...heroes].sort(() => Math.random() - 0.5).slice(0, 4);
     displayResults();
   }
 
   // --- Инициализация и обработчики событий ---
-  async function initApp() {
+  function initApp() {
     const settingsBtn = $("#settings-btn");
     const syncIndicator = $("#update-indicator");
 
-    // Показываем индикатор загрузки
     syncIndicator.removeClass("hidden");
     settingsBtn.addClass("hidden");
 
-    // Подписываемся на изменения в документе в реальном времени!
     onSnapshot(
       listsDocRef,
       (docSnap) => {
         if (docSnap.exists()) {
-          const data = docSnap.data();
-          console.log("Получены данные из Firestore:", data);
-          populateSelects(data);
+          populateSelects(docSnap.data());
         } else {
-          console.log("Документ не найден! Создайте его в консоли Firebase.");
           alert("База данных не найдена. Обратитесь к администратору.");
         }
-        // Прячем индикатор после первой загрузки
         syncIndicator.addClass("hidden");
         settingsBtn.removeClass("hidden");
       },
       (error) => {
-        console.error("Ошибка при получении данных из Firestore: ", error);
         alert(
           "Не удалось подключиться к базе данных. Проверьте интернет-соединение."
         );
@@ -120,25 +124,49 @@ $(document).ready(function () {
     );
 
     // -- ОБРАБОТЧИКИ СОБЫТИЙ --
-
     $("#generate-btn").on("click", generateTeams);
     $("#remix-teams-btn").on("click", rerollTeams);
     $("#remix-heroes-btn").on("click", rerollHeroes);
     $("#reset-btn").on("click", generateTeams);
 
-    $("#hero-list").on("change", async function () {
-      const newSelectedList = $(this).val();
-      heroData.selected = newSelectedList;
-      try {
-        await setDoc(listsDocRef, heroData);
-        console.log("Список по умолчанию изменен.");
-      } catch (error) {
-        console.error("Ошибка при обновлении списка по умолчанию: ", error);
-        alert("Не удалось сохранить изменения.");
+    // -- Логика модального окна --
+    $("#login-btn").on("click", async () => {
+      const password = $("#password-input").val();
+      const hash = await sha256(password);
+      if (hash === PWD_HASH) {
+        $("#password-section").addClass("hidden");
+        $("#management-section").removeClass("hidden");
+      } else {
+        alert("Неверный пароль!");
+      }
+    });
+
+    // Сброс состояния модального окна при закрытии
+    $("body").on("click", '[x-show="isModalOpen"]', function (event) {
+      if (
+        $(event.target).closest("[x-data]").length &&
+        !$(event.target).closest("[x-data] > div").length
+      ) {
+        setTimeout(() => {
+          $("#password-section").removeClass("hidden");
+          $("#management-section").addClass("hidden");
+          $("#password-input").val("");
+        }, 300); // Задержка для анимации закрытия
       }
     });
 
     $("#modal-list-select").on("change", updateModalTextarea);
+
+    $("#set-default-btn").on("click", async function () {
+      const newSelectedList = $("#modal-list-select").val();
+      heroData.selected = newSelectedList;
+      try {
+        await setDoc(listsDocRef, heroData);
+        alert(`Список "${newSelectedList}" установлен по умолчанию!`);
+      } catch (error) {
+        alert("Не удалось сохранить изменения.");
+      }
+    });
 
     $("#save-list-btn").on("click", async function () {
       const listName = $("#modal-list-select").val();
@@ -147,13 +175,11 @@ $(document).ready(function () {
         .split("\n")
         .map((h) => h.trim())
         .filter((h) => h);
-
       heroData.lists[listName] = heroes;
       try {
         await setDoc(listsDocRef, heroData);
         alert(`Список "${listName}" сохранен!`);
       } catch (error) {
-        console.error("Ошибка сохранения: ", error);
         alert("Не удалось сохранить изменения.");
       }
     });
@@ -170,7 +196,6 @@ $(document).ready(function () {
         $("#new-list-name").val("");
         alert(`Список "${newName}" создан!`);
       } catch (error) {
-        console.error("Ошибка создания: ", error);
         alert("Не удалось создать список.");
       }
     });
@@ -180,10 +205,8 @@ $(document).ready(function () {
       if (Object.keys(heroData.lists).length <= 1) {
         return alert("Нельзя удалить последний список!");
       }
-
       if (confirm(`Вы уверены, что хотите удалить список "${listName}"?`)) {
         delete heroData.lists[listName];
-        // Если удалили активный список, переключаемся на первый доступный
         if (heroData.selected === listName) {
           heroData.selected = Object.keys(heroData.lists)[0];
         }
@@ -191,7 +214,6 @@ $(document).ready(function () {
           await setDoc(listsDocRef, heroData);
           alert(`Список "${listName}" удален!`);
         } catch (error) {
-          console.error("Ошибка удаления: ", error);
           alert("Не удалось удалить список.");
         }
       }
