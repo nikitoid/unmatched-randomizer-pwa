@@ -20,7 +20,7 @@ $(document).ready(function () {
   async function sha256(message) {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashArray = Array.from(new UintArray(hashBuffer));
     const hashHex = hashArray
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
@@ -160,11 +160,9 @@ $(document).ready(function () {
     const baseListName = getBaseListName(currentListName);
     const exclusionListName = baseListName + EXCLUSION_SUFFIX;
 
-    // ИСПРАВЛЕНО: Источником всегда является ТЕКУЩИЙ выбранный список
     const sourceHeroes = heroData.lists[currentListName];
     if (!sourceHeroes) return alert("Не найден текущий список героев!");
 
-    // Создаем новый список героев
     const newHeroList = sourceHeroes.filter(
       (h) => !heroesToExclude.includes(h)
     );
@@ -175,15 +173,16 @@ $(document).ready(function () {
       );
     }
 
-    // Обновляем данные локально и отправляем в Firestore
     heroData.lists[exclusionListName] = newHeroList;
     heroData.selected = exclusionListName;
+
+    // ИСПРАВЛЕНО: Запоминаем состояние модального окна ПЕРЕД асинхронной операцией
+    const appState = document.querySelector("[x-data]").__x.$data;
 
     try {
       await setDoc(listsDocRef, heroData);
 
-      // ИСПРАВЛЕНО: Закрываем модальное окно и сбрасываем "Последнюю генерацию"
-      const appState = document.querySelector("[x-data]").__x.$data;
+      // Используем сохраненную ссылку для закрытия окна
       appState.isResultsModalOpen = false;
       localStorage.removeItem("lastGeneration");
       $("#show-last-gen-btn").addClass("hidden");
@@ -197,7 +196,6 @@ $(document).ready(function () {
     const baseListName = getBaseListName(currentListName);
     const exclusionListName = baseListName + EXCLUSION_SUFFIX;
 
-    // ИСПРАВЛЕНО: Источником для исключения является ТЕКУЩИЙ список
     const sourceListForExclusion = heroData.lists[currentListName];
     if (!sourceListForExclusion)
       return alert("Не найден текущий список героев для исключения!");
@@ -206,7 +204,6 @@ $(document).ready(function () {
       (h) => h !== heroToExclude
     );
 
-    // Проверяем, достаточно ли героев для замены
     const otherHeroesOnScreen = currentHeroes.filter(
       (h) => h !== heroToExclude
     );
@@ -219,7 +216,6 @@ $(document).ready(function () {
       return;
     }
 
-    // Если все хорошо, обновляем данные
     heroData.lists[exclusionListName] = newExclusionList;
     heroData.selected = exclusionListName;
 
@@ -246,7 +242,6 @@ $(document).ready(function () {
       delete heroData.lists[listName];
     });
 
-    // Сбрасываем выбранный список, если он был списком исключений
     if (heroData.selected.endsWith(EXCLUSION_SUFFIX)) {
       heroData.selected = getBaseListName(heroData.selected);
     }
