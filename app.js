@@ -1,87 +1,110 @@
-// Убедимся, что DOM полностью загружен
 $(document).ready(function () {
-  // Версия приложения (должна совпадать с версией кэша в service-worker.js)
-  const APP_VERSION = "v2";
-  $("#app-version").text(`Версия: ${APP_VERSION}`);
+  // --- ИСХОДНЫЕ ДАННЫЕ ---
+  const defaultHeroes = [
+    "Алиса",
+    "Медуза",
+    "Синдбад",
+    "Король Артур",
+    "Бигфут",
+    "Робин Гуд",
+  ];
 
-  // Регистрация Service Worker для PWA
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker
-      .register("/service-worker.js")
-      .then((registration) => {
-        console.log("Service Worker зарегистрирован успешно:", registration);
-      })
-      .catch((error) => {
-        console.log("Ошибка регистрации Service Worker:", error);
-      });
+  // --- ТЕКУЩЕЕ СОСТОЯНИЕ ---
+  // Эти массивы будут хранить текущее состояние для функций "перемешивания"
+  let currentPlayers = [];
+  let currentHeroes = [];
 
-    // Слушаем сообщения от Service Worker
-    navigator.serviceWorker.addEventListener("message", (event) => {
-      if (event.data && event.data.type === "UPDATING") {
-        console.log("Начинается обновление приложения...");
-        // Показываем индикатор загрузки вместо шестеренки
-        $("#settings-btn").addClass("hidden");
-        $("#update-indicator").removeClass("hidden");
-      }
-    });
-
-    // Если Service Worker изменился, перезагружаем страницу, чтобы применить обновления
-    let refreshing;
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (refreshing) return;
-      console.log("Приложение обновлено. Перезагрузка...");
-      window.location.reload();
-      refreshing = true;
-    });
-  }
-
-  // Получаем элементы со страницы
+  // --- UI ЭЛЕМЕНТЫ ---
   const generateBtn = $("#generate-btn");
   const resultsSection = $("#results-section");
   const controlsPanel = $("#controls-panel");
+  const remixTeamsBtn = $("#remix-teams-btn");
+  const remixHeroesBtn = $("#remix-heroes-btn");
+  const resetBtn = $("#reset-btn");
 
-  // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
+  // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
 
-  // Клик по главной кнопке "Сгенерировать"
-  generateBtn.on("click", function () {
-    console.log("Генерация команд...");
+  /**
+   * Перемешивает массив на месте, используя алгоритм Фишера-Йетса.
+   * @param {Array} array Массив для перемешивания.
+   * @returns {Array} Перемешанный массив.
+   */
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
 
-    // Показываем скрытые секции с результатами и кнопками
+  /**
+   * Обновляет DOM, отображая текущее распределение игроков и героев.
+   */
+  function displayResults() {
+    // Проходимся по 4 строкам для игроков
+    for (let i = 0; i < 4; i++) {
+      const playerNumber = currentPlayers[i];
+      const heroName = currentHeroes[i];
+      // ID блоков для игроков - "player1", "player2" и т.д.
+      // Индекс цикла `i` (0-3), поэтому добавляем 1, чтобы выбрать нужный div.
+      $(`#player${i + 1}`).text(`Игрок ${playerNumber}: ${heroName}`);
+    }
+  }
+
+  // --- ОСНОВНЫЕ ФУНКЦИИ ---
+
+  /**
+   * Основная функция для генерации команд и героев с нуля.
+   */
+  function generateTeams() {
+    // 1. Создаем и перемешиваем номера игроков [1, 2, 3, 4]
+    currentPlayers = shuffleArray([1, 2, 3, 4]);
+
+    // 2. Создаем копию списка героев, перемешиваем ее и берем первых 4-х.
+    const shuffledHeroes = shuffleArray([...defaultHeroes]);
+    currentHeroes = shuffledHeroes.slice(0, 4);
+
+    // 3. Отображаем результат в UI.
+    displayResults();
+
+    // 4. Показываем секцию с результатами и панель с доп. кнопками.
     resultsSection.removeClass("hidden");
     controlsPanel.removeClass("hidden");
+  }
 
-    // Сюда будет добавлена основная логика рандомайзера
-    // 1. Получить список героев
-    // 2. Перемешать героев
-    // 3. Распределить по игрокам
-    // 4. Вывести результат в .player-row
-  });
+  /**
+   * Перемешивает только номера игроков, оставляя героев на их местах.
+   */
+  function rerollTeams() {
+    // Защита от запуска до первой генерации
+    if (currentPlayers.length === 0) return;
 
-  // Клик по кнопке "Полный сброс"
-  $("#reset-btn").on("click", function () {
-    console.log("Полный сброс...");
+    currentPlayers = shuffleArray(currentPlayers);
+    displayResults();
+  }
 
-    // Скрываем секции
-    resultsSection.addClass("hidden");
-    controlsPanel.addClass("hidden");
+  /**
+   * Перемешивает только героев, оставляя номера игроков на их местах.
+   */
+  function rerollHeroes() {
+    // Защита от запуска до первой генерации
+    if (currentPlayers.length === 0) return;
 
-    // Очищаем результаты (если нужно)
-    $(".player-row").each(function (index) {
-      $(this).text(`Игрок ${index + 1}`);
-    });
-  });
+    const shuffledHeroes = shuffleArray([...defaultHeroes]);
+    currentHeroes = shuffledHeroes.slice(0, 4);
+    displayResults();
+  }
 
-  // Другие обработчики (перемешать команды, героев, настройки)
-  // будут добавлены здесь
-  $("#remix-teams-btn").on("click", function () {
-    console.log("Перемешиваем команды...");
-  });
+  /**
+   * Выполняет полный сброс (аналогично первой генерации).
+   */
+  function fullReset() {
+    generateTeams();
+  }
 
-  $("#remix-heroes-btn").on("click", function () {
-    console.log("Перемешиваем героев...");
-  });
-
-  $("#settings-btn").on("click", function () {
-    alert("Здесь откроется модальное окно с настройками списков героев.");
-  });
+  // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
+  generateBtn.on("click", generateTeams);
+  remixTeamsBtn.on("click", rerollTeams);
+  remixHeroesBtn.on("click", rerollHeroes);
+  resetBtn.on("click", fullReset);
 });
