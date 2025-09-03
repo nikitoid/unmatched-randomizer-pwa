@@ -77,8 +77,15 @@ function openModal() {
   modalOverlay.classList.remove("hidden");
   resultsModal.classList.remove("hidden");
 
-  // Форсируем перерисовку браузером, чтобы анимация сработала
+  // Шаг 1: Мгновенно ставим окно в начальную позицию (за экраном)
+  // без анимации.
+  resultsModal.style.transition = "none";
+  resultsModal.style.transform = "translateY(100%)";
+
+  // Шаг 2: В следующем кадре отрисовки включаем анимацию
+  // и перемещаем окно в конечную позицию.
   requestAnimationFrame(() => {
+    resultsModal.style.transition = "transform 0.3s ease-in-out";
     resultsModal.style.transform = "translateY(0)";
   });
 }
@@ -88,11 +95,12 @@ function closeModal() {
   // Запускаем анимацию закрытия
   resultsModal.style.transform = "translateY(100%)";
 
-  // Прячем элемент после завершения анимации, чтобы он не мешал
+  // Прячем элемент и сбрасываем стили ПОСЛЕ завершения анимации
   const onTransitionEnd = () => {
     resultsModal.classList.add("hidden");
-    // Убираем инлайновый стиль, чтобы окно могло открыться снова
+    // Убираем инлайновые стили, чтобы они не мешали следующему открытию
     resultsModal.style.transform = "";
+    resultsModal.style.transition = "";
     resultsModal.removeEventListener("transitionend", onTransitionEnd);
   };
   resultsModal.addEventListener("transitionend", onTransitionEnd);
