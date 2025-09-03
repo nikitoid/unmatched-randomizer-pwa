@@ -16,6 +16,7 @@ if ("serviceWorker" in navigator) {
 }
 
 // --- DOM Элементы ---
+const header = document.querySelector("header"); // Добавлен селектор для хедера
 const generateBtn = document.getElementById("generate-btn");
 const rerollTeamsBtn = document.getElementById("reroll-teams-btn");
 const rerollHeroesBtn = document.getElementById("reroll-heroes-btn");
@@ -74,16 +75,13 @@ let touchStartY = 0;
 let touchMoveY = 0;
 
 function openModal() {
+  header.classList.add("hidden-by-modal"); // Скрываем хедер
   modalOverlay.classList.remove("hidden");
   resultsModal.classList.remove("hidden");
 
-  // Шаг 1: Мгновенно ставим окно в начальную позицию (за экраном)
-  // без анимации.
   resultsModal.style.transition = "none";
   resultsModal.style.transform = "translateY(100%)";
 
-  // Шаг 2: В следующем кадре отрисовки включаем анимацию
-  // и перемещаем окно в конечную позицию.
   requestAnimationFrame(() => {
     resultsModal.style.transition = "transform 0.3s ease-in-out";
     resultsModal.style.transform = "translateY(0)";
@@ -91,14 +89,12 @@ function openModal() {
 }
 
 function closeModal() {
+  header.classList.remove("hidden-by-modal"); // Возвращаем хедер
   modalOverlay.classList.add("hidden");
-  // Запускаем анимацию закрытия
   resultsModal.style.transform = "translateY(100%)";
 
-  // Прячем элемент и сбрасываем стили ПОСЛЕ завершения анимации
   const onTransitionEnd = () => {
     resultsModal.classList.add("hidden");
-    // Убираем инлайновые стили, чтобы они не мешали следующему открытию
     resultsModal.style.transform = "";
     resultsModal.style.transition = "";
     resultsModal.removeEventListener("transitionend", onTransitionEnd);
@@ -108,35 +104,29 @@ function closeModal() {
 
 function handleTouchStart(e) {
   touchStartY = e.touches[0].clientY;
-  resultsModal.style.transition = "none"; // Отключаем анимацию во время свайпа
+  resultsModal.style.transition = "none";
 }
 
 function handleTouchMove(e) {
   touchMoveY = e.touches[0].clientY;
   const deltaY = touchMoveY - touchStartY;
 
-  // Позволяем свайпать только вниз
   if (deltaY > 0) {
-    e.preventDefault(); // Предотвращаем скролл страницы
+    e.preventDefault();
     resultsModal.style.transform = `translateY(${deltaY}px)`;
   }
 }
 
 function handleTouchEnd() {
   const deltaY = touchMoveY - touchStartY;
-
-  // Включаем анимацию для плавного закрытия или возврата
   resultsModal.style.transition = "transform 0.3s ease-in-out";
 
-  // Если свайпнули достаточно далеко (больше 100px), закрываем окно
   if (deltaY > 100) {
     closeModal();
   } else {
-    // Иначе возвращаем окно на место
     resultsModal.style.transform = "translateY(0)";
   }
 
-  // Сбрасываем координаты
   touchStartY = 0;
   touchMoveY = 0;
 }
@@ -177,7 +167,6 @@ rerollTeamsBtn.addEventListener("click", rerollTeams);
 rerollHeroesBtn.addEventListener("click", rerollHeroes);
 newHeroesBtn.addEventListener("click", getNewHeroes);
 
-// Обработчики для модального окна
 modalCloseBtn.addEventListener("click", closeModal);
 modalOverlay.addEventListener("click", closeModal);
 modalDragArea.addEventListener("touchstart", handleTouchStart, {

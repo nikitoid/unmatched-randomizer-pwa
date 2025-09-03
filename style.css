@@ -20,11 +20,10 @@
   --border-color: #dddddd;
 }
 
-/* Добавлено для фикса скролла */
 html,
 body {
   height: 100%;
-  overflow: hidden; /* Запрещаем скролл на всем документе */
+  overflow: hidden;
 }
 
 body {
@@ -35,7 +34,7 @@ body {
   color: var(--text-color);
   display: flex;
   justify-content: center;
-  align-items: center; /* Изменено с flex-start на center для вертикального выравнивания */
+  align-items: center;
   padding: 1rem;
   box-sizing: border-box;
 }
@@ -51,18 +50,22 @@ body {
 }
 
 header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   width: 100%;
   margin-bottom: 2rem;
+  /* Добавлено для анимации */
+  transition: transform 0.3s ease-in-out;
+}
+
+/* Класс для скрытия хедера */
+header.hidden-by-modal {
+  transform: translateY(-150%);
 }
 
 header h1 {
   margin: 0;
-  font-size: 1.8rem;
+  /* Уменьшен размер шрифта, чтобы он умещался в одну строку */
+  font-size: clamp(1.6rem, 7vw, 2rem);
   text-align: center;
-  flex-grow: 1;
 }
 
 .icon-btn {
@@ -73,6 +76,7 @@ header h1 {
   color: var(--text-color);
   opacity: 0.8;
   transition: opacity 0.2s;
+  flex-shrink: 0; /* Чтобы иконка не сжималась */
 }
 
 .icon-btn:hover {
@@ -93,6 +97,17 @@ main {
   flex-direction: column;
   gap: 1rem;
   margin-bottom: 2rem;
+}
+
+/* Новые стили для обертки селекта и кнопки */
+.list-settings-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.list-settings-wrapper select {
+  flex-grow: 1; /* Селект занимает все доступное место */
 }
 
 select,
@@ -158,7 +173,7 @@ button:hover {
 }
 
 .actions-panel #new-heroes-btn {
-  grid-column: 1 / -1; /* Кнопка занимает всю ширину */
+  grid-column: 1 / -1;
 }
 
 .hidden {
@@ -193,7 +208,7 @@ button:hover {
   border-top-right-radius: 16px;
   box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.3);
   z-index: 1001;
-  transform: translateY(100%); /* Начальное положение за экраном */
+  transform: translateY(100%);
   transition: transform 0.3s ease-in-out;
   max-height: 90vh;
   display: flex;
@@ -201,7 +216,6 @@ button:hover {
 }
 
 .modal.hidden {
-  /* Этот класс теперь нужен только для управления видимостью, а не положением */
   display: none !important;
 }
 
@@ -209,7 +223,7 @@ button:hover {
   padding: 1rem 0;
   width: 100%;
   cursor: grab;
-  touch-action: none; /* Важно для жестов свайпа */
+  touch-action: none;
   display: flex;
   justify-content: center;
 }
