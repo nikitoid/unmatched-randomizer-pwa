@@ -57,7 +57,7 @@ header {
 
 header.hidden-by-modal {
   /* Увеличено значение, чтобы заголовок уезжал полностью */
-  transform: translateY(-250%);
+  transform: translateY(-400%);
 }
 
 header h1 {
@@ -221,7 +221,8 @@ button:hover {
   width: 100%;
   cursor: grab;
   touch-action: none;
-  /* Позиционирование удалено, чтобы кнопка не привязывалась к этому блоку */
+  /* Устанавливаем как контекст позиционирования для дочерних элементов */
+  position: relative;
 }
 
 .drag-handle {
@@ -235,8 +236,10 @@ button:hover {
 
 .modal-close-btn {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  /* Центрируем по вертикали относительно родителя (.modal-drag-area) */
+  top: 50%;
+  right: 15px; /* Отступ справа */
+  transform: translateY(-50%);
 }
 
 .modal-content {
