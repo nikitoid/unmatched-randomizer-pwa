@@ -1,7 +1,7 @@
 // service-worker.js - Упрощенная версия для работы с Firebase
 
 // Мы используем v2, чтобы Service Worker гарантированно обновился
-const CACHE_NAME = "unmatched-randomizer-shell-v3";
+const CACHE_NAME = "unmatched-randomizer-shell-v4";
 const URLS_TO_CACHE = [
   "/",
   "/index.html",

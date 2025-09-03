@@ -55,7 +55,7 @@ $(document).ready(function () {
 
   // --- Основная логика рандомизации ---
   function generateTeams() {
-    const selectedListName = $("#hero-list").val(); // Берем текущее значение из главного селекта
+    const selectedListName = $("#hero-list").val();
     if (!selectedListName || !heroData.lists[selectedListName]) {
       alert("Данные о героях еще не загружены или список пуст.");
       return;
@@ -71,14 +71,19 @@ $(document).ready(function () {
     currentHeroes = [...heroes].sort(() => Math.random() - 0.5).slice(0, 4);
 
     displayResults();
-    $("#results-section, #controls-panel").removeClass("hidden");
+
+    // Открываем модальное окно результатов через Alpine.js
+    const alpineComponent = document.querySelector("[x-data]").__x;
+    alpineComponent.data.isResultsModalOpen = true;
   }
 
   function displayResults() {
+    // Теперь результаты отображаются в модальном окне
+    const resultsContent = $("#results-content");
     for (let i = 0; i < 4; i++) {
-      $(`#player${i + 1}`).text(
-        `Игрок ${currentPlayers[i]}: ${currentHeroes[i]}`
-      );
+      resultsContent
+        .find(`#player${i + 1}`)
+        .text(`Игрок ${currentPlayers[i]}: ${currentHeroes[i]}`);
     }
   }
 
@@ -93,6 +98,45 @@ $(document).ready(function () {
     if (!heroes || heroes.length < 4) return;
     currentHeroes = [...heroes].sort(() => Math.random() - 0.5).slice(0, 4);
     displayResults();
+  }
+
+  // --- Логика свайпа для закрытия модального окна результатов ---
+  function setupSwipeToClose() {
+    const panel = document.getElementById("results-panel");
+    const handle = document.getElementById("drag-handle");
+    let startY, startHeight;
+
+    const onTouchStart = (e) => {
+      startY = e.touches[0].clientY;
+      panel.style.transition = "none"; // Отключаем анимацию во время свайпа
+    };
+
+    const onTouchMove = (e) => {
+      const currentY = e.touches[0].clientY;
+      let deltaY = currentY - startY;
+      if (deltaY < 0) deltaY = 0; // Не даем свайпать вверх
+
+      panel.style.transform = `translateY(${deltaY}px)`;
+    };
+
+    const onTouchEnd = (e) => {
+      const currentY = e.changedTouches[0].clientY;
+      const deltaY = currentY - startY;
+      panel.style.transition = "transform 0.3s ease-out"; // Включаем анимацию обратно
+
+      if (deltaY > 100) {
+        // Если свайпнули достаточно далеко
+        const alpineComponent = document.querySelector("[x-data]").__x;
+        alpineComponent.data.isResultsModalOpen = false;
+        // Сброс transform будет обработан Alpine.js через классы
+      } else {
+        panel.style.transform = "translateY(0)"; // Возвращаем панель на место
+      }
+    };
+
+    handle.addEventListener("touchstart", onTouchStart, { passive: true });
+    handle.addEventListener("touchmove", onTouchMove, { passive: true });
+    handle.addEventListener("touchend", onTouchEnd);
   }
 
   // --- Инициализация и обработчики событий ---
@@ -123,13 +167,15 @@ $(document).ready(function () {
       }
     );
 
+    setupSwipeToClose();
+
     // -- ОБРАБОТЧИКИ СОБЫТИЙ --
     $("#generate-btn").on("click", generateTeams);
     $("#remix-teams-btn").on("click", rerollTeams);
     $("#remix-heroes-btn").on("click", rerollHeroes);
     $("#reset-btn").on("click", generateTeams);
 
-    // -- Логика модального окна --
+    // -- Логика модального окна настроек --
     $("#login-btn").on("click", async () => {
       const password = $("#password-input").val();
       const hash = await sha256(password);
@@ -142,19 +188,24 @@ $(document).ready(function () {
       }
     });
 
-    // Сброс состояния модального окна при закрытии
-    $("body").on("click", '[x-show="isModalOpen"]', function (event) {
-      if (
-        $(event.target).closest("[x-data]").length &&
-        !$(event.target).closest("[x-data] > div").length
-      ) {
-        setTimeout(() => {
-          $("#password-section").removeClass("hidden");
-          $("#management-section").addClass("hidden");
-          $("#password-input").val("");
-        }, 300); // Задержка для анимации закрытия
+    const settingsModal = document.querySelector(
+      '[x-show="isSettingsModalOpen"]'
+    );
+    const observer = new MutationObserver((mutations) => {
+      for (let mutation of mutations) {
+        if (
+          mutation.attributeName === "style" &&
+          settingsModal.style.display === "none"
+        ) {
+          setTimeout(() => {
+            $("#password-section").removeClass("hidden");
+            $("#management-section").addClass("hidden");
+            $("#password-input").val("");
+          }, 300);
+        }
       }
     });
+    observer.observe(settingsModal, { attributes: true });
 
     $("#modal-list-select").on("change", updateModalTextarea);
 

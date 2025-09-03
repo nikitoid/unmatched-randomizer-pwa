@@ -1,29 +1,14 @@
-/* Убираем почти все стили, так как теперь их контролирует Tailwind */
-/* Оставляем только переменные темы и базовые стили для body */
-
-:root {
-  --primary-bg: #1a202c; /* соответствует bg-gray-900 */
-  --secondary-bg: #2d3748; /* соответствует bg-gray-800 */
-  --text-primary: #edf2f7; /* соответствует text-gray-200 */
-  --accent-color: #3182ce; /* соответствует bg-blue-600 */
-}
+/* Убираем старые переменные, т.к. Tailwind теперь управляет темами */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 body {
-  background-color: var(--primary-bg);
-  color: var(--text-primary);
-  font-family: sans-serif; /* Tailwind подключит свой шрифт по умолчанию */
+  -webkit-tap-highlight-color: transparent; /* Убирает синюю подсветку при тапе на iOS */
 }
 
-/* Анимация для иконки-загрузчика */
-#update-indicator svg {
-  animation: spin 2s linear infinite;
-}
-
-@keyframes spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+/* Стили для модального окна результатов, чтобы оно изначально было за экраном */
+#results-panel {
+  transform: translateY(100%);
+  touch-action: none; /* Предотвращает прокрутку страницы при свайпе панели */
 }

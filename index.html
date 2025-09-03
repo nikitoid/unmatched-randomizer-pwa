@@ -1,40 +1,102 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" class="dark">
+  <!-- Устанавливаем темную тему по умолчанию -->
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
     <title>Randomatched</title>
 
-    <meta name="theme-color" content="#1a202c" />
+    <meta name="theme-color" content="#111827" />
+    <!-- Цвет для темной темы -->
     <link rel="manifest" href="manifest.json" />
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 
     <link rel="stylesheet" href="style.css" />
 
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Конфигурация Tailwind для поддержки темной темы через класс
+      tailwind.config = {
+        darkMode: "class",
+      };
+    </script>
     <script src="//unpkg.com/alpinejs" defer></script>
   </head>
-  <body class="bg-gray-900 text-gray-200 font-sans">
+  <body
+    class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300"
+  >
     <div
-      class="container mx-auto p-4 flex flex-col items-center min-h-screen justify-center"
-      x-data="{ isModalOpen: false }"
-      @keydown.escape.window="isModalOpen = false"
+      class="container mx-auto p-4 flex flex-col items-center min-h-screen justify-center relative overflow-hidden"
+      x-data="appState"
+      @keydown.escape.window="isSettingsModalOpen = false; isResultsModalOpen = false"
     >
+      <!-- Кнопка переключения темы -->
+      <div class="absolute top-4 left-4">
+        <button
+          @click="toggleTheme"
+          class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+        >
+          <svg
+            x-show="!isDark"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="text-yellow-500"
+          >
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+          </svg>
+          <svg
+            x-show="isDark"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="text-blue-400"
+          >
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+          </svg>
+        </button>
+      </div>
+
       <header class="w-full max-w-md text-center mb-8">
-        <h1 class="text-3xl font-bold text-white">Randomatched</h1>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+          Randomatched
+        </h1>
       </header>
 
       <main class="w-full max-w-md flex-grow flex flex-col items-center">
         <div class="w-full mb-6">
           <label
             for="hero-list"
-            class="block mb-2 text-sm font-medium text-gray-400"
+            class="block mb-2 text-sm font-medium text-gray-500 dark:text-gray-400"
             >Список героев:</label
           >
           <div class="flex items-center gap-2">
             <select
               id="hero-list"
-              class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+              class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
             >
               <!-- Options will be populated by app.js -->
             </select>
@@ -42,8 +104,8 @@
             <div class="relative w-10 h-10 flex-shrink-0">
               <button
                 id="settings-btn"
-                @click="isModalOpen = true"
-                class="absolute inset-0 flex items-center justify-center p-2 rounded-full hover:bg-gray-700 transition-colors"
+                @click="isSettingsModalOpen = true"
+                class="absolute inset-0 flex items-center justify-center p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
@@ -67,7 +129,7 @@
                 class="icon-btn hidden absolute inset-0 flex items-center justify-center p-2"
               >
                 <svg
-                  class="animate-spin"
+                  class="animate-spin text-blue-500"
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
                   height="24"
@@ -94,49 +156,15 @@
 
         <button
           id="generate-btn"
-          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform active:scale-95"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform active:scale-95 shadow-lg shadow-blue-500/20"
         >
           СГЕНЕРИРОВАТЬ КОМАНДЫ
         </button>
-
-        <section
-          id="results-section"
-          class="w-full mt-8 p-4 bg-gray-800 rounded-lg hidden"
-        >
-          <div id="player1" class="py-2 border-b border-gray-700"></div>
-          <div id="player2" class="py-2 border-b border-gray-700"></div>
-          <div id="player3" class="py-2 border-b border-gray-700"></div>
-          <div id="player4" class="py-2"></div>
-        </section>
-
-        <div
-          id="controls-panel"
-          class="w-full mt-4 grid grid-cols-3 gap-2 hidden"
-        >
-          <button
-            id="remix-teams-btn"
-            class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg text-sm transition-transform transform active:scale-95"
-          >
-            Перемешать команды
-          </button>
-          <button
-            id="remix-heroes-btn"
-            class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-3 rounded-lg text-sm transition-transform transform active:scale-95"
-          >
-            Перемешать героев
-          </button>
-          <button
-            id="reset-btn"
-            class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-sm transition-transform transform active:scale-95"
-          >
-            Полный сброс
-          </button>
-        </div>
       </main>
 
-      <!-- Модальное окно -->
+      <!-- Модальное окно Настроек -->
       <div
-        x-show="isModalOpen"
+        x-show="isSettingsModalOpen"
         x-transition:enter="ease-out duration-300"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
@@ -147,138 +175,107 @@
         style="display: none"
       >
         <div
-          @click.away="isModalOpen = false"
-          class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md"
+          @click.away="isSettingsModalOpen = false"
+          class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md"
         >
-          <h2 class="text-xl font-bold mb-4">Настройки списков</h2>
+          <!-- Содержимое модального окна настроек -->
+        </div>
+      </div>
 
-          <div id="password-section">
-            <label
-              for="password-input"
-              class="block mb-2 text-sm font-medium text-gray-400"
-              >Введите пароль для доступа:</label
-            >
-            <div class="flex gap-2">
-              <input
-                type="password"
-                id="password-input"
-                class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                placeholder="••••••••"
-              />
-              <button
-                id="login-btn"
-                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg"
-              >
-                Войти
-              </button>
-            </div>
-          </div>
+      <!-- Модальное окно Результатов -->
+      <div
+        x-show="isResultsModalOpen"
+        class="fixed inset-0 z-40"
+        style="display: none"
+      >
+        <!-- Backdrop -->
+        <div
+          @click="isResultsModalOpen = false"
+          x-show="isResultsModalOpen"
+          x-transition:enter="ease-out duration-300"
+          x-transition:enter-start="opacity-0"
+          x-transition:enter-end="opacity-100"
+          x-transition:leave="ease-in duration-200"
+          x-transition:leave-start="opacity-100"
+          x-transition:leave-end="opacity-0"
+          class="absolute inset-0 bg-black bg-opacity-60"
+        ></div>
 
-          <div id="management-section" class="hidden">
-            <div class="mb-4">
-              <label
-                for="modal-list-select"
-                class="block mb-2 text-sm font-medium text-gray-400"
-                >Выберите список для редактирования:</label
-              >
-              <div class="flex gap-2 items-center">
-                <select
-                  id="modal-list-select"
-                  class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                ></select>
-                <button
-                  id="set-default-btn"
-                  title="Установить по умолчанию"
-                  class="bg-gray-600 hover:bg-gray-500 text-white font-bold p-2.5 rounded-lg"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="2"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                  >
-                    <path d="M5 12l5 5l10 -10"></path>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div class="mb-4">
-              <label
-                for="heroes-textarea"
-                class="block mb-2 text-sm font-medium text-gray-400"
-                >Герои (каждый с новой строки):</label
-              >
-              <textarea
-                id="heroes-textarea"
-                rows="8"
-                class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-              ></textarea>
-            </div>
-
-            <div class="flex justify-between items-center mb-6">
-              <button
-                id="save-list-btn"
-                class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
-              >
-                Сохранить
-              </button>
-              <button
-                id="delete-list-btn"
-                class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg"
-              >
-                Удалить
-              </button>
-            </div>
-
-            <hr class="border-gray-600" />
-
-            <div class="mt-6">
-              <label
-                for="new-list-name"
-                class="block mb-2 text-sm font-medium text-gray-400"
-                >Или создайте новый список:</label
-              >
-              <div class="flex gap-2">
-                <input
-                  type="text"
-                  id="new-list-name"
-                  class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-                  placeholder="Название нового списка"
-                />
-                <button
-                  id="create-list-btn"
-                  class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg"
-                >
-                  Создать
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <button
-            @click="isModalOpen = false"
-            class="absolute top-3 right-3 text-gray-400 hover:text-white"
+        <!-- Sliding Panel -->
+        <div
+          id="results-panel"
+          class="absolute bottom-0 left-0 right-0 bg-white dark:bg-gray-800 rounded-t-2xl shadow-2xl p-4 transform transition-transform duration-300 ease-out"
+          :class="{'translate-y-0': isResultsModalOpen, 'translate-y-full': !isResultsModalOpen}"
+        >
+          <div
+            id="drag-handle"
+            class="w-full flex justify-center py-2 cursor-grab"
           >
-            <svg
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
+            <div
+              class="w-12 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-full"
+            ></div>
+          </div>
+
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white">
+              Результаты
+            </h3>
+            <button
+              @click="isResultsModalOpen = false"
+              class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              ></path>
-            </svg>
-          </button>
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M6 18L18 6M6 6l12 12"
+                ></path>
+              </svg>
+            </button>
+          </div>
+
+          <section id="results-content" class="w-full text-lg">
+            <div
+              id="player1"
+              class="py-3 border-b border-gray-200 dark:border-gray-700"
+            ></div>
+            <div
+              id="player2"
+              class="py-3 border-b border-gray-200 dark:border-gray-700"
+            ></div>
+            <div
+              id="player3"
+              class="py-3 border-b border-gray-200 dark:border-gray-700"
+            ></div>
+            <div id="player4" class="py-3"></div>
+          </section>
+
+          <div id="controls-panel" class="w-full mt-6 grid grid-cols-3 gap-2">
+            <button
+              id="remix-teams-btn"
+              class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 font-bold py-2 px-3 rounded-lg text-sm transition-transform transform active:scale-95"
+            >
+              Перемешать команды
+            </button>
+            <button
+              id="remix-heroes-btn"
+              class="bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 font-bold py-2 px-3 rounded-lg text-sm transition-transform transform active:scale-95"
+            >
+              Перемешать героев
+            </button>
+            <button
+              id="reset-btn"
+              class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-sm transition-transform transform active:scale-95"
+            >
+              Полный сброс
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -289,6 +286,7 @@
       import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
       import { getFirestore } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
 
+      // ВАШИ КЛЮЧИ FIREBASE
       const firebaseConfig = {
         apiKey: "AIzaSyBSvSbR_NJj7riu0HZPz3nile1X4tuxfsI",
         authDomain: "unmatched-randomizer.firebaseapp.com",
@@ -303,9 +301,45 @@
       window.db = getFirestore(app);
     </script>
 
+    <script>
+      // Глобальное состояние для Alpine.js
+      document.addEventListener("alpine:init", () => {
+        Alpine.data("appState", () => ({
+          isDark: true,
+          isSettingsModalOpen: false,
+          isResultsModalOpen: false,
+          init() {
+            const savedTheme = localStorage.getItem("theme");
+            if (
+              savedTheme === "dark" ||
+              (savedTheme === null &&
+                window.matchMedia("(prefers-color-scheme: dark)").matches)
+            ) {
+              this.isDark = true;
+              document.documentElement.classList.add("dark");
+            } else {
+              this.isDark = false;
+              document.documentElement.classList.remove("dark");
+            }
+          },
+          toggleTheme() {
+            this.isDark = !this.isDark;
+            if (this.isDark) {
+              document.documentElement.classList.add("dark");
+              localStorage.setItem("theme", "dark");
+            } else {
+              document.documentElement.classList.remove("dark");
+              localStorage.setItem("theme", "light");
+            }
+          },
+        }));
+      });
+    </script>
+
     <script src="app.js" type="module"></script>
 
     <script>
+      // Регистрация Service Worker
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("/service-worker.js").then((reg) => {
