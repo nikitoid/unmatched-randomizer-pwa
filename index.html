@@ -23,6 +23,7 @@
   <body class="bg-gray-900 text-gray-200 font-sans">
     <div
       class="container mx-auto p-4 flex flex-col items-center min-h-screen justify-center"
+      x-data="{ isModalOpen: false }"
     >
       <!-- Заголовок -->
       <header class="w-full max-w-md text-center mb-8">
@@ -42,13 +43,14 @@
               id="hero-list"
               class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
             >
-              <option selected>Default</option>
+              <!-- Options will be populated by app.js -->
             </select>
 
             <!-- Контейнер для иконок -->
             <div class="relative w-10 h-10 flex-shrink-0">
               <button
                 id="settings-btn"
+                @click="isModalOpen = true"
                 class="absolute inset-0 flex items-center justify-center p-2 rounded-full hover:bg-gray-700 transition-colors"
               >
                 <!-- Иконка шестерёнки -->
@@ -144,11 +146,143 @@
           </button>
         </div>
       </main>
+
+      <!-- Модальное окно настроек -->
+      <div
+        x-show="isModalOpen"
+        x-transition:enter="ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50"
+        style="display: none"
+      >
+        <div
+          @click.away="isModalOpen = false"
+          class="bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md"
+        >
+          <h2 class="text-xl font-bold mb-4">Настройки списков</h2>
+
+          <!-- Секция ввода пароля -->
+          <div id="password-section">
+            <label
+              for="password-input"
+              class="block mb-2 text-sm font-medium text-gray-400"
+              >Введите пароль для доступа:</label
+            >
+            <div class="flex gap-2">
+              <input
+                type="password"
+                id="password-input"
+                class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                placeholder="••••••••"
+              />
+              <button
+                id="login-btn"
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition-transform transform active:scale-95"
+              >
+                Войти
+              </button>
+            </div>
+          </div>
+
+          <!-- Секция управления списками (скрыта по умолчанию) -->
+          <div id="management-section" class="hidden">
+            <div class="mb-4">
+              <label
+                for="modal-list-select"
+                class="block mb-2 text-sm font-medium text-gray-400"
+                >Выберите список для редактирования:</label
+              >
+              <select
+                id="modal-list-select"
+                class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+              >
+                <!-- Options will be populated by app.js -->
+              </select>
+            </div>
+
+            <div class="mb-4">
+              <label
+                for="heroes-textarea"
+                class="block mb-2 text-sm font-medium text-gray-400"
+                >Герои (каждый с новой строки):</label
+              >
+              <textarea
+                id="heroes-textarea"
+                rows="8"
+                class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+              ></textarea>
+            </div>
+
+            <div class="flex justify-between items-center mb-6">
+              <button
+                id="save-list-btn"
+                class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg"
+              >
+                Сохранить
+              </button>
+              <button
+                id="delete-list-btn"
+                class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded-lg"
+              >
+                Удалить
+              </button>
+            </div>
+
+            <hr class="border-gray-600" />
+
+            <div class="mt-6">
+              <label
+                for="new-list-name"
+                class="block mb-2 text-sm font-medium text-gray-400"
+                >Или создайте новый список:</label
+              >
+              <div class="flex gap-2">
+                <input
+                  type="text"
+                  id="new-list-name"
+                  class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
+                  placeholder="Название нового списка"
+                />
+                <button
+                  id="create-list-btn"
+                  class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg"
+                >
+                  Создать
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <button
+            @click="isModalOpen = false"
+            class="absolute top-3 right-3 text-gray-400 hover:text-white"
+          >
+            <svg
+              class="w-6 h-6"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"
+              ></path>
+            </svg>
+          </button>
+        </div>
+      </div>
     </div>
 
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="app.js"></script>
     <script>
+      // Код регистрации Service Worker остается без изменений
       if ("serviceWorker" in navigator) {
         navigator.serviceWorker
           .register("/service-worker.js")
@@ -160,14 +294,12 @@
                   newWorker.state === "installed" &&
                   navigator.serviceWorker.controller
                 ) {
-                  // Показываем индикатор обновления
                   document
                     .getElementById("settings-btn")
                     .classList.add("hidden");
                   document
                     .getElementById("update-indicator")
                     .classList.remove("hidden");
-                  // Можно добавить задержку перед перезагрузкой, чтобы пользователь увидел анимацию
                   setTimeout(() => {
                     window.location.reload();
                   }, 1500);

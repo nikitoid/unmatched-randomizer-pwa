@@ -1,5 +1,9 @@
 $(document).ready(function () {
-  // --- ИСХОДНЫЕ ДАННЫЕ ---
+  // --- Глобальные переменные и константы ---
+  let currentPlayers = [];
+  let currentHeroes = [];
+  const PWD_HASH =
+    "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"; // SHA-256 for '1234'
   const defaultHeroes = [
     "Алиса",
     "Медуза",
@@ -9,102 +13,230 @@ $(document).ready(function () {
     "Робин Гуд",
   ];
 
-  // --- ТЕКУЩЕЕ СОСТОЯНИЕ ---
-  // Эти массивы будут хранить текущее состояние для функций "перемешивания"
-  let currentPlayers = [];
-  let currentHeroes = [];
-
-  // --- UI ЭЛЕМЕНТЫ ---
-  const generateBtn = $("#generate-btn");
-  const resultsSection = $("#results-section");
-  const controlsPanel = $("#controls-panel");
-  const remixTeamsBtn = $("#remix-teams-btn");
-  const remixHeroesBtn = $("#remix-heroes-btn");
-  const resetBtn = $("#reset-btn");
-
-  // --- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ---
+  // --- Функции для работы с localStorage ---
 
   /**
-   * Перемешивает массив на месте, используя алгоритм Фишера-Йетса.
-   * @param {Array} array Массив для перемешивания.
-   * @returns {Array} Перемешанный массив.
+   * Загружает списки героев из localStorage или создает дефолтный.
+   * @returns {object} - Объект со списками героев.
    */
-  function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
+  function loadListsFromStorage() {
+    let data = localStorage.getItem("heroLists");
+    if (!data) {
+      data = {
+        selected: "Default",
+        lists: {
+          Default: defaultHeroes,
+        },
+      };
+      saveListsToStorage(data);
+      return data;
     }
-    return array;
+    return JSON.parse(data);
   }
 
   /**
-   * Обновляет DOM, отображая текущее распределение игроков и героев.
+   * Сохраняет объект со списками в localStorage.
+   * @param {object} data - Объект для сохранения.
    */
-  function displayResults() {
-    // Проходимся по 4 строкам для игроков
-    for (let i = 0; i < 4; i++) {
-      const playerNumber = currentPlayers[i];
-      const heroName = currentHeroes[i];
-      // ID блоков для игроков - "player1", "player2" и т.д.
-      // Индекс цикла `i` (0-3), поэтому добавляем 1, чтобы выбрать нужный div.
-      $(`#player${i + 1}`).text(`Игрок ${playerNumber}: ${heroName}`);
+  function saveListsToStorage(data) {
+    localStorage.setItem("heroLists", JSON.stringify(data));
+  }
+
+  // --- Функции для хэширования ---
+
+  /**
+   * Асинхронно хэширует строку с помощью SHA-256.
+   * @param {string} message - Строка для хэширования.
+   * @returns {Promise<string>} - Хэш в виде hex-строки.
+   */
+  async function sha256(message) {
+    const msgBuffer = new TextEncoder().encode(message);
+    const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    return hashHex;
+  }
+
+  // --- Функции для обновления UI ---
+
+  /**
+   * Заполняет выпадающие списки (select) на основе данных из localStorage.
+   */
+  function populateSelects() {
+    const data = loadListsFromStorage();
+    const mainSelect = $("#hero-list");
+    const modalSelect = $("#modal-list-select");
+
+    mainSelect.empty();
+    modalSelect.empty();
+
+    for (const listName in data.lists) {
+      mainSelect.append(
+        $("<option>", {
+          value: listName,
+          text: listName,
+        })
+      );
+      modalSelect.append(
+        $("<option>", {
+          value: listName,
+          text: listName,
+        })
+      );
+    }
+    mainSelect.val(data.selected);
+    modalSelect.val(data.selected);
+    updateModalTextarea();
+  }
+
+  /**
+   * Обновляет textarea в модальном окне на основе выбранного списка.
+   */
+  function updateModalTextarea() {
+    const data = loadListsFromStorage();
+    const selectedList = $("#modal-list-select").val();
+    if (selectedList && data.lists[selectedList]) {
+      const heroesText = data.lists[selectedList].join("\n");
+      $("#heroes-textarea").val(heroesText);
     }
   }
 
-  // --- ОСНОВНЫЕ ФУНКЦИИ ---
+  // --- Основная логика рандомизации ---
 
   /**
-   * Основная функция для генерации команд и героев с нуля.
+   * Основная функция для генерации команд.
    */
   function generateTeams() {
-    // 1. Создаем и перемешиваем номера игроков [1, 2, 3, 4]
-    currentPlayers = shuffleArray([1, 2, 3, 4]);
+    const data = loadListsFromStorage();
+    const selectedListName = data.selected;
+    const heroes = data.lists[selectedListName];
 
-    // 2. Создаем копию списка героев, перемешиваем ее и берем первых 4-х.
-    const shuffledHeroes = shuffleArray([...defaultHeroes]);
+    if (!heroes || heroes.length < 4) {
+      alert("В выбранном списке должно быть не менее 4 героев!");
+      return;
+    }
+
+    currentPlayers = [1, 2, 3, 4].sort(() => Math.random() - 0.5);
+    const shuffledHeroes = [...heroes].sort(() => Math.random() - 0.5);
     currentHeroes = shuffledHeroes.slice(0, 4);
 
-    // 3. Отображаем результат в UI.
     displayResults();
-
-    // 4. Показываем секцию с результатами и панель с доп. кнопками.
-    resultsSection.removeClass("hidden");
-    controlsPanel.removeClass("hidden");
+    $("#results-section, #controls-panel").removeClass("hidden");
   }
 
   /**
-   * Перемешивает только номера игроков, оставляя героев на их местах.
+   * Отображает результаты в UI.
    */
+  function displayResults() {
+    for (let i = 0; i < 4; i++) {
+      $(`#player${i + 1}`).text(
+        `Игрок ${currentPlayers[i]}: ${currentHeroes[i]}`
+      );
+    }
+  }
+
   function rerollTeams() {
-    // Защита от запуска до первой генерации
-    if (currentPlayers.length === 0) return;
-
-    currentPlayers = shuffleArray(currentPlayers);
+    currentPlayers.sort(() => Math.random() - 0.5);
     displayResults();
   }
 
-  /**
-   * Перемешивает только героев, оставляя номера игроков на их местах.
-   */
   function rerollHeroes() {
-    // Защита от запуска до первой генерации
-    if (currentPlayers.length === 0) return;
+    const data = loadListsFromStorage();
+    const heroes = data.lists[data.selected];
+    if (!heroes || heroes.length < 4) return;
 
-    const shuffledHeroes = shuffleArray([...defaultHeroes]);
+    const shuffledHeroes = [...heroes].sort(() => Math.random() - 0.5);
     currentHeroes = shuffledHeroes.slice(0, 4);
     displayResults();
   }
 
-  /**
-   * Выполняет полный сброс (аналогично первой генерации).
-   */
-  function fullReset() {
-    generateTeams();
+  // --- Инициализация и обработчики событий ---
+
+  function initApp() {
+    populateSelects();
+
+    // -- Обработчики главного экрана --
+    $("#generate-btn").on("click", generateTeams);
+    $("#remix-teams-btn").on("click", rerollTeams);
+    $("#remix-heroes-btn").on("click", rerollHeroes);
+    $("#reset-btn").on("click", generateTeams);
+
+    $("#hero-list").on("change", function () {
+      const data = loadListsFromStorage();
+      data.selected = $(this).val();
+      saveListsToStorage(data);
+    });
+
+    // -- Обработчики модального окна --
+    $("#login-btn").on("click", async function () {
+      const password = $("#password-input").val();
+      const hash = await sha256(password);
+      if (hash === PWD_HASH) {
+        $("#password-section").addClass("hidden");
+        $("#management-section").removeClass("hidden");
+      } else {
+        alert("Неверный пароль!");
+        $("#password-input").val("");
+      }
+    });
+
+    $("#modal-list-select").on("change", updateModalTextarea);
+
+    $("#save-list-btn").on("click", function () {
+      const listName = $("#modal-list-select").val();
+      const heroesText = $("#heroes-textarea").val();
+      const heroes = heroesText
+        .split("\n")
+        .map((h) => h.trim())
+        .filter((h) => h);
+
+      const data = loadListsFromStorage();
+      data.lists[listName] = heroes;
+      saveListsToStorage(data);
+      alert(`Список "${listName}" сохранен!`);
+    });
+
+    $("#create-list-btn").on("click", function () {
+      const newName = $("#new-list-name").val().trim();
+      if (!newName) {
+        alert("Введите имя нового списка!");
+        return;
+      }
+      const data = loadListsFromStorage();
+      if (data.lists[newName]) {
+        alert("Список с таким именем уже существует!");
+        return;
+      }
+      data.lists[newName] = [];
+      saveListsToStorage(data);
+      populateSelects();
+      $("#modal-list-select").val(newName);
+      updateModalTextarea();
+      $("#new-list-name").val("");
+      alert(`Список "${newName}" создан!`);
+    });
+
+    $("#delete-list-btn").on("click", function () {
+      const listName = $("#modal-list-select").val();
+      const data = loadListsFromStorage();
+      if (Object.keys(data.lists).length <= 1) {
+        alert("Нельзя удалить последний список!");
+        return;
+      }
+      if (confirm(`Вы уверены, что хотите удалить список "${listName}"?`)) {
+        delete data.lists[listName];
+        // Если удалили активный список, переключаемся на первый доступный
+        if (data.selected === listName) {
+          data.selected = Object.keys(data.lists)[0];
+        }
+        saveListsToStorage(data);
+        populateSelects();
+      }
+    });
   }
 
-  // --- ОБРАБОТЧИКИ СОБЫТИЙ ---
-  generateBtn.on("click", generateTeams);
-  remixTeamsBtn.on("click", rerollTeams);
-  remixHeroesBtn.on("click", rerollHeroes);
-  resetBtn.on("click", fullReset);
+  // Запускаем приложение
+  initApp();
 });
