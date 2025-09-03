@@ -32,8 +32,14 @@
       class="container mx-auto p-4 flex flex-col items-center min-h-screen justify-center relative overflow-hidden"
       x-data="appState"
       @keydown.escape.window="isSettingsModalOpen = false; isResultsModalOpen = false"
-      @open-results.window="isResultsModalOpen = true"
     >
+      <!-- Скрытая кнопка для надежного открытия модального окна из jQuery -->
+      <button
+        id="trigger-results-modal"
+        @click="isResultsModalOpen = true"
+        class="hidden"
+      ></button>
+
       <!-- Кнопка переключения темы -->
       <div class="absolute top-4 left-4">
         <button
@@ -42,7 +48,7 @@
         >
           <svg
             x-show="!isDark"
-            xmlns="http://www.w3.org/2000/svg"
+            xmlns="http://www.w.org/2000/svg"
             width="24"
             height="24"
             viewBox="0 0 24 24"
