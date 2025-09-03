@@ -74,15 +74,28 @@ let touchStartY = 0;
 let touchMoveY = 0;
 
 function openModal() {
-  resultsModal.classList.remove("hidden");
   modalOverlay.classList.remove("hidden");
+  resultsModal.classList.remove("hidden");
+
+  // Форсируем перерисовку браузером, чтобы анимация сработала
+  requestAnimationFrame(() => {
+    resultsModal.style.transform = "translateY(0)";
+  });
 }
 
 function closeModal() {
-  resultsModal.classList.add("hidden");
   modalOverlay.classList.add("hidden");
-  // Сбрасываем инлайновые стили трансформации после свайпа
-  resultsModal.style.transform = "";
+  // Запускаем анимацию закрытия
+  resultsModal.style.transform = "translateY(100%)";
+
+  // Прячем элемент после завершения анимации, чтобы он не мешал
+  const onTransitionEnd = () => {
+    resultsModal.classList.add("hidden");
+    // Убираем инлайновый стиль, чтобы окно могло открыться снова
+    resultsModal.style.transform = "";
+    resultsModal.removeEventListener("transitionend", onTransitionEnd);
+  };
+  resultsModal.addEventListener("transitionend", onTransitionEnd);
 }
 
 function handleTouchStart(e) {
