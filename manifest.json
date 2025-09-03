@@ -1,22 +1,29 @@
 {
   "name": "Unmatched Randomizer",
   "short_name": "Randomizer",
-  "start_url": ".",
+  "description": "A simple tool to randomize teams and heroes for the Unmatched board game.",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#1a1a1a",
-  "description": "Приложение для случайного подбора команд и героев в игре Unmatched.",
+  "background_color": "#1a202c",
+  "theme_color": "#1a202c",
+  "orientation": "portrait",
   "icons": [
     {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
       "src": "icons/icon-192.png",
-      "sizes": "192x192",
       "type": "image/png",
+      "sizes": "192x192",
       "purpose": "any maskable"
     },
     {
       "src": "icons/icon-512.png",
-      "sizes": "512x512",
       "type": "image/png",
+      "sizes": "512x512",
       "purpose": "any maskable"
     }
   ]
