@@ -1,7 +1,7 @@
-// Имя кэша
-const CACHE_NAME = "unmatched-randomizer-v3"; // Увеличил версию кэша для обновления
+// Имя кэша - версия увеличена для принудительного обновления
+const CACHE_NAME = "unmatched-randomizer-v4";
 
-// Файлы, которые нужно кэшировать (основные ресурсы)
+// Файлы, которые нужно кэшировать. Путь '/' указывает на корневой index.html
 const urlsToCache = [
   "/",
   "index.html",
@@ -10,7 +10,7 @@ const urlsToCache = [
   "manifest.json",
   "icons/icon-192.png",
   "icons/icon-512.png",
-  "icons/icon-maskable-512.svg", // Добавлена маскируемая иконка
+  "icons/icon-maskable-512.svg",
 ];
 
 // Установка Service Worker и кэширование ресурсов
@@ -18,7 +18,7 @@ self.addEventListener("install", (event) => {
   self.skipWaiting();
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      console.log("Opened cache");
+      console.log("Opened cache and caching files");
       return cache.addAll(urlsToCache);
     })
   );
@@ -43,7 +43,7 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Обработка запросов (fetch)
+// Обработка запросов (fetch) - стратегия "сначала кэш, потом сеть"
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") {
     return;
@@ -52,9 +52,9 @@ self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
       if (response) {
-        return response;
+        return response; // Возвращаем из кэша, если найдено
       }
-      return fetch(event.request);
+      return fetch(event.request); // Иначе идем в сеть
     })
   );
 });
