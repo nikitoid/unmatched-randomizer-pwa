@@ -1,5 +1,5 @@
 // Имя кэша - версия увеличена для принудительного обновления
-const CACHE_NAME = "unmatched-randomizer-v4";
+const CACHE_NAME = "unmatched-randomizer-v5";
 
 // Файлы, которые нужно кэшировать. Путь '/' указывает на корневой index.html
 const urlsToCache = [

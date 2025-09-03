@@ -1,4 +1,4 @@
-// --- Service Worker Registration ---
+// --- PWA Service Worker Registration ---
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
@@ -16,16 +16,14 @@ if ("serviceWorker" in navigator) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const APP_VERSION = "v0.2";
-
   // --- DOM Elements ---
   const generateBtn = document.getElementById("generate-btn");
+  const resultsContainer = document.getElementById("results-container");
   const resultsOutput = document.getElementById("results-output");
+  const actionsPanel = document.getElementById("actions-panel");
   const rerollTeamsBtn = document.getElementById("reroll-teams-btn");
   const rerollHeroesBtn = document.getElementById("reroll-heroes-btn");
   const newHeroesBtn = document.getElementById("new-heroes-btn");
-  const header = document.querySelector("header");
-  const versionInfo = document.getElementById("version-info");
 
   // Modal elements
   const modalOverlay = document.getElementById("modal-overlay");
@@ -33,7 +31,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalCloseBtn = document.getElementById("modal-close-btn");
   const modalDragArea = document.getElementById("modal-drag-area");
 
-  // --- State ---
+  // Background elements to hide
+  const header = document.querySelector("header");
+  const mainContent = document.querySelector("main");
+
+  // --- Data ---
   const defaultHeroes = [
     "Алиса",
     "Медуза",
@@ -44,28 +46,22 @@ document.addEventListener("DOMContentLoaded", () => {
     "Шерлок Холмс",
     "Дракула",
   ];
-  let currentPlayers = [];
-  let currentHeroes = [];
+  const players = [1, 2, 3, 4];
 
-  // --- Initial Setup ---
-  versionInfo.textContent = APP_VERSION;
+  let currentHeroes = [];
+  let currentPlayers = [];
 
   // --- Utility Functions ---
-  const shuffleArray = (array) => {
-    const newArray = [...array];
-    for (let i = newArray.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-    }
-    return newArray;
-  };
+  const shuffleArray = (array) => array.slice().sort(() => Math.random() - 0.5);
 
-  const renderResults = () => {
+  // --- Core Logic ---
+  const displayResults = () => {
     resultsOutput.innerHTML = "";
     const combined = currentPlayers.map((player, index) => ({
       player,
       hero: currentHeroes[index],
     }));
+
     combined.sort((a, b) => a.player - b.player);
 
     combined.forEach((item) => {
@@ -76,76 +72,85 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   };
 
-  // --- Core Logic ---
   const generateTeams = () => {
-    currentPlayers = shuffleArray([1, 2, 3, 4]);
+    currentPlayers = shuffleArray(players);
     const shuffledHeroes = shuffleArray(defaultHeroes);
     currentHeroes = shuffledHeroes.slice(0, 4);
-    renderResults();
+    displayResults();
     openModal();
   };
 
   const rerollTeams = () => {
-    currentPlayers = shuffleArray(currentPlayers);
-    renderResults();
+    currentPlayers = shuffleArray(players);
+    displayResults();
   };
 
   const rerollHeroes = () => {
     currentHeroes = shuffleArray(currentHeroes);
-    renderResults();
+    displayResults();
   };
 
-  const getNewHeroes = () => {
+  const newHeroes = () => {
     const shuffledHeroes = shuffleArray(defaultHeroes);
     currentHeroes = shuffledHeroes.slice(0, 4);
-    renderResults();
+    displayResults();
   };
 
   // --- Modal Logic ---
+  let isModalOpen = false;
+
   const openModal = () => {
+    if (isModalOpen) return;
+    isModalOpen = true;
     modalOverlay.classList.remove("hidden");
-    header.classList.add("hidden-by-modal");
-    // Delay to allow the browser to render the initial state before animating
+    modal.classList.remove("hidden");
+
+    // Allow browser to paint the hidden state first
     requestAnimationFrame(() => {
-      setTimeout(() => {
-        modal.style.transform = "translateY(0)";
-        modalOverlay.style.opacity = "1";
-      }, 10);
+      modalOverlay.style.opacity = "1";
+      modal.style.transform = "translateY(0)";
+      header.classList.add("hidden-by-modal");
+      mainContent.classList.add("hidden-by-modal");
     });
   };
 
   const closeModal = () => {
-    modal.style.transform = "translateY(100%)";
+    if (!isModalOpen) return;
+    isModalOpen = false;
     modalOverlay.style.opacity = "0";
+    modal.style.transform = "translateY(100%)";
     header.classList.remove("hidden-by-modal");
+    mainContent.classList.remove("hidden-by-modal");
+
+    // Hide after animation
     setTimeout(() => {
       modalOverlay.classList.add("hidden");
-    }, 300); // Match the CSS transition duration
+    }, 300);
   };
 
-  // --- Swipe to close modal logic ---
+  // --- Modal Drag/Swipe Logic ---
   let touchStartY = 0;
   let touchMoveY = 0;
 
-  modalDragArea.addEventListener("touchstart", (e) => {
+  const handleTouchStart = (e) => {
     touchStartY = e.touches[0].clientY;
-    modal.style.transition = "none"; // Disable transition during drag
-  });
+  };
 
-  modalDragArea.addEventListener("touchmove", (e) => {
+  const handleTouchMove = (e) => {
     touchMoveY = e.touches[0].clientY;
-    const diff = touchMoveY - touchStartY;
-    if (diff > 0) {
-      // Only allow dragging down
-      modal.style.transform = `translateY(${diff}px)`;
+    const deltaY = touchMoveY - touchStartY;
+    // Allow dragging down only
+    if (deltaY > 0) {
+      modal.style.transition = "none"; // Disable transition while dragging
+      modal.style.transform = `translateY(${deltaY}px)`;
     }
-  });
+  };
 
-  modalDragArea.addEventListener("touchend", () => {
-    modal.style.transition = "transform 0.3s ease-in-out";
-    const dragDistance = touchMoveY - touchStartY;
-    if (dragDistance > 100) {
-      // If dragged more than 100px, close
+  const handleTouchEnd = () => {
+    const deltaY = touchMoveY - touchStartY;
+    modal.style.transition = "transform 0.3s ease-in-out"; // Re-enable transition
+    // If dragged more than 1/4 of the modal height, close it
+    if (deltaY > modal.clientHeight / 4) {
       closeModal();
     } else {
       // Otherwise, snap back
@@ -154,17 +159,22 @@ document.addEventListener("DOMContentLoaded", () => {
     // Reset values
     touchStartY = 0;
     touchMoveY = 0;
-  });
+  };
 
   // --- Event Listeners ---
   generateBtn.addEventListener("click", generateTeams);
   rerollTeamsBtn.addEventListener("click", rerollTeams);
   rerollHeroesBtn.addEventListener("click", rerollHeroes);
-  newHeroesBtn.addEventListener("click", getNewHeroes);
+  newHeroesBtn.addEventListener("click", newHeroes);
+
+  // Modal listeners
+  modalOverlay.addEventListener("click", closeModal);
   modalCloseBtn.addEventListener("click", closeModal);
-  modalOverlay.addEventListener("click", (e) => {
-    if (e.target === modalOverlay) {
-      closeModal();
-    }
+  modalDragArea.addEventListener("touchstart", handleTouchStart, {
+    passive: true,
   });
+  modalDragArea.addEventListener("touchmove", handleTouchMove, {
+    passive: true,
+  });
+  modalDragArea.addEventListener("touchend", handleTouchEnd);
 });
