@@ -1,4 +1,4 @@
-const CACHE_NAME = "unmatched-randomizer-cache-v3"; // ВЕРСИЯ ИЗМЕНЕНА
+const CACHE_NAME = "unmatched-randomizer-cache-v2"; // ВЕРСИЯ ИЗМЕНЕНА
 const urlsToCache = [
   "/",
   "/index.html",
