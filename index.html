@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#2c3e50" />
+    <title>Unmatched Randomizer</title>
+    <link rel="stylesheet" href="style.css" />
+    <link rel="manifest" href="manifest.json" />
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <h1>Unmatched Randomizer</h1>
+      </header>
+
+      <main>
+        <div class="controls">
+          <label for="hero-list-select">Список героев:</label>
+          <select name="hero-list" id="hero-list-select">
+            <option value="default">Default</option>
+          </select>
+          <button id="generate-btn" class="primary-btn">
+            СГЕНЕРИРОВАТЬ КОМАНДЫ
+          </button>
+        </div>
+
+        <section id="results-section" class="results hidden">
+          <h2>Результаты:</h2>
+          <div class="player-row" id="player-1">Игрок 1: ...</div>
+          <div class="player-row" id="player-2">Игрок 2: ...</div>
+          <div class="player-row" id="player-3">Игрок 3: ...</div>
+          <div class="player-row" id="player-4">Игрок 4: ...</div>
+        </section>
+
+        <div id="actions-panel" class="actions-panel hidden">
+          <button>Перемешать команды</button>
+          <button>Перемешать героев</button>
+          <button class="danger-btn">Полный сброс</button>
+        </div>
+      </main>
+
+      <footer>
+        <button id="settings-btn" aria-label="Настройки списков героев">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <circle cx="12" cy="12" r="3"></circle>
+            <path
+              d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+            ></path>
+          </svg>
+        </button>
+      </footer>
+    </div>
+    <script src="app.js"></script>
+    <script>
+      // Регистрация Service Worker
+      if ("serviceWorker" in navigator) {
+        window.addEventListener("load", () => {
+          navigator.serviceWorker
+            .register("/service-worker.js")
+            .then((registration) => {
+              console.log(
+                "ServiceWorker registration successful with scope: ",
+                registration.scope
+              );
+            })
+            .catch((error) => {
+              console.log("ServiceWorker registration failed: ", error);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>

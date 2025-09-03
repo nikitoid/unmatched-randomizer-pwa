@@ -1,0 +1,160 @@
+/* --- Переменные для тем --- */
+:root {
+  --bg-color: #1a1a1a;
+  --text-color: #e2e2e2;
+  --primary-color: #3498db;
+  --primary-text-color: #ffffff;
+  --secondary-color: #2c3e50;
+  --surface-color: #2c2c2c;
+  --border-color: #444444;
+  --danger-color: #e74c3c;
+}
+
+[data-theme="light"] {
+  --bg-color: #f4f4f4;
+  --text-color: #1a1a1a;
+  --primary-color: #2980b9;
+  --secondary-color: #ecf0f1;
+  --surface-color: #ffffff;
+  --border-color: #dddddd;
+}
+
+/* --- Базовые стили --- */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  line-height: 1.6;
+  transition: background-color 0.3s, color 0.3s;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  text-align: center;
+}
+
+.container {
+  width: 90%;
+  max-width: 500px;
+  padding: 2rem;
+  background-color: var(--surface-color);
+  border-radius: 12px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+}
+
+h1 {
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+}
+
+/* --- Элементы управления --- */
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+label {
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+select,
+button {
+  font-family: inherit;
+  font-size: 1rem;
+  padding: 0.8rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+select:focus,
+button:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--primary-color);
+}
+
+button.primary-btn {
+  background-color: var(--primary-color);
+  color: var(--primary-text-color);
+  border: none;
+  font-weight: bold;
+}
+
+button.primary-btn:hover {
+  opacity: 0.9;
+}
+
+button.danger-btn {
+  background-color: var(--danger-color);
+  color: var(--primary-text-color);
+  border: none;
+}
+
+/* --- Секция результатов --- */
+.results {
+  margin-top: 2rem;
+  padding: 1rem;
+  background-color: var(--bg-color);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.results h2 {
+  margin-bottom: 1rem;
+}
+
+.player-row {
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.player-row:last-child {
+  border-bottom: none;
+}
+
+/* --- Панель действий --- */
+.actions-panel {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* --- Футер и кнопка настроек --- */
+footer {
+  margin-top: 2rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+#settings-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  color: var(--text-color);
+}
+
+#settings-btn svg {
+  display: block;
+}
+
+/* --- Вспомогательный класс --- */
+.hidden {
+  display: none !important;
+}
