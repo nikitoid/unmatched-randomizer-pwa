@@ -1,4 +1,4 @@
-const CACHE_NAME = "unmatched-randomizer-cache-v1";
+const CACHE_NAME = "unmatched-randomizer-cache-v2"; // ВЕРСИЯ ИЗМЕНЕНА
 const urlsToCache = [
   "/",
   "/index.html",
@@ -10,13 +10,35 @@ const urlsToCache = [
   "https://code.jquery.com/jquery-3.7.1.min.js",
 ];
 
+// Helper function to post a message to all clients.
+const postMessageToClients = (message) => {
+  self.clients
+    .matchAll({
+      includeUncontrolled: true,
+      type: "window",
+    })
+    .then((clients) => {
+      if (clients && clients.length) {
+        clients.forEach((client) => {
+          client.postMessage(message);
+        });
+      }
+    });
+};
+
 // Установка Service Worker и кэширование статических ресурсов
 self.addEventListener("install", (event) => {
+  // Сообщаем клиенту, что началось обновление
+  postMessageToClients({ type: "UPDATING" });
+
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log("Кэш открыт");
-      return cache.addAll(urlsToCache);
-    })
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
+        console.log("Кэш открыт");
+        return cache.addAll(urlsToCache);
+      })
+      .then(() => self.skipWaiting()) // Активируем новый SW сразу после установки
   );
 });
 
@@ -24,15 +46,19 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheWhitelist.indexOf(cacheName) === -1) {
+              console.log("Удаление старого кэша:", cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      })
+      .then(() => self.clients.claim()) // Забираем контроль над страницей
   );
 });
 

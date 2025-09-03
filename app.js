@@ -1,5 +1,9 @@
 // Убедимся, что DOM полностью загружен
 $(document).ready(function () {
+  // Версия приложения (должна совпадать с версией кэша в service-worker.js)
+  const APP_VERSION = "v2";
+  $("#app-version").text(`Версия: ${APP_VERSION}`);
+
   // Регистрация Service Worker для PWA
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker
@@ -10,6 +14,25 @@ $(document).ready(function () {
       .catch((error) => {
         console.log("Ошибка регистрации Service Worker:", error);
       });
+
+    // Слушаем сообщения от Service Worker
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data && event.data.type === "UPDATING") {
+        console.log("Начинается обновление приложения...");
+        // Показываем индикатор загрузки вместо шестеренки
+        $("#settings-btn").addClass("hidden");
+        $("#update-indicator").removeClass("hidden");
+      }
+    });
+
+    // Если Service Worker изменился, перезагружаем страницу, чтобы применить обновления
+    let refreshing;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (refreshing) return;
+      console.log("Приложение обновлено. Перезагрузка...");
+      window.location.reload();
+      refreshing = true;
+    });
   }
 
   // Получаем элементы со страницы

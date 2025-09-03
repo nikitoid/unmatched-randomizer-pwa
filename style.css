@@ -91,6 +91,19 @@ header h1 {
   background-color: var(--border-color);
 }
 
+#update-indicator svg {
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 main {
   display: flex;
   flex-direction: column;
@@ -171,6 +184,12 @@ select {
 }
 .controls button:hover {
   background-color: var(--border-color);
+}
+
+footer {
+  margin-top: 2rem;
+  color: var(--border-color);
+  font-size: 0.8rem;
 }
 
 /* Утилитарный класс для скрытия элементов */
