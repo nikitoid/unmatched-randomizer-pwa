@@ -1,6 +1,6 @@
 {
-  "name": "Unmatched Randomizer",
-  "short_name": "Randomizer",
+  "name": "Randomatched",
+  "short_name": "Randomatched",
   "description": "A simple tool to randomize teams and heroes for the Unmatched board game.",
   "start_url": "/",
   "display": "standalone",
