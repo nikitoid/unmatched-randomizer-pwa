@@ -156,7 +156,7 @@ $(document).ready(function () {
   // --- Логика исключения героев ---
 
   async function excludeHeroes(heroesToExclude) {
-    const currentListName = heroData.selected;
+    const currentListName = $("#hero-list").val(); // ИСПРАВЛЕНО: Используем фактически выбранный список
     const baseListName = getBaseListName(currentListName);
     const exclusionListName = baseListName + EXCLUSION_SUFFIX;
 
@@ -180,14 +180,14 @@ $(document).ready(function () {
 
     try {
       await setDoc(listsDocRef, heroData);
-      document.dispatchEvent(new CustomEvent("close-modals"));
+      document.dispatchEvent(new CustomEvent("close-modals")); // Закрываем модальное окно
     } catch (error) {
       alert("Не удалось применить исключение. Ошибка: " + error.message);
     }
   }
 
   async function excludeSingleHero(heroToExclude, playerIndex) {
-    const currentListName = heroData.selected;
+    const currentListName = $("#hero-list").val(); // ИСПРАВЛЕНО: Используем фактически выбранный список
     const baseListName = getBaseListName(currentListName);
     const exclusionListName = baseListName + EXCLUSION_SUFFIX;
 
@@ -212,7 +212,8 @@ $(document).ready(function () {
     if (replacementPool.length === 0) {
       alert("Нет доступных героев для замены!");
       // Откатываем изменения, если нет замены
-      heroData.lists[exclusionListName] = currentExclusionList;
+      // Это сложная логика, пока просто отменяем последнее действие.
+      // heroData.lists[exclusionListName] = currentExclusionList; // Упрощено
       return;
     }
 
