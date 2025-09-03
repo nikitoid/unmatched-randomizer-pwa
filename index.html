@@ -1,13 +1,12 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#1a1a1a" />
     <title>Unmatched Randomizer</title>
     <link rel="stylesheet" href="style.css" />
     <link rel="manifest" href="manifest.json" />
-    <link rel="apple-touch-icon" href="icons/icon-192.png" />
+    <meta name="theme-color" content="#1a1a1a" />
   </head>
   <body>
     <div class="container">
@@ -17,15 +16,13 @@
 
       <main>
         <div class="controls">
-          <!-- Обертка для селекта и кнопки настроек -->
           <div class="list-settings-wrapper">
             <select id="hero-list-select">
               <option value="default">Default</option>
             </select>
-            <!-- Кнопка настроек переехала сюда -->
             <button
-              id="settings-btn"
               class="icon-btn"
+              id="settings-btn"
               aria-label="Настройки списков"
             >
               <svg
@@ -39,26 +36,30 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
               >
-                <circle cx="12" cy="12" r="3"></circle>
                 <path
-                  d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
+                  d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
                 ></path>
+                <circle cx="12" cy="12" r="3"></circle>
               </svg>
             </button>
           </div>
-          <button id="generate-btn" class="primary-btn">
+          <button class="primary-btn" id="generate-btn">
             СГЕНЕРИРОВАТЬ КОМАНДЫ
           </button>
         </div>
       </main>
+
+      <footer class="version-info" id="version-info"></footer>
     </div>
 
-    <!-- Модальное окно результатов -->
-    <div id="modal-overlay" class="hidden"></div>
-    <div id="results-modal" class="modal hidden">
-      <div id="modal-drag-area" class="modal-drag-area">
-        <div class="drag-handle"></div>
-        <button id="modal-close-btn" class="icon-btn" aria-label="Закрыть">
+    <!-- Modal Structure -->
+    <div class="modal-overlay hidden" id="modal-overlay">
+      <div class="modal" id="modal">
+        <button
+          class="modal-close-btn icon-btn"
+          id="modal-close-btn"
+          aria-label="Закрыть"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             width="24"
@@ -74,19 +75,19 @@
             <line x1="6" y1="6" x2="18" y2="18"></line>
           </svg>
         </button>
-      </div>
-      <div class="modal-content">
-        <div class="results">
-          <h2>Результаты</h2>
-          <div id="player-1" class="player-row"></div>
-          <div id="player-2" class="player-row"></div>
-          <div id="player-3" class="player-row"></div>
-          <div id="player-4" class="player-row"></div>
+        <div class="modal-drag-area" id="modal-drag-area">
+          <div class="drag-handle"></div>
         </div>
-        <div class="actions-panel">
-          <button id="reroll-teams-btn">Перемешать команды</button>
-          <button id="reroll-heroes-btn">Перемешать героев</button>
-          <button id="new-heroes-btn">Новые герои</button>
+        <div class="modal-content">
+          <div class="results" id="results-container">
+            <h2>Результаты</h2>
+            <div id="results-output"></div>
+            <div class="actions-panel">
+              <button id="reroll-teams-btn">Перемешать команды</button>
+              <button id="reroll-heroes-btn">Перемешать героев</button>
+              <button id="new-heroes-btn">Новые герои</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

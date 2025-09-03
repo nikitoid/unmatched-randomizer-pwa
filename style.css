@@ -56,8 +56,7 @@ header {
 }
 
 header.hidden-by-modal {
-  /* Увеличено значение, чтобы заголовок уезжал полностью */
-  transform: translateY(-400%);
+  transform: translateY(-100vh);
 }
 
 header h1 {
@@ -144,14 +143,6 @@ button:hover {
   background-color: var(--danger-color-hover);
 }
 
-.results {
-  background-color: var(--bg-color-secondary);
-  padding: 1.5rem;
-  border-radius: 8px;
-  width: 100%;
-  box-sizing: border-box;
-}
-
 .results h2 {
   margin-top: 0;
   text-align: center;
@@ -166,7 +157,7 @@ button:hover {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.8rem;
-  margin-top: 1rem;
+  margin-top: 1.5rem;
 }
 
 .actions-panel #new-heroes-btn {
@@ -175,6 +166,17 @@ button:hover {
 
 .hidden {
   display: none !important;
+}
+
+.version-info {
+  position: fixed;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  color: var(--text-color);
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 /* --- Modal Styles --- */
@@ -210,10 +212,19 @@ button:hover {
   max-height: 90vh;
   display: flex;
   flex-direction: column;
+  /* Устанавливаем как контекст позиционирования */
+  position: relative;
 }
 
 .modal.hidden {
   display: none !important;
+}
+
+.modal-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1002;
 }
 
 .modal-drag-area {
@@ -221,8 +232,6 @@ button:hover {
   width: 100%;
   cursor: grab;
   touch-action: none;
-  /* Устанавливаем как контекст позиционирования для дочерних элементов */
-  position: relative;
 }
 
 .drag-handle {
@@ -230,16 +239,7 @@ button:hover {
   height: 5px;
   background-color: var(--border-color);
   border-radius: 2.5px;
-  /* Добавлено для центрирования */
   margin: 0 auto;
-}
-
-.modal-close-btn {
-  position: absolute;
-  /* Центрируем по вертикали относительно родителя (.modal-drag-area) */
-  top: 50%;
-  right: 15px; /* Отступ справа */
-  transform: translateY(-50%);
 }
 
 .modal-content {

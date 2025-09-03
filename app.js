@@ -1,4 +1,4 @@
-// --- Регистрация Service Worker ---
+// --- Service Worker Registration ---
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker
@@ -15,164 +15,156 @@ if ("serviceWorker" in navigator) {
   });
 }
 
-// --- DOM Элементы ---
-const header = document.querySelector("header"); // Добавлен селектор для хедера
-const generateBtn = document.getElementById("generate-btn");
-const rerollTeamsBtn = document.getElementById("reroll-teams-btn");
-const rerollHeroesBtn = document.getElementById("reroll-heroes-btn");
-const newHeroesBtn = document.getElementById("new-heroes-btn");
-const playerRows = [
-  document.getElementById("player-1"),
-  document.getElementById("player-2"),
-  document.getElementById("player-3"),
-  document.getElementById("player-4"),
-];
+document.addEventListener("DOMContentLoaded", () => {
+  const APP_VERSION = "v0.2";
 
-// Элементы модального окна
-const resultsModal = document.getElementById("results-modal");
-const modalOverlay = document.getElementById("modal-overlay");
-const modalCloseBtn = document.getElementById("modal-close-btn");
-const modalDragArea = document.getElementById("modal-drag-area");
+  // --- DOM Elements ---
+  const generateBtn = document.getElementById("generate-btn");
+  const resultsOutput = document.getElementById("results-output");
+  const rerollTeamsBtn = document.getElementById("reroll-teams-btn");
+  const rerollHeroesBtn = document.getElementById("reroll-heroes-btn");
+  const newHeroesBtn = document.getElementById("new-heroes-btn");
+  const header = document.querySelector("header");
+  const versionInfo = document.getElementById("version-info");
 
-// --- Исходные данные ---
-const defaultHeroes = [
-  "Алиса",
-  "Медуза",
-  "Синдбад",
-  "Король Артур",
-  "Бигфут",
-  "Робин Гуд",
-  "Дракула",
-  "Шерлок Холмс",
-];
+  // Modal elements
+  const modalOverlay = document.getElementById("modal-overlay");
+  const modal = document.getElementById("modal");
+  const modalCloseBtn = document.getElementById("modal-close-btn");
+  const modalDragArea = document.getElementById("modal-drag-area");
 
-// --- Состояние приложения ---
-let currentState = {
-  players: [],
-  heroes: [],
-};
+  // --- State ---
+  const defaultHeroes = [
+    "Алиса",
+    "Медуза",
+    "Синдбад",
+    "Король Артур",
+    "Бигфут",
+    "Робин Гуд",
+    "Шерлок Холмс",
+    "Дракула",
+  ];
+  let currentPlayers = [];
+  let currentHeroes = [];
 
-// --- Вспомогательные функции ---
-function shuffleArray(array) {
-  const newArray = [...array];
-  for (let i = newArray.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
-  }
-  return newArray;
-}
+  // --- Initial Setup ---
+  versionInfo.textContent = APP_VERSION;
 
-function renderResults() {
-  for (let i = 0; i < 4; i++) {
-    playerRows[
-      i
-    ].textContent = `Игрок ${currentState.players[i]}: ${currentState.heroes[i]}`;
-  }
-}
-
-// --- Функции модального окна ---
-let touchStartY = 0;
-let touchMoveY = 0;
-
-function openModal() {
-  header.classList.add("hidden-by-modal"); // Скрываем хедер
-  modalOverlay.classList.remove("hidden");
-  resultsModal.classList.remove("hidden");
-
-  resultsModal.style.transition = "none";
-  resultsModal.style.transform = "translateY(100%)";
-
-  requestAnimationFrame(() => {
-    resultsModal.style.transition = "transform 0.3s ease-in-out";
-    resultsModal.style.transform = "translateY(0)";
-  });
-}
-
-function closeModal() {
-  header.classList.remove("hidden-by-modal"); // Возвращаем хедер
-  modalOverlay.classList.add("hidden");
-  resultsModal.style.transform = "translateY(100%)";
-
-  const onTransitionEnd = () => {
-    resultsModal.classList.add("hidden");
-    resultsModal.style.transform = "";
-    resultsModal.style.transition = "";
-    resultsModal.removeEventListener("transitionend", onTransitionEnd);
+  // --- Utility Functions ---
+  const shuffleArray = (array) => {
+    const newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
   };
-  resultsModal.addEventListener("transitionend", onTransitionEnd);
-}
 
-function handleTouchStart(e) {
-  touchStartY = e.touches[0].clientY;
-  resultsModal.style.transition = "none";
-}
+  const renderResults = () => {
+    resultsOutput.innerHTML = "";
+    const combined = currentPlayers.map((player, index) => ({
+      player,
+      hero: currentHeroes[index],
+    }));
+    combined.sort((a, b) => a.player - b.player);
 
-function handleTouchMove(e) {
-  touchMoveY = e.touches[0].clientY;
-  const deltaY = touchMoveY - touchStartY;
+    combined.forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "player-row";
+      row.textContent = `Игрок ${item.player}: ${item.hero}`;
+      resultsOutput.appendChild(row);
+    });
+  };
 
-  if (deltaY > 0) {
-    e.preventDefault();
-    resultsModal.style.transform = `translateY(${deltaY}px)`;
-  }
-}
+  // --- Core Logic ---
+  const generateTeams = () => {
+    currentPlayers = shuffleArray([1, 2, 3, 4]);
+    const shuffledHeroes = shuffleArray(defaultHeroes);
+    currentHeroes = shuffledHeroes.slice(0, 4);
+    renderResults();
+    openModal();
+  };
 
-function handleTouchEnd() {
-  const deltaY = touchMoveY - touchStartY;
-  resultsModal.style.transition = "transform 0.3s ease-in-out";
+  const rerollTeams = () => {
+    currentPlayers = shuffleArray(currentPlayers);
+    renderResults();
+  };
 
-  if (deltaY > 100) {
-    closeModal();
-  } else {
-    resultsModal.style.transform = "translateY(0)";
-  }
+  const rerollHeroes = () => {
+    currentHeroes = shuffleArray(currentHeroes);
+    renderResults();
+  };
 
-  touchStartY = 0;
-  touchMoveY = 0;
-}
+  const getNewHeroes = () => {
+    const shuffledHeroes = shuffleArray(defaultHeroes);
+    currentHeroes = shuffledHeroes.slice(0, 4);
+    renderResults();
+  };
 
-// --- Основные функции ---
-function generateTeams() {
-  currentState.players = shuffleArray([1, 2, 3, 4]);
-  const shuffledHeroes = shuffleArray(defaultHeroes);
-  currentState.heroes = shuffledHeroes.slice(0, 4);
+  // --- Modal Logic ---
+  const openModal = () => {
+    modalOverlay.classList.remove("hidden");
+    header.classList.add("hidden-by-modal");
+    // Delay to allow the browser to render the initial state before animating
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        modal.style.transform = "translateY(0)";
+        modalOverlay.style.opacity = "1";
+      }, 10);
+    });
+  };
 
-  renderResults();
-  openModal();
-}
+  const closeModal = () => {
+    modal.style.transform = "translateY(100%)";
+    modalOverlay.style.opacity = "0";
+    header.classList.remove("hidden-by-modal");
+    setTimeout(() => {
+      modalOverlay.classList.add("hidden");
+    }, 300); // Match the CSS transition duration
+  };
 
-function rerollTeams() {
-  currentState.players = shuffleArray(currentState.players);
-  renderResults();
-}
+  // --- Swipe to close modal logic ---
+  let touchStartY = 0;
+  let touchMoveY = 0;
 
-function rerollHeroes() {
-  currentState.heroes = shuffleArray(currentState.heroes);
-  renderResults();
-}
+  modalDragArea.addEventListener("touchstart", (e) => {
+    touchStartY = e.touches[0].clientY;
+    modal.style.transition = "none"; // Disable transition during drag
+  });
 
-function getNewHeroes() {
-  const shuffledHeroes = shuffleArray(defaultHeroes);
-  let newHeroesSet = shuffledHeroes.slice(0, 4);
-  if (newHeroesSet.every((hero) => currentState.heroes.includes(hero))) {
-    newHeroesSet = shuffledHeroes.slice(1, 5);
-  }
-  currentState.heroes = newHeroesSet;
-  renderResults();
-}
+  modalDragArea.addEventListener("touchmove", (e) => {
+    touchMoveY = e.touches[0].clientY;
+    const diff = touchMoveY - touchStartY;
+    if (diff > 0) {
+      // Only allow dragging down
+      modal.style.transform = `translateY(${diff}px)`;
+    }
+  });
 
-// --- Обработчики событий ---
-generateBtn.addEventListener("click", generateTeams);
-rerollTeamsBtn.addEventListener("click", rerollTeams);
-rerollHeroesBtn.addEventListener("click", rerollHeroes);
-newHeroesBtn.addEventListener("click", getNewHeroes);
+  modalDragArea.addEventListener("touchend", () => {
+    modal.style.transition = "transform 0.3s ease-in-out";
+    const dragDistance = touchMoveY - touchStartY;
+    if (dragDistance > 100) {
+      // If dragged more than 100px, close
+      closeModal();
+    } else {
+      // Otherwise, snap back
+      modal.style.transform = "translateY(0)";
+    }
+    // Reset values
+    touchStartY = 0;
+    touchMoveY = 0;
+  });
 
-modalCloseBtn.addEventListener("click", closeModal);
-modalOverlay.addEventListener("click", closeModal);
-modalDragArea.addEventListener("touchstart", handleTouchStart, {
-  passive: false,
+  // --- Event Listeners ---
+  generateBtn.addEventListener("click", generateTeams);
+  rerollTeamsBtn.addEventListener("click", rerollTeams);
+  rerollHeroesBtn.addEventListener("click", rerollHeroes);
+  newHeroesBtn.addEventListener("click", getNewHeroes);
+  modalCloseBtn.addEventListener("click", closeModal);
+  modalOverlay.addEventListener("click", (e) => {
+    if (e.target === modalOverlay) {
+      closeModal();
+    }
+  });
 });
-modalDragArea.addEventListener("touchmove", handleTouchMove, {
-  passive: false,
-});
-modalDragArea.addEventListener("touchend", handleTouchEnd);
