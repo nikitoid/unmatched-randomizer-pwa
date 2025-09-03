@@ -48,7 +48,7 @@
         >
           <svg
             x-show="!isDark"
-            xmlns="http://www.w.org/2000/svg"
+            xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
             viewBox="0 0 24 24"
@@ -71,7 +71,7 @@
           </svg>
           <svg
             x-show="isDark"
-            xmlns="http://www.w.org/2000/svg"
+            xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
             viewBox="0 0 24 24"
@@ -333,13 +333,13 @@
             ></div>
           </div>
 
-          <div class="flex justify-between items-center mb-4">
+          <div class="relative flex justify-center items-center mb-4">
             <h3 class="text-xl font-bold text-gray-900 dark:text-white">
               Результаты
             </h3>
             <button
               @click="isResultsModalOpen = false"
-              class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
+              class="absolute right-0 p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700"
             >
               <svg
                 class="w-6 h-6"
@@ -357,7 +357,8 @@
             </button>
           </div>
 
-          <section id="results-content" class="w-full text-lg">
+          <section id="results-content" class="w-full text-base">
+            <!-- Уменьшил шрифт с text-lg до text-base -->
             <div
               id="player1"
               class="py-3 border-b border-gray-200 dark:border-gray-700"
