@@ -52,18 +52,16 @@ body {
 header {
   width: 100%;
   margin-bottom: 2rem;
-  /* Добавлено для анимации */
   transition: transform 0.3s ease-in-out;
 }
 
-/* Класс для скрытия хедера */
 header.hidden-by-modal {
-  transform: translateY(-150%);
+  /* Увеличено значение, чтобы заголовок уезжал полностью */
+  transform: translateY(-250%);
 }
 
 header h1 {
   margin: 0;
-  /* Уменьшен размер шрифта, чтобы он умещался в одну строку */
   font-size: clamp(1.6rem, 7vw, 2rem);
   text-align: center;
 }
@@ -76,7 +74,7 @@ header h1 {
   color: var(--text-color);
   opacity: 0.8;
   transition: opacity 0.2s;
-  flex-shrink: 0; /* Чтобы иконка не сжималась */
+  flex-shrink: 0;
 }
 
 .icon-btn:hover {
@@ -99,7 +97,6 @@ main {
   margin-bottom: 2rem;
 }
 
-/* Новые стили для обертки селекта и кнопки */
 .list-settings-wrapper {
   display: flex;
   align-items: center;
@@ -107,7 +104,7 @@ main {
 }
 
 .list-settings-wrapper select {
-  flex-grow: 1; /* Селект занимает все доступное место */
+  flex-grow: 1;
 }
 
 select,
@@ -226,6 +223,8 @@ button:hover {
   touch-action: none;
   display: flex;
   justify-content: center;
+  /* Добавлено для позиционирования кнопки */
+  position: relative;
 }
 
 .drag-handle {
@@ -236,6 +235,7 @@ button:hover {
 }
 
 .modal-close-btn {
+  /* Изменено для корректного позиционирования */
   position: absolute;
   top: 10px;
   right: 10px;
