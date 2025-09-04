@@ -61,7 +61,7 @@
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
-            viewBox="0 0 24 24"
+            viewBox="0 0 24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
@@ -84,7 +84,7 @@
             xmlns="http://www.w3.org/2000/svg"
             width="24"
             height="24"
-            viewBox="0 0 24 24"
+            viewBox="0 0 24"
             fill="none"
             stroke="currentColor"
             stroke-width="2"
@@ -128,7 +128,7 @@
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
                   height="24"
-                  viewBox="0 0 24 24"
+                  viewBox="0 0 24"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
@@ -150,7 +150,7 @@
                   xmlns="http://www.w3.org/2000/svg"
                   width="24"
                   height="24"
-                  viewBox="0 0 24 24"
+                  viewBox="0 0 24"
                   fill="none"
                   stroke="currentColor"
                   stroke-width="2"
@@ -455,21 +455,39 @@
 
     <script type="module">
       import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
-      import { getFirestore } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
+      // ИЗМЕНЕНО: Добавляем enableIndexedDbPersistence для оффлайн-режима
+      import {
+        getFirestore,
+        enableIndexedDbPersistence,
+      } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
 
       // ВАШИ КЛЮЧИ FIREBASE
       const firebaseConfig = {
-        apiKey: "AIzaSyBSvSbR_NJj7riu0HZPz3nile1X4tuxfsI",
-        authDomain: "unmatched-randomizer.firebaseapp.com",
-        projectId: "unmatched-randomizer",
-        storageBucket: "unmatched-randomizer.firebasestorage.app",
-        messagingSenderId: "168086799887",
-        appId: "1:168086799887:web:3c8af51f935999b7d6c57a",
-        measurementId: "G-GEQPMK68B0",
+        apiKey: "...",
+        authDomain: "...",
+        projectId: "...",
+        storageBucket: "...",
+        messagingSenderId: "...",
+        appId: "...",
       };
 
       const app = initializeApp(firebaseConfig);
+      // Делаем db доступным глобально, чтобы app.js мог его использовать
       window.db = getFirestore(app);
+
+      // ИЗМЕНЕНО: Явно включаем оффлайн-режим
+      (async () => {
+        try {
+          await enableIndexedDbPersistence(window.db);
+          console.log("Firebase offline persistence enabled.");
+        } catch (err) {
+          if (err.code == "failed-precondition") {
+            console.warn("Firebase persistence failed: multiple tabs open.");
+          } else if (err.code == "unimplemented") {
+            console.warn("Firebase persistence not available in this browser.");
+          }
+        }
+      })();
     </script>
 
     <script>

@@ -1,64 +1,63 @@
-// service-worker.js - Упрощенная версия для работы с Firebase
-
-// Мы используем v2, чтобы Service Worker гарантированно обновился
-const CACHE_NAME = "unmatched-randomizer-v5";
-const URLS_TO_CACHE = [
+const CACHE_NAME = "randomatched-cache-v1";
+// ИЗМЕНЕНО: Добавляем все необходимые для оффлайн-работы файлы, включая внешние
+const FILES_TO_CACHE = [
   "/",
-  "/index.html",
-  "/style.css",
-  "/app.js", // Важно кэшировать основной скрипт приложения
-  "https://code.jquery.com/jquery-3.6.0.min.js",
+  "index.html",
+  "style.css",
+  "app.js",
+  "manifest.json",
+  "icons/apple-touch-icon.png",
+  "icons/icon-192.png",
+  "icons/icon-512.png",
   "https://cdn.tailwindcss.com",
-  "//unpkg.com/alpinejs",
-  "/manifest.json",
-  "/icons/apple-touch-icon.png",
-  "/icons/icon-192.png",
-  "/icons/icon-512.png",
+  "https://unpkg.com/alpinejs",
+  "https://code.jquery.com/jquery-3.6.0.min.js",
+  "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js",
+  "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js",
 ];
 
-// Установка: кэшируем основные файлы приложения (app shell)
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => {
-        console.log("Opened cache for app shell");
-        return cache.addAll(URLS_TO_CACHE);
-      })
-      .then(() => self.skipWaiting()) // Активируем новый SW сразу
+self.addEventListener("install", (evt) => {
+  evt.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log("[ServiceWorker] Pre-caching offline files");
+      return cache.addAll(FILES_TO_CACHE);
+    })
   );
+  self.skipWaiting();
 });
 
-// Активация: удаляем старые кэши
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches
-      .keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
-              console.log("Deleting old cache:", cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      })
-      .then(() => self.clients.claim())
+self.addEventListener("activate", (evt) => {
+  // Удаляем старые кэши, чтобы приложение всегда использовало актуальную версию
+  evt.waitUntil(
+    caches.keys().then((keyList) => {
+      return Promise.all(
+        keyList.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log("[ServiceWorker] Removing old cache", key);
+            return caches.delete(key);
+          }
+        })
+      );
+    })
   );
+  self.clients.claim();
 });
 
-// Fetch: используем стратегию "Cache first" для всех запросов.
-// Firebase сам управляет своим сетевым соединением и оффлайн-кэшем.
-self.addEventListener("fetch", (event) => {
-  // Игнорируем запросы к Firebase, чтобы не мешать его оффлайн-механизму
-  if (event.request.url.includes("firestore.googleapis.com")) {
+self.addEventListener("fetch", (evt) => {
+  // Мы не кэшируем запросы к Firestore, так как у него свой оффлайн-механизм
+  if (evt.request.url.includes("firestore.googleapis.com")) {
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+  // Стратегия "Сначала кэш, потом сеть" для всех остальных запросов
+  evt.respondWith(
+    caches.match(evt.request).then((response) => {
+      // Если ресурс найден в кэше, возвращаем его
+      if (response) {
+        return response;
+      }
+      // Иначе, идем в сеть
+      return fetch(evt.request);
     })
   );
 });
