@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>randomatched</title>
     <meta name="description" content="Генератор случайных команд" />
-    <meta name="theme-color" content="#ffffff" />
+    <meta name="theme-color" content="#3b82f6" />
     <link rel="manifest" href="manifest.json" />
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -241,7 +241,6 @@
         id="settings-modal-panel"
         class="w-full max-w-md bg-light-primary dark:bg-dark-primary rounded-2xl shadow-lg p-6 transform scale-95 opacity-0 transition-all duration-300 ease-in-out"
       >
-        <!-- Секция ввода пароля -->
         <div id="password-section">
           <h2 class="text-2xl font-bold mb-4">Доступ к настройкам</h2>
           <p class="mb-4 text-sm text-gray-600 dark:text-gray-300">
@@ -258,7 +257,7 @@
           </p>
           <div class="flex justify-end space-x-3">
             <button
-              id="cancel-password-btn"
+              id="cancel-settings-btn"
               class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80"
             >
               Отмена
@@ -272,9 +271,41 @@
           </div>
         </div>
 
-        <!-- Секция управления списками -->
-        <div id="lists-management-section" class="hidden">
-          <!-- Содержимое будет рендериться здесь через JS -->
+        <div id="lists-management-section" class="hidden"></div>
+      </div>
+    </div>
+
+    <!-- Модальное окно подтверждения -->
+    <div
+      id="confirmation-modal-container"
+      class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 opacity-0 pointer-events-none z-[60] transition-opacity duration-300"
+    >
+      <div
+        id="confirmation-modal-panel"
+        class="w-full max-w-sm bg-light-primary dark:bg-dark-primary rounded-2xl shadow-lg p-6 transform scale-95 opacity-0 transition-all duration-300 ease-in-out"
+      >
+        <h2 id="confirmation-title" class="text-xl font-bold mb-2">
+          Подтвердите действие
+        </h2>
+        <p
+          id="confirmation-message"
+          class="mb-6 text-gray-600 dark:text-gray-300"
+        >
+          Вы уверены?
+        </p>
+        <div class="flex justify-end space-x-3">
+          <button
+            id="confirmation-cancel-btn"
+            class="px-5 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80"
+          >
+            Отмена
+          </button>
+          <button
+            id="confirmation-confirm-btn"
+            class="px-5 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
+          >
+            Да
+          </button>
         </div>
       </div>
     </div>

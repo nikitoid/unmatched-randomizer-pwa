@@ -10,52 +10,44 @@ import {
   doc,
   getDoc,
   updateDoc,
+  setDoc,
 } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 // --- Globals & Config ---
 const { CryptoJS } = window;
-
 const firebaseConfig =
   typeof __firebase_config !== "undefined" ? JSON.parse(__firebase_config) : {};
 const appId =
   typeof __app_id !== "undefined" ? __app_id : "randomatched-default";
-
-let db, auth;
-let listsDocRef;
-
-let localListsCache = {
-  lists: {},
-  selected: "",
-  heroes: [],
-};
-
-let currentGeneration = {
-  teams: [],
-  heroes: [],
-};
-
+let db, auth, listsDocRef;
+let localListsCache = { lists: {}, selected: "", heroes: [] };
+let currentGeneration = { teams: [], heroes: [] };
 const TEMP_LIST_SUFFIX = " (искл.)";
 
 // --- App Initialization ---
 $(document).ready(function () {
   // --- Initialize UI elements ---
-  const generateBtn = $("#generate-btn");
-  const settingsBtn = $("#settings-btn");
-  const heroListSelect = $("#hero-list-select");
-  const themeToggle = $("#theme-toggle");
-  const sunIcon = $("#theme-icon-sun");
-  const moonIcon = $("#theme-icon-moon");
-  const html = $("html");
-  const modalContainer = $("#results-modal-container");
-  const modalPanel = $("#results-modal-panel");
-  const closeModalBtn = $("#close-modal-btn");
-  const resultsList = $("#results-list");
-  const shuffleTeamsBtn = $("#shuffle-teams-btn");
-  const shuffleHeroesBtn = $("#shuffle-heroes-btn");
-  const shuffleAllBtn = $("#shuffle-all-btn");
-  const prevGenBtn = $("#prev-gen-btn");
-  const resetSessionBtn = $("#reset-session-btn");
-  const excludeAllBtn = $("#exclude-all-btn");
+  const generateBtn = $("#generate-btn"),
+    heroListSelect = $("#hero-list-select");
+  const themeToggle = $("#theme-toggle"),
+    sunIcon = $("#theme-icon-sun"),
+    moonIcon = $("#theme-icon-moon"),
+    html = $("html");
+  const modalContainer = $("#results-modal-container"),
+    modalPanel = $("#results-modal-panel"),
+    closeModalBtn = $("#close-modal-btn");
+  const resultsList = $("#results-list"),
+    shuffleTeamsBtn = $("#shuffle-teams-btn"),
+    shuffleHeroesBtn = $("#shuffle-heroes-btn"),
+    shuffleAllBtn = $("#shuffle-all-btn");
+  const prevGenBtn = $("#prev-gen-btn"),
+    resetSessionBtn = $("#reset-session-btn"),
+    excludeAllBtn = $("#exclude-all-btn");
+  const settingsBtn = $("#settings-btn"),
+    settingsModalContainer = $("#settings-modal-container"),
+    settingsModalPanel = $("#settings-modal-panel");
+  const passwordSection = $("#password-section"),
+    managementSection = $("#lists-management-section");
 
   // --- Setup Firebase ---
   function initializeFirebase() {
@@ -64,11 +56,10 @@ $(document).ready(function () {
       db = getFirestore(app);
       auth = getAuth(app);
       listsDocRef = doc(db, "lists", "main");
-      console.log("Firebase initialized successfully.");
       handleAuthentication();
     } catch (e) {
       console.error("Firebase initialization failed:", e);
-      showError("Не удалось инициализировать базу данных.");
+      showNotification("Не удалось инициализировать базу данных.", "error");
       loadFromLocalStorage();
       populateHeroListsFromCache();
     }
@@ -77,19 +68,16 @@ $(document).ready(function () {
   // --- Authentication & Data Fetching ---
   function handleAuthentication() {
     onAuthStateChanged(auth, (user) => {
-      if (user) {
-        console.log("Authenticated anonymously:", user.uid);
-        syncWithFirebase();
-      }
+      if (user) syncWithFirebase();
     });
-
     signInAnonymously(auth).catch((error) => {
       console.error("Anonymous sign-in failed:", error);
-      if (error.code === "auth/operation-not-allowed") {
-        showError("Анонимный вход не включен в настройках Firebase.");
-      } else {
-        showError("Ошибка аутентификации.");
-      }
+      showNotification(
+        error.code === "auth/operation-not-allowed"
+          ? "Анонимный вход не включен."
+          : "Ошибка аутентификации.",
+        "error"
+      );
       loadFromLocalStorage();
       populateHeroListsFromCache();
     });
@@ -101,13 +89,12 @@ $(document).ready(function () {
       html.addClass("dark").removeClass("light");
       sunIcon.removeClass("hidden");
       moonIcon.addClass("hidden");
-      localStorage.setItem("theme", "dark");
     } else {
       html.removeClass("dark").addClass("light");
       moonIcon.removeClass("hidden");
       sunIcon.addClass("hidden");
-      localStorage.setItem("theme", "light");
     }
+    localStorage.setItem("theme", theme);
   };
   const savedTheme =
     localStorage.getItem("theme") ||
@@ -115,39 +102,33 @@ $(document).ready(function () {
       ? "dark"
       : "light");
   applyTheme(savedTheme);
-  themeToggle.on("click", () => {
-    const newTheme = html.hasClass("dark") ? "light" : "dark";
-    applyTheme(newTheme);
-  });
+  themeToggle.on("click", () =>
+    applyTheme(html.hasClass("dark") ? "light" : "dark")
+  );
 
   // --- Data Sync & Caching ---
   async function syncWithFirebase() {
     if (!navigator.onLine) {
-      console.log("Offline mode. Loading data from cache.");
       loadFromLocalStorage();
       populateHeroListsFromCache();
       return;
     }
     try {
       const docSnap = await getDoc(listsDocRef);
-      const firebaseLists = docSnap.exists()
+      const firebaseData = docSnap.exists()
         ? docSnap.data()
         : { lists: {}, selected: "" };
-
-      // Merge with local temp lists
       const localTempLists = getLocalTempLists();
-      localListsCache.lists = { ...firebaseLists.lists, ...localTempLists };
-      localListsCache.selected = firebaseLists.selected || "";
-
+      localListsCache.lists = { ...firebaseData.lists, ...localTempLists };
+      localListsCache.selected = firebaseData.selected || "";
       localStorage.setItem(
         "randomatched_lists",
-        JSON.stringify(firebaseLists.lists)
+        JSON.stringify(firebaseData.lists)
       );
-      localStorage.setItem("randomatched_selected", firebaseLists.selected);
-      console.log("Data synced from Firebase and cached.");
+      localStorage.setItem("randomatched_selected", firebaseData.selected);
     } catch (error) {
       console.error("Error syncing with Firebase:", error);
-      showError("Не удалось загрузить списки из базы.");
+      showNotification("Не удалось загрузить списки из базы.", "error");
       loadFromLocalStorage();
     } finally {
       populateHeroListsFromCache();
@@ -165,33 +146,30 @@ $(document).ready(function () {
       const lastGen = JSON.parse(localStorage.getItem("lastGeneration"));
       if (lastGen) {
         currentGeneration = lastGen;
-        updateSessionButtons();
       }
     } catch (e) {
       console.error("Failed to parse data from localStorage", e);
-      localListsCache.lists = {};
-      localListsCache.selected = "";
+      localListsCache = { lists: {}, selected: "", heroes: [] };
+    } finally {
+      updateSessionButtons();
     }
   }
 
   function getLocalTempLists() {
     const tempLists = {};
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key.startsWith("temp_list_")) {
+    Object.keys(localStorage)
+      .filter((key) => key.startsWith("temp_list_"))
+      .forEach((key) => {
         const listName = key.replace("temp_list_", "");
         tempLists[listName] = JSON.parse(localStorage.getItem(key));
-      }
-    }
+      });
     return tempLists;
   }
 
   function populateHeroListsFromCache() {
     const currentVal = heroListSelect.val();
     heroListSelect.empty();
-
     const listNames = Object.keys(localListsCache.lists);
-
     if (listNames.length === 0) {
       heroListSelect.append('<option value="">Нет доступных списков</option>');
       generateBtn
@@ -199,31 +177,22 @@ $(document).ready(function () {
         .addClass("opacity-50 cursor-not-allowed");
       return;
     }
-
-    listNames.sort().forEach((name) => {
-      heroListSelect.append(`<option value="${name}">${name}</option>`);
-    });
-
-    // Try to preserve current selection, or temp list, or default, or first
-    let selected = currentVal;
-    const tempListName = Object.keys(localListsCache.lists).find((name) =>
+    listNames
+      .sort()
+      .forEach((name) =>
+        heroListSelect.append(`<option value="${name}">${name}</option>`)
+      );
+    const tempListName = listNames.find((name) =>
       name.endsWith(TEMP_LIST_SUFFIX)
     );
-
-    if (tempListName && localListsCache.lists[tempListName]) {
-      selected = tempListName;
-    } else if (!selected || !localListsCache.lists[selected]) {
-      selected =
-        localListsCache.selected &&
-        localListsCache.lists[localListsCache.selected]
-          ? localListsCache.selected
-          : listNames[0];
-    }
-
-    if (selected) {
-      heroListSelect.val(selected);
-    }
-
+    let selected =
+      tempListName ||
+      currentVal ||
+      (localListsCache.selected &&
+      localListsCache.lists[localListsCache.selected]
+        ? localListsCache.selected
+        : listNames[0]);
+    heroListSelect.val(selected);
     updateCurrentHeroList();
     generateBtn
       .prop("disabled", false)
@@ -231,77 +200,47 @@ $(document).ready(function () {
   }
 
   function updateCurrentHeroList() {
-    const selectedListName = heroListSelect.val();
-    if (selectedListName) {
-      localListsCache.heroes = localListsCache.lists[selectedListName] || [];
-    } else {
-      localListsCache.heroes = [];
-    }
+    localListsCache.heroes = localListsCache.lists[heroListSelect.val()] || [];
   }
 
   heroListSelect.on("change", updateCurrentHeroList);
 
   // --- Generation Logic ---
-  function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-  }
-
+  const shuffleArray = (array) => array.sort(() => Math.random() - 0.5);
   function generateNew() {
-    const activeHeroes = getActiveHeroes();
-    if (activeHeroes.length < 4) {
-      showError(
-        "В выбранном списке недостаточно героев (нужно минимум 4).",
-        3000
+    if (localListsCache.heroes.length < 4) {
+      showNotification(
+        "В списке недостаточно героев (нужно минимум 4).",
+        "error"
       );
       return;
     }
-    currentGeneration.teams = shuffleArray([1, 2, 3, 4]);
-    currentGeneration.heroes = shuffleArray([...activeHeroes]).slice(0, 4);
+    currentGeneration = {
+      teams: shuffleArray([1, 2, 3, 4]),
+      heroes: shuffleArray([...localListsCache.heroes]).slice(0, 4),
+    };
     renderResults();
     saveGenerationToLocalStorage();
     openModal();
   }
-
-  function shuffleTeams() {
+  generateBtn.on("click", generateNew);
+  shuffleTeamsBtn.on("click", () => {
     currentGeneration.teams = shuffleArray(currentGeneration.teams);
     renderResults();
     saveGenerationToLocalStorage();
-  }
-
-  function shuffleHeroes(count = 4) {
-    const activeHeroes = getActiveHeroes();
-    const availableHeroes = activeHeroes.filter(
+  });
+  shuffleHeroesBtn.on("click", () => {
+    const availableHeroes = localListsCache.heroes.filter(
       (h) => !currentGeneration.heroes.includes(h)
     );
-
-    if (availableHeroes.length < count) {
-      showError(
-        `Недостаточно героев для замены (${availableHeroes.length}/${count}).`,
-        3000
-      );
-      return false;
+    if (availableHeroes.length < 4) {
+      showNotification("Недостаточно героев для полной замены.", "error");
+      return;
     }
-
-    if (count === 4) {
-      currentGeneration.heroes = shuffleArray(availableHeroes).slice(0, 4);
-    } else {
-      // Replacing a single hero
-      const newHero = shuffleArray(availableHeroes)[0];
-      return newHero;
-    }
-
+    currentGeneration.heroes = shuffleArray(availableHeroes).slice(0, 4);
     renderResults();
     saveGenerationToLocalStorage();
-    return true;
-  }
-
-  generateBtn.on("click", generateNew);
-  shuffleTeamsBtn.on("click", shuffleTeams);
-  shuffleHeroesBtn.on("click", () => shuffleHeroes(4));
+  });
   shuffleAllBtn.on("click", generateNew);
 
   // --- Session Management ---
@@ -310,182 +249,147 @@ $(document).ready(function () {
     const hasTempList = Object.keys(localListsCache.lists).some((name) =>
       name.endsWith(TEMP_LIST_SUFFIX)
     );
-
     prevGenBtn
       .prop("disabled", !hasLastGen)
       .toggleClass("opacity-50 cursor-not-allowed", !hasLastGen);
     resetSessionBtn
-      .prop("disabled", !hasTempList)
-      .toggleClass("opacity-50 cursor-not-allowed", !hasTempList);
+      .prop("disabled", !hasLastGen && !hasTempList)
+      .toggleClass(
+        "opacity-50 cursor-not-allowed",
+        !hasLastGen && !hasTempList
+      );
   }
-
   prevGenBtn.on("click", () => {
-    if (currentGeneration.heroes.length > 0) {
+    if (localStorage.getItem("lastGeneration")) {
       renderResults();
       openModal();
-    } else {
-      showError("Нет данных о предыдущей генерации.");
     }
   });
-
   resetSessionBtn.on("click", () => {
-    const tempListName = Object.keys(localListsCache.lists).find((name) =>
-      name.endsWith(TEMP_LIST_SUFFIX)
-    );
-    if (tempListName) {
-      delete localListsCache.lists[tempListName];
-      localStorage.removeItem(`temp_list_${tempListName}`);
-    }
-    localStorage.removeItem("lastGeneration");
-    currentGeneration = { teams: [], heroes: [] };
-
-    populateHeroListsFromCache();
-    updateSessionButtons();
-    showError("Сессия сброшена.", 2000);
+    showConfirmationModal({
+      title: "Сбросить сессию?",
+      message: "Временный список и последняя генерация будут удалены.",
+      confirmText: "Сбросить",
+      onConfirm: () => {
+        const tempListName = Object.keys(localListsCache.lists).find((name) =>
+          name.endsWith(TEMP_LIST_SUFFIX)
+        );
+        if (tempListName) {
+          delete localListsCache.lists[tempListName];
+          localStorage.removeItem(`temp_list_${tempListName}`);
+        }
+        localStorage.removeItem("lastGeneration");
+        currentGeneration = { teams: [], heroes: [] };
+        populateHeroListsFromCache();
+        updateSessionButtons();
+        showNotification("Сессия сброшена.", "success");
+      },
+    });
   });
 
   // --- Exclusion Logic ---
   function handleExclusion(heroesToExclude) {
     let currentListName = heroListSelect.val();
-    let currentList = [...getActiveHeroes()];
-
+    let currentList = [...localListsCache.heroes];
     let tempListName = currentListName.endsWith(TEMP_LIST_SUFFIX)
       ? currentListName
       : `${currentListName}${TEMP_LIST_SUFFIX}`;
-
-    // Create or update the temp list
     const updatedList = currentList.filter(
       (hero) => !heroesToExclude.includes(hero)
     );
-
-    // Save to localStorage and update cache
     localStorage.setItem(
       `temp_list_${tempListName}`,
       JSON.stringify(updatedList)
     );
     localListsCache.lists[tempListName] = updatedList;
-
-    // If we created a new temp list from a normal one, repopulate the dropdown
-    if (!currentListName.endsWith(TEMP_LIST_SUFFIX)) {
+    if (!currentListName.endsWith(TEMP_LIST_SUFFIX))
       populateHeroListsFromCache();
-    }
-
     heroListSelect.val(tempListName).trigger("change");
-
     if (heroesToExclude.length === 1) {
-      // Single hero exclusion
       const heroIndex = currentGeneration.heroes.indexOf(heroesToExclude[0]);
+      const availableHeroes = localListsCache.heroes.filter(
+        (h) => !currentGeneration.heroes.includes(h) && h !== heroesToExclude[0]
+      );
+      if (availableHeroes.length < 1) {
+        showNotification("Нет героев для замены.", "error");
+        closeModal();
+        return;
+      }
       if (heroIndex !== -1) {
-        const newHero = shuffleHeroes(1); // Get one new hero
-        if (newHero) {
-          currentGeneration.heroes[heroIndex] = newHero;
-          renderResults();
-          saveGenerationToLocalStorage();
-        } else {
-          closeModal(); // Not enough heroes to replace
-        }
+        currentGeneration.heroes[heroIndex] = shuffleArray(availableHeroes)[0];
+        renderResults();
+        saveGenerationToLocalStorage();
       }
     } else {
-      // Exclude all 4
       closeModal();
     }
-
     updateSessionButtons();
   }
-
   resultsList.on("click", ".exclude-hero-btn", function () {
-    const heroName = $(this).data("hero");
-    handleExclusion([heroName]);
+    handleExclusion([$(this).data("hero")]);
   });
-
   excludeAllBtn.on("click", () => {
-    handleExclusion([...currentGeneration.heroes]);
+    showConfirmationModal({
+      title: "Исключить всех?",
+      message: "Все 4 героя будут удалены из временного списка.",
+      confirmText: "Исключить",
+      onConfirm: () => handleExclusion([...currentGeneration.heroes]),
+    });
   });
 
-  // --- Results Modal Logic ---
+  // --- Modals Logic (Results, Settings, Confirmation) ---
+  const openModal = () => {
+    modalContainer.removeClass("opacity-0 pointer-events-none");
+    modalPanel.removeClass("translate-y-full");
+  };
+  const closeModal = () => {
+    modalPanel.addClass("translate-y-full");
+    modalContainer.addClass("opacity-0 pointer-events-none");
+  };
+  closeModalBtn.on("click", closeModal);
+  modalContainer.on("click", function (e) {
+    if (e.target === this) closeModal();
+  });
+
   function renderResults() {
     resultsList.empty();
-    if (!currentGeneration.teams || !currentGeneration.teams.length) return;
-
-    for (let i = 0; i < 4; i++) {
-      const teamNumber = currentGeneration.teams[i];
-      const heroName = currentGeneration.heroes[i];
-      const li = `
-                <li class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary text-light-text dark:text-dark-text">
-                    <span class="font-bold text-xl text-blue-500 w-10 text-center">${teamNumber}</span>
+    if (!currentGeneration.teams || !currentGeneration.heroes) return;
+    currentGeneration.heroes.forEach((heroName, i) => {
+      resultsList.append(`
+                <li class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary">
+                    <span class="font-bold text-xl text-blue-500 w-10 text-center">${currentGeneration.teams[i]}</span>
                     <span class="text-lg text-center mx-2 flex-1">${heroName}</span>
                     <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
                     </button>
-                </li>
-            `;
-      resultsList.append(li);
-    }
+                </li>`);
+    });
   }
-
-  function saveGenerationToLocalStorage() {
+  const saveGenerationToLocalStorage = () => {
     localStorage.setItem("lastGeneration", JSON.stringify(currentGeneration));
     updateSessionButtons();
-  }
+  };
 
-  function openModal() {
-    modalContainer.removeClass("opacity-0 pointer-events-none");
-    modalPanel.removeClass("translate-y-full");
-  }
-
-  function closeModal() {
-    modalPanel.addClass("translate-y-full");
-    modalContainer.addClass("opacity-0 pointer-events-none");
-  }
-
-  closeModalBtn.on("click", closeModal);
-  modalContainer.on("click", function (e) {
-    if (e.target === this) {
-      closeModal();
-    }
-  });
-
-  // --- Settings Modal Logic ---
-  const settingsModalContainer = $("#settings-modal-container");
-  const settingsModalPanel = $("#settings-modal-panel");
-  const passwordSection = $("#password-section");
-  const managementSection = $("#lists-management-section");
-
-  function openSettingsModal() {
+  const openSettingsModal = () => {
     passwordSection.show();
     managementSection.hide();
     $("#password-input").val("").focus();
     $("#password-error").addClass("hidden");
     settingsModalContainer.removeClass("opacity-0 pointer-events-none");
     settingsModalPanel.removeClass("scale-95 opacity-0");
-  }
-
-  function closeSettingsModal() {
+  };
+  const closeSettingsModal = () => {
     settingsModalContainer.addClass("opacity-0 pointer-events-none");
     settingsModalPanel.addClass("scale-95 opacity-0");
-  }
-
-  settingsBtn.on("click", () => {
-    openSettingsModal();
-  });
-
-  $("#cancel-password-btn").on("click", closeSettingsModal);
-
-  settingsModalContainer.on("click", function (e) {
-    if (e.target === this) {
-      closeSettingsModal();
-    }
-  });
-
+  };
+  settingsBtn.on("click", openSettingsModal);
+  $("#cancel-settings-btn").on("click", closeSettingsModal);
   $("#submit-password-btn").on("click", async () => {
     if (!navigator.onLine) {
-      showError("Редактирование списков доступно только онлайн.", 3000);
+      showNotification("Редактирование доступно только онлайн.", "error");
       return;
     }
-    const password = $("#password-input").val();
-    if (!password) return;
-    const hash = CryptoJS.SHA256(password).toString();
-
+    const hash = CryptoJS.SHA256($("#password-input").val()).toString();
     try {
       const docSnap = await getDoc(listsDocRef);
       if (docSnap.exists() && docSnap.data().passwordHash === hash) {
@@ -496,76 +400,207 @@ $(document).ready(function () {
         $("#password-error").removeClass("hidden");
       }
     } catch (error) {
-      console.error("Password check failed:", error);
       $("#password-error").text("Ошибка при проверке.").removeClass("hidden");
     }
   });
+  settingsModalContainer.on("click", function (e) {
+    if (e.target === this) closeSettingsModal();
+  });
 
-  // --- CRUD Logic (Stubbed) ---
-  async function renderListManagementUI() {
-    managementSection.html(`
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-bold">Управление списками</h2>
-                <button id="add-list-btn" class="p-2 w-10 h-10 flex items-center justify-center text-xl rounded-full bg-blue-500 text-white hover:bg-blue-600">+</button>
-            </div>
-            <div id="lists-editor" class="space-y-2 max-h-96 overflow-y-auto">
-                <!-- Списки будут рендериться здесь -->
-                <p>Функционал управления списками в разработке.</p>
-            </div>
-            <div class="flex justify-end mt-4">
-               <button id="close-settings-btn-inner" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80">Закрыть</button>
-            </div>
-        `);
+  async function renderListManagementUI(showSpinner = true) {
+    if (showSpinner)
+      managementSection.html(
+        '<div class="flex justify-center items-center p-8"><div class="update-spinner"></div></div>'
+      );
+    const docSnap = await getDoc(listsDocRef);
+    const remoteData = docSnap.exists()
+      ? docSnap.data()
+      : { lists: {}, selected: "" };
+    let ui = `<div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Управление списками</h2><button id="add-list-btn" class="p-2 w-10 h-10 flex items-center justify-center text-xl rounded-full bg-blue-500 text-white hover:bg-blue-600">+</button></div><div id="lists-editor" class="space-y-3 max-h-96 overflow-y-auto pr-2">${
+      !navigator.onLine
+        ? '<p class="text-center text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900 p-2 rounded-md">Офлайн-режим: редактирование недоступно.</p>'
+        : ""
+    }`;
+    const allLists = { ...remoteData.lists, ...getLocalTempLists() };
+    Object.keys(allLists)
+      .sort()
+      .forEach((name) => {
+        const isTemp = name.endsWith(TEMP_LIST_SUFFIX);
+        ui += `<div class="list-item" data-list-name="${name}">
+                <div class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary cursor-pointer list-item-header">
+                    <span class="font-semibold truncate pr-2">${name}</span>
+                    <div class="flex items-center space-x-2">
+                        ${
+                          !isTemp
+                            ? `<button class="set-default-btn p-1 ${
+                                remoteData.selected === name
+                                  ? "text-yellow-500"
+                                  : "text-gray-400 hover:text-yellow-400"
+                              }" title="Сделать по умолчанию"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg></button>`
+                            : ""
+                        }
+                        ${
+                          !isTemp
+                            ? `<button class="delete-list-btn p-1 text-gray-400 hover:text-red-500" title="Удалить список"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>`
+                            : ""
+                        }
+                    </div>
+                </div>
+                <div class="list-item-content hidden p-3 border-t border-light-accent dark:border-dark-accent">
+                    <textarea class="w-full h-40 p-2 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600">${allLists[
+                      name
+                    ].join("\n")}</textarea>
+                    <button class="mt-2 px-4 py-2 w-full rounded-lg bg-blue-500 text-white hover:bg-blue-600 save-list-btn">Сохранить</button>
+                </div>
+            </div>`;
+      });
+    ui += `</div><div class="flex justify-end mt-4"><button id="close-settings-btn-inner" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80">Закрыть</button></div>`;
+    managementSection.html(ui);
+    if (!navigator.onLine)
+      managementSection.find("button").prop("disabled", true);
     $("#close-settings-btn-inner").on("click", closeSettingsModal);
   }
 
-  // --- Helper Functions ---
-  function getActiveHeroes() {
-    const selectedList = heroListSelect.val();
-    return localListsCache.lists[selectedList] || [];
-  }
-
-  function showError(message, duration = 5000) {
-    const errorId = `error-${Date.now()}`;
-    const errorDiv = $(
-      `<div id="${errorId}" class="absolute top-20 text-center w-full max-w-sm p-3 bg-red-500 text-white rounded-lg shadow-lg transition-opacity duration-300">${message}</div>`
+  managementSection.on("click", ".list-item-header", function () {
+    $(this).siblings(".list-item-content").slideToggle(200);
+  });
+  managementSection.on("click", "#add-list-btn", () => {
+    const newListName = prompt("Введите название нового списка:");
+    if (newListName && !localListsCache.lists[newListName]) {
+      const key = `lists.${newListName.replace(/\./g, "_")}`;
+      updateDoc(listsDocRef, { [key]: [] }).then(() => {
+        showNotification(`Список "${newListName}" создан.`, "success");
+        syncWithFirebase().then(() => renderListManagementUI(false));
+      });
+    } else if (newListName) {
+      showNotification("Список с таким именем уже существует.", "error");
+    }
+  });
+  managementSection.on("click", ".save-list-btn", async function () {
+    const listName = $(this).closest(".list-item").data("list-name");
+    const heroes = $(this)
+      .siblings("textarea")
+      .val()
+      .split("\n")
+      .map((h) => h.trim())
+      .filter(Boolean);
+    if (listName.endsWith(TEMP_LIST_SUFFIX)) {
+      localStorage.setItem(`temp_list_${listName}`, JSON.stringify(heroes));
+      localListsCache.lists[listName] = heroes;
+      showNotification(`Локальный список "${listName}" обновлен.`, "success");
+    } else {
+      const key = `lists.${listName.replace(/\./g, "_")}`;
+      await updateDoc(listsDocRef, { [key]: heroes });
+      showNotification(`Список "${listName}" сохранен в Firebase.`, "success");
+      await syncWithFirebase();
+    }
+    $(this).closest(".list-item-content").slideUp(200);
+  });
+  managementSection.on("click", ".set-default-btn", async function () {
+    const listName = $(this).closest(".list-item").data("list-name");
+    await updateDoc(listsDocRef, { selected: listName });
+    showNotification(
+      `Список "${listName}" установлен по умолчанию.`,
+      "success"
     );
-    $("#app").prepend(errorDiv);
+    await syncWithFirebase();
+    renderListManagementUI(false);
+  });
+  managementSection.on("click", ".delete-list-btn", function () {
+    const listName = $(this).closest(".list-item").data("list-name");
+    showConfirmationModal({
+      title: "Удалить список?",
+      message: `Вы уверены, что хотите удалить список "${listName}"? Это действие необратимо.`,
+      confirmText: "Удалить",
+      onConfirm: async () => {
+        const docSnap = await getDoc(listsDocRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          delete data.lists[listName];
+          if (data.selected === listName) data.selected = "";
+          await setDoc(listsDocRef, data);
+          showNotification(`Список "${listName}" удален.`, "success");
+          await syncWithFirebase();
+          await renderListManagementUI(false);
+          populateHeroListsFromCache();
+        }
+      },
+    });
+  });
+
+  const confModal = $("#confirmation-modal-container"),
+    confPanel = $("#confirmation-modal-panel");
+  function showConfirmationModal({
+    title,
+    message,
+    confirmText,
+    onConfirm,
+    isDestructive = true,
+  }) {
+    confModal.find("#confirmation-title").text(title);
+    confModal.find("#confirmation-message").text(message);
+    const confirmBtn = confModal
+      .find("#confirmation-confirm-btn")
+      .text(confirmText);
+    confirmBtn
+      .toggleClass("bg-red-500 hover:bg-red-600", isDestructive)
+      .toggleClass("bg-blue-500 hover:bg-blue-600", !isDestructive);
+    confModal.removeClass("opacity-0 pointer-events-none");
+    confPanel.removeClass("scale-95 opacity-0");
+    confirmBtn.off("click").on("click", () => {
+      onConfirm();
+      closeConfirmationModal();
+    });
+  }
+  const closeConfirmationModal = () => {
+    confPanel.addClass("scale-95 opacity-0");
+    confModal.addClass("opacity-0 pointer-events-none");
+  };
+  confModal.on("click", function (e) {
+    if (e.target === this) closeConfirmationModal();
+  });
+  $("#confirmation-cancel-btn").on("click", closeConfirmationModal);
+
+  function showNotification(message, type = "error", duration = 4000) {
+    const color = type === "success" ? "bg-green-500" : "bg-red-500";
+    const notificationId = `notification-${Date.now()}`;
+    const notificationDiv = $(
+      `<div id="${notificationId}" class="absolute top-20 text-center w-full max-w-sm p-3 ${color} text-white rounded-lg shadow-lg transition-opacity duration-300">${message}</div>`
+    );
+    $("#app").prepend(notificationDiv);
     setTimeout(() => {
-      $(`#${errorId}`).addClass("opacity-0");
-      setTimeout(() => $(`#${errorId}`).remove(), 300);
+      $(`#${notificationId}`).addClass("opacity-0");
+      setTimeout(() => $(`#${notificationId}`).remove(), 300);
     }, duration);
   }
 
   // --- Service Worker ---
   if ("serviceWorker" in navigator) {
-    let newWorker;
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((reg) => {
-        reg.addEventListener("updatefound", () => {
-          newWorker = reg.installing;
-          newWorker.addEventListener("statechange", () => {
-            if (
-              newWorker.state === "installed" &&
-              navigator.serviceWorker.controller
-            ) {
-              $("#update-indicator").removeClass("hidden");
-            }
+    $(window).on("load", () => {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          reg.addEventListener("updatefound", () => {
+            const newWorker = reg.installing;
+            newWorker.addEventListener("statechange", () => {
+              if (
+                newWorker.state === "installed" &&
+                navigator.serviceWorker.controller
+              ) {
+                $("#update-indicator").removeClass("hidden");
+              }
+            });
           });
-        });
-      })
-      .catch((err) =>
-        console.error("Service Worker registration failed:", err)
+        })
+        .catch((err) => console.error("SW registration failed:", err));
+      navigator.serviceWorker.addEventListener("controllerchange", () =>
+        window.location.reload()
       );
-
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      window.location.reload();
     });
   }
 
   // --- Initial Load ---
   initializeFirebase();
-  loadFromLocalStorage(); // Load from cache immediately for faster UI
-  renderResults();
+  loadFromLocalStorage();
+  populateHeroListsFromCache();
 });
