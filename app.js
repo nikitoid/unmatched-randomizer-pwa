@@ -224,7 +224,6 @@ $(document).ready(function () {
     renderResults();
     saveGenerationToLocalStorage();
   });
-  // FIX: Correct shuffle heroes logic
   shuffleHeroesBtn.on("click", () => {
     if (localListsCache.heroes.length < 4) {
       showNotification(
@@ -294,7 +293,7 @@ $(document).ready(function () {
     })
   );
 
-  // --- Exclusion Logic ---
+  // --- Exclusion & Reroll Logic ---
   function handleExclusion(heroesToExclude) {
     let currentListName = heroListSelect.val();
     let currentList = [...localListsCache.heroes];
@@ -337,8 +336,33 @@ $(document).ready(function () {
       message: `Вы уверены, что хотите исключить "${heroToExclude}"?`,
       confirmText: "Исключить",
       isDestructive: false,
+      onConfirm: () => handleExclusion([heroToExclude]),
+    });
+  });
+  resultsList.on("click", ".reroll-hero-btn", function () {
+    const heroIndex = $(this).data("hero-index");
+    const heroToReroll = currentGeneration.heroes[heroIndex];
+    showConfirmationModal({
+      title: "Перемешать героя?",
+      message: `Вы уверены, что хотите заменить "${heroToReroll}" на другого случайного героя?`,
+      confirmText: "Заменить",
+      isDestructive: false,
       onConfirm: () => {
-        handleExclusion([heroToExclude]);
+        const availableHeroes = localListsCache.heroes.filter(
+          (h) => !currentGeneration.heroes.includes(h)
+        );
+        if (availableHeroes.length < 1) {
+          showNotification("Нет доступных героев для замены.", "error");
+          return;
+        }
+        const newHero = shuffleArray(availableHeroes)[0];
+        currentGeneration.heroes[heroIndex] = newHero;
+        renderResults();
+        saveGenerationToLocalStorage();
+        showNotification(
+          `"${heroToReroll}" заменен на "${newHero}".`,
+          "success"
+        );
       },
     });
   });
@@ -371,9 +395,24 @@ $(document).ready(function () {
     currentGeneration.heroes.forEach((heroName, i) =>
       resultsList.append(`
             <li class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary">
-                <span class="font-bold text-xl text-blue-500 w-10 text-center">${currentGeneration.teams[i]}</span>
+                <span class="font-bold text-xl text-blue-500 w-10 text-center">${
+                  currentGeneration.teams[i]
+                }</span>
                 <span class="text-lg text-center mx-2 flex-1">${heroName}</span>
-                <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></button>
+                <div class="flex items-center">
+                    ${
+                      localListsCache.heroes.length > 4
+                        ? `
+                    <button class="p-1 text-gray-400 hover:text-blue-500 transition-colors reroll-hero-btn" data-hero-index="${i}" title="Перемешать героя">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 110 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd" />
+                        </svg>
+                    </button>
+                    `
+                        : ""
+                    }
+                    <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></button>
+                </div>
             </li>`)
     );
   }
@@ -476,6 +515,11 @@ $(document).ready(function () {
                         }
                         ${
                           !isTemp
+                            ? `<button class="rename-list-btn p-1 text-gray-400 hover:text-blue-500" title="Переименовать список"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fill-rule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clip-rule="evenodd" /></svg></button>`
+                            : ""
+                        }
+                        ${
+                          !isTemp
                             ? `<button class="delete-list-btn p-1 text-gray-400 hover:text-red-500" title="Удалить список"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>`
                             : ""
                         }
@@ -547,6 +591,39 @@ $(document).ready(function () {
       heroListSelect.trigger("change");
     }
     $(this).closest(".list-item-content").slideUp(200);
+  });
+  settingsModalPanel.on("click", ".rename-list-btn", async function (e) {
+    e.stopPropagation();
+    if (!isSettingsAuthenticated) {
+      openPasswordModal();
+      return;
+    }
+    const oldName = $(this).closest(".list-item").data("list-name");
+    const newName = prompt("Введите новое название для списка:", oldName);
+    if (!newName || newName.trim() === "" || newName === oldName) return;
+    if (localListsCache.lists[newName]) {
+      showNotification("Список с таким именем уже существует.", "error");
+      return;
+    }
+    try {
+      const docSnap = await getDoc(listsDocRef);
+      if (docSnap.exists() && docSnap.data().lists[oldName]) {
+        const data = docSnap.data();
+        data.lists[newName] = data.lists[oldName];
+        delete data.lists[oldName];
+        if (data.selected === oldName) data.selected = newName;
+        await setDoc(listsDocRef, data);
+        showNotification(
+          `Список "${oldName}" переименован в "${newName}".`,
+          "success"
+        );
+        await syncWithFirebase();
+        await renderListManagementUI(false);
+        populateHeroListsFromCache();
+      } else showNotification(`Список "${oldName}" не найден в базе.`, "error");
+    } catch (error) {
+      showNotification("Ошибка при переименовании списка.", "error");
+    }
   });
   settingsModalPanel.on(
     "click",
