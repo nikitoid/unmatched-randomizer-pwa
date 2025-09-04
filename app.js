@@ -3,9 +3,9 @@ $(document).ready(function () {
   // --- Глобальные переменные и константы ---
   let currentPlayers = [];
   let currentHeroes = [];
-  let heroDataFromFirebase = {}; // Данные из Firestore
-  let localExclusionLists = {}; // Локальные списки исключений
-  let isDbAuthenticated = false; // Флаг аутентификации для работы с БД
+  let heroDataFromFirebase = {};
+  let localExclusionLists = {};
+  let isDbAuthenticated = false;
 
   const EXCLUSION_SUFFIX = " (искл.)";
   const getAlpineState = () => document.querySelector("[x-data]").__x.$data;
@@ -94,49 +94,50 @@ $(document).ready(function () {
     mainSelect.empty();
     modalSelect.empty();
 
-    // Главный селект всегда показывает все доступные списки
+    const defaultList =
+      heroDataFromFirebase.selected || Object.keys(onlineLists)[0];
+
     Object.keys(mergedLists)
       .sort()
       .forEach((listName) => {
-        mainSelect.append($("<option>", { value: listName, text: listName }));
+        const isDefault = listName === defaultList;
+        const optionText = isDefault ? `★ ${listName}` : listName;
+        mainSelect.append($("<option>", { value: listName, text: optionText }));
       });
 
-    // Селект в настройках зависит от статуса сети
     if (isOnline) {
       Object.keys(onlineLists)
         .sort()
-        .forEach((name) =>
-          modalSelect.append($("<option>", { value: name, text: name }))
-        );
+        .forEach((name) => {
+          const isDefault = name === defaultList;
+          const optionText = isDefault ? `★ ${name}` : name;
+          modalSelect.append($("<option>", { value: name, text: optionText }));
+        });
     }
     Object.keys(localExclusionLists)
       .sort()
-      .forEach((name) =>
-        modalSelect.append($("<option>", { value: name, text: name }))
-      );
+      .forEach((name) => {
+        modalSelect.append($("<option>", { value: name, text: name }));
+      });
 
-    const newSelected =
-      heroDataFromFirebase.selected || Object.keys(onlineLists)[0];
     mainSelect.val(
       Object.keys(mergedLists).includes(currentMainVal)
         ? currentMainVal
-        : newSelected
+        : defaultList
     );
 
-    // Устанавливаем значение для селекта в настройках, если оно есть
     if (modalSelect.find("option").length > 0) {
       modalSelect.val(modalSelect.find("option:first").val());
     }
 
-    handleSettingsListChange(); // Обновляем состояние кнопок
+    handleSettingsListChange();
     updateSessionButtonsVisibility();
     console.log(`Списки обновлены из: ${source}`);
   }
 
   function handleSettingsListChange() {
-    const selectedList = $("#modal-list-select").val();
+    let selectedList = $("#modal-list-select").val();
     if (!selectedList) {
-      // Если списков нет, отключаем все
       $("#heroes-textarea").val("");
       $(
         "#save-list-btn, #set-default-btn, #delete-list-btn, #create-list-btn"
@@ -152,13 +153,10 @@ $(document).ready(function () {
 
     $("#heroes-textarea").val(mergedLists[selectedList].join("\n"));
 
-    // Локальные списки можно редактировать всегда
     if (isLocal) {
       $("#save-list-btn, #delete-list-btn").prop("disabled", false);
-      $("#set-default-btn, #create-list-btn").prop("disabled", true); // Нельзя сделать локальный список по умолчанию или создать новый
-    }
-    // Списки из БД можно редактировать только после аутентификации
-    else {
+      $("#set-default-btn, #create-list-btn").prop("disabled", true);
+    } else {
       $(
         "#save-list-btn, #set-default-btn, #delete-list-btn, #create-list-btn"
       ).prop("disabled", !isDbAuthenticated);
@@ -202,10 +200,12 @@ $(document).ready(function () {
         class:
           "py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center",
       });
-      const textSpan = $("<span>").text(`Игрок ${currentPlayers[i]}: ${hero}`);
+      const textSpan = $("<span>", { class: "pr-2" }).text(
+        `Игрок ${currentPlayers[i]}: ${hero}`
+      );
       const excludeBtn = $("<button>", {
         class:
-          "p-1 rounded-full text-gray-400 hover:bg-red-500 hover:text-white transition-colors flex-shrink-0 ml-2",
+          "p-1 rounded-full text-gray-400 hover:bg-red-500 hover:text-white transition-colors flex-shrink-0 ml-auto",
         "data-hero-name": hero,
         "data-player-index": i,
         html: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
@@ -318,7 +318,7 @@ $(document).ready(function () {
         const source = docSnap.metadata.fromCache ? "кэша" : "сервера";
         if (docSnap.exists()) {
           heroDataFromFirebase = docSnap.data();
-          isDbAuthenticated = false; // Сбрасываем аутентификацию при обновлении данных
+          isDbAuthenticated = false;
           rebuildAndPopulateSelects(source);
         } else {
           getAlpineState().showToast("База данных не найдена.", "error");
@@ -374,9 +374,22 @@ $(document).ready(function () {
     });
 
     // -- ОБРАБОТЧИКИ НАСТРОЕК --
+    window.addEventListener("settings-opened", () => {
+      const currentList = $("#hero-list").val();
+      $("#modal-list-select").val(currentList);
+      handleSettingsListChange();
+    });
+    window.addEventListener("settings-closed", () => {
+      isDbAuthenticated = false;
+    });
+
     $("#modal-list-select").on("change", function () {
       const selectedList = $(this).val();
-      if (!selectedList.endsWith(EXCLUSION_SUFFIX) && !isDbAuthenticated) {
+      if (
+        selectedList &&
+        !selectedList.endsWith(EXCLUSION_SUFFIX) &&
+        !isDbAuthenticated
+      ) {
         $("#trigger-db-password-modal").click();
       }
       handleSettingsListChange();
@@ -386,7 +399,7 @@ $(document).ready(function () {
       const hash = await sha256($("#db-password-input").val());
       if (hash === heroDataFromFirebase.passwordHash) {
         isDbAuthenticated = true;
-        handleSettingsListChange();
+        handleSettingsListChange(); // ИСПРАВЛЕНО: Немедленно обновляем UI
         getAlpineState().isDbPasswordModalOpen = false;
         getAlpineState().showToast("Доступ предоставлен!", "success");
       } else {
@@ -447,14 +460,14 @@ $(document).ready(function () {
       );
     });
 
-    $("#create-list-btn").on("click", () => {
-      const newName = $("#new-list-name").val().trim();
+    $("#confirm-create-list-btn").on("click", async () => {
+      const newName = $("#new-list-name-input").val().trim();
       if (!newName)
         return getAlpineState().showToast(
           "Введите имя нового списка!",
           "error"
         );
-      if (heroDataFromFirebase.lists[newName])
+      if (heroDataFromFirebase.lists[newName] || localExclusionLists[newName])
         return getAlpineState().showToast(
           "Список с таким именем уже существует!",
           "error"
@@ -462,17 +475,20 @@ $(document).ready(function () {
 
       const updatedData = { ...heroDataFromFirebase };
       updatedData.lists[newName] = [];
-      saveFirebaseChanges(
+      await saveFirebaseChanges(
         updatedData,
         `Список "${newName}" создан!`,
         "Не удалось создать список."
-      ).then(() => $("#new-list-name").val(""));
+      );
+
+      getAlpineState().isCreateListModalOpen = false;
+      $("#modal-list-select").val(newName); // Автоматический выбор нового списка
+      handleSettingsListChange();
     });
 
     $("#delete-list-btn").on("click", () => {
       const listName = $("#modal-list-select").val();
-      const title = "Удалить список?";
-      const message = `Вы уверены, что хотите удалить список "${listName}"? Это действие нельзя отменить.`;
+      if (!listName) return;
 
       const onConfirm = () => {
         if (listName.endsWith(EXCLUSION_SUFFIX)) {
@@ -504,7 +520,11 @@ $(document).ready(function () {
       };
 
       const event = new CustomEvent("open-confirm-modal", {
-        detail: { title, message, onConfirm },
+        detail: {
+          title: "Удалить список?",
+          message: `Вы уверены, что хотите удалить список "${listName}"? Это действие нельзя отменить.`,
+          onConfirm,
+        },
       });
       window.dispatchEvent(event);
     });

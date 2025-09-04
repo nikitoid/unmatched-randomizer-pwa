@@ -149,7 +149,7 @@
             <div class="relative w-10 h-10 flex-shrink-0">
               <button
                 id="settings-btn"
-                @click="isSettingsModalOpen = true"
+                @click="openSettings()"
                 class="absolute inset-0 flex items-center justify-center p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
               >
                 <svg
@@ -252,9 +252,12 @@
       >
         <div
           @click.away="isSettingsModalOpen = false"
-          class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-md"
+          class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 w-full max-w-md flex flex-col"
+          style="height: 80vh"
         >
-          <div class="flex justify-between items-center mb-4">
+          <div
+            class="flex-shrink-0 flex justify-between items-center pb-3 border-b border-gray-200 dark:border-gray-700"
+          >
             <h3 class="text-xl font-bold text-gray-900 dark:text-white">
               Управление списками
             </h3>
@@ -278,27 +281,67 @@
             </button>
           </div>
 
-          <div id="management-section" class="space-y-4">
-            <div>
-              <label
-                for="modal-list-select"
-                class="block mb-2 text-sm font-medium text-gray-500 dark:text-gray-400"
-                >Редактировать список:</label
-              >
+          <div
+            id="management-section"
+            class="flex-grow flex flex-col space-y-4 py-4 overflow-y-auto"
+          >
+            <div class="flex-shrink-0 flex items-center gap-2">
               <select
                 id="modal-list-select"
-                class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 w-full p-2 rounded-lg"
+                class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 w-full p-2.5 rounded-lg text-sm"
               ></select>
+              <button
+                id="create-list-btn"
+                @click="isCreateListModalOpen = true"
+                class="p-2.5 rounded-lg bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+              </button>
+              <button
+                id="delete-list-btn"
+                class="p-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <polyline points="3 6 5 6 21 6"></polyline>
+                  <path
+                    d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                  ></path>
+                  <line x1="10" y1="11" x2="10" y2="17"></line>
+                  <line x1="14" y1="11" x2="14" y2="17"></line>
+                </svg>
+              </button>
             </div>
-            <div>
+            <div class="flex-grow">
               <textarea
                 id="heroes-textarea"
-                rows="6"
-                class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 w-full p-2 rounded-lg"
+                class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 w-full p-2 rounded-lg h-full resize-none"
                 placeholder="Каждый герой с новой строки..."
               ></textarea>
             </div>
-            <div class="grid grid-cols-2 gap-2">
+            <div class="flex-shrink-0 grid grid-cols-2 gap-2">
               <button
                 id="save-list-btn"
                 class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
@@ -310,35 +353,6 @@
                 class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 font-bold py-2 px-3 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Сделать по умолч.
-              </button>
-            </div>
-            <hr class="border-gray-300 dark:border-gray-600" />
-            <div>
-              <label
-                for="new-list-name"
-                class="block mb-2 text-sm font-medium text-gray-500 dark:text-gray-400"
-                >Создать новый список (в БД):</label
-              >
-              <input
-                type="text"
-                id="new-list-name"
-                class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 w-full p-2 rounded-lg"
-                placeholder="Название нового списка"
-              />
-              <button
-                id="create-list-btn"
-                class="w-full mt-2 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-3 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Создать
-              </button>
-            </div>
-            <hr class="border-gray-300 dark:border-gray-600" />
-            <div>
-              <button
-                id="delete-list-btn"
-                class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-3 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                Удалить выбранный список
               </button>
             </div>
           </div>
@@ -489,7 +503,7 @@
             Требуется аутентификация
           </h3>
           <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            Введите пароль для изменения списков в базе данных.
+            Введите пароль для изменения общих списков в базе данных.
           </p>
           <input
             type="password"
@@ -509,6 +523,51 @@
               class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg"
             >
               Войти
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Модальное окно для создания нового списка -->
+      <div
+        x-show="isCreateListModalOpen"
+        x-transition:enter="ease-out duration-300"
+        x-transition:enter-start="opacity-0"
+        x-transition:enter-end="opacity-100"
+        x-transition:leave="ease-in duration-200"
+        x-transition:leave-start="opacity-100"
+        x-transition:leave-end="opacity-0"
+        class="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50"
+        style="display: none"
+      >
+        <div
+          @click.away="isCreateListModalOpen = false"
+          class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm text-center"
+        >
+          <h3 class="text-lg font-bold mb-2 text-gray-900 dark:text-white">
+            Создать новый список
+          </h3>
+          <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+            Введите название нового списка для базы данных.
+          </p>
+          <input
+            type="text"
+            id="new-list-name-input"
+            class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-center w-full p-2 rounded-lg mb-4"
+            placeholder="Название списка"
+          />
+          <div class="flex justify-center gap-4">
+            <button
+              @click="isCreateListModalOpen = false"
+              class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 font-bold py-2 px-6 rounded-lg"
+            >
+              Отмена
+            </button>
+            <button
+              id="confirm-create-list-btn"
+              class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg"
+            >
+              Создать
             </button>
           </div>
         </div>
@@ -569,6 +628,7 @@
           isSettingsModalOpen: false,
           isResultsModalOpen: false,
           isDbPasswordModalOpen: false,
+          isCreateListModalOpen: false,
           isPwaUpdating: false,
           toast: { show: false, message: "", type: "info" },
           confirmModal: {
@@ -594,15 +654,17 @@
             document.documentElement.classList.toggle("dark", this.isDark);
           },
           resetSettingsModal() {
-            setTimeout(() => {
-              $("#db-password-input").val("");
-            }, 300);
+            $("#db-password-input").val("");
+            $("#new-list-name-input").val("");
+            // Глобальное событие для сброса состояния аутентификации в app.js
+            window.dispatchEvent(new CustomEvent("settings-closed"));
           },
           closeAllModals() {
             this.isSettingsModalOpen = false;
             this.isResultsModalOpen = false;
             this.confirmModal.show = false;
             this.isDbPasswordModalOpen = false;
+            this.isCreateListModalOpen = false;
           },
           showToast(message, type = "info") {
             this.toast.message = message;
@@ -617,9 +679,14 @@
             this.confirmModal.message = message;
             this.confirmModal.onConfirm = () => {
               onConfirmCallback();
-              this.confirmModal.show = false; // ИСПРАВЛЕНО: Закрываем окно после выполнения
+              this.confirmModal.show = false;
             };
             this.confirmModal.show = true;
+          },
+          openSettings() {
+            // Глобальное событие для подготовки данных в app.js перед открытием
+            window.dispatchEvent(new CustomEvent("settings-opened"));
+            this.isSettingsModalOpen = true;
           },
         }));
       });
@@ -628,9 +695,23 @@
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("/service-worker.js").then((reg) => {
             reg.addEventListener("updatefound", () => {
-              const alpine = document.querySelector("[x-data]").__x;
-              if (alpine) alpine.$data.isPwaUpdating = true;
-              console.log("Найдено обновление, начинается установка...");
+              const newWorker = reg.installing;
+              newWorker.addEventListener("statechange", () => {
+                if (
+                  newWorker.state === "installed" &&
+                  navigator.serviceWorker.controller
+                ) {
+                  const alpine = document.querySelector("[x-data]").__x;
+                  if (alpine) {
+                    alpine.$data.isPwaUpdating = true;
+                    alpine.$data.showToast(
+                      "Доступно обновление приложения!",
+                      "info"
+                    );
+                  }
+                  console.log("Найдено обновление, готово к активации.");
+                }
+              });
             });
           });
           navigator.serviceWorker.addEventListener("controllerchange", () => {

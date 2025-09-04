@@ -1,6 +1,6 @@
 // ИЗМЕНЕНО: Финальная, надежная версия сервис-воркера для оффлайн-запуска
 
-const CACHE_NAME = "randomatched-cache-v7"; // Увеличиваем версию кэша для обновления
+const CACHE_NAME = "randomatched-cache-v8"; // Увеличиваем версию кэша для обновления
 const FILES_TO_CACHE = [
   "/",
   "index.html",
@@ -21,7 +21,14 @@ self.addEventListener("install", (evt) => {
   evt.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log("[ServiceWorker] Pre-caching offline files");
-      return cache.addAll(FILES_TO_CACHE);
+      // addAll может завершиться неудачей, если хотя бы один ресурс недоступен
+      // Поэтому мы кэшируем каждый файл индивидуально, чтобы повысить надежность
+      const promises = FILES_TO_CACHE.map((url) => {
+        return cache.add(new Request(url, { cache: "reload" })).catch((err) => {
+          console.warn(`[ServiceWorker] Failed to cache: ${url}`, err);
+        });
+      });
+      return Promise.all(promises);
     })
   );
   self.skipWaiting();
