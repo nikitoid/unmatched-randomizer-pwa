@@ -1,6 +1,6 @@
 // --- Service Worker ---
 
-const CACHE_NAME = "randomatched-v2"; // Увеличиваем версию, чтобы SW обновился
+const CACHE_NAME = "randomatched-v3"; // Увеличиваем версию, чтобы SW обновился
 const URLS_TO_CACHE = [
   // Локальные ассеты
   "/",
