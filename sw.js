@@ -11,41 +11,26 @@ const URLS_TO_CACHE = [
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
-  // Внешние CDN ассеты
-  "https://code.jquery.com/jquery-3.7.1.min.js",
-  "https://cdn.tailwindcss.com",
-  "https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js",
-  "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
-  "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
-  "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
+  // Внешние CDN ассеты (будут кэшироваться при первом запросе)
 ];
 
-// Установка: кэшируем основные файлы приложения
+const CDN_ORIGINS = [
+  "https://code.jquery.com",
+  "https://cdn.tailwindcss.com",
+  "https://cdnjs.cloudflare.com",
+  "https://www.gstatic.com",
+];
+
+// Установка: кэшируем только локальные файлы приложения
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then((cache) => {
-        console.log("[SW] Opened cache. Caching assets...");
-
-        const cachePromises = URLS_TO_CACHE.map((url) => {
-          // Для внешних ресурсов (CDN) делаем запрос в режиме 'no-cors'
-          if (url.startsWith("http")) {
-            const request = new Request(url, { mode: "no-cors" });
-            return fetch(request).then((response) =>
-              cache.put(request, response)
-            );
-          }
-          // Локальные ресурсы добавляем как обычно
-          return cache.add(url);
-        });
-
-        return Promise.all(cachePromises);
+        console.log("[SW] Opened cache. Caching app shell.");
+        return cache.addAll(URLS_TO_CACHE);
       })
       .then(() => self.skipWaiting()) // Активируем новый SW сразу
-      .catch((err) => {
-        console.error("[SW] Caching failed during install:", err);
-      })
   );
 });
 
@@ -68,21 +53,31 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch: используем стратегию "Cache first".
-// Firebase сам управляет своим сетевым соединением.
+// Fetch: применяем разные стратегии
 self.addEventListener("fetch", (event) => {
-  // Игнорируем запросы к Firebase, чтобы не мешать его оффлайн-механизму
-  if (
-    event.request.url.includes("firestore.googleapis.com") ||
-    event.request.url.includes("firebaseapp.com")
-  ) {
+  const requestUrl = new URL(event.request.url);
+
+  // Для CDN используем стратегию Stale-While-Revalidate
+  if (CDN_ORIGINS.includes(requestUrl.origin)) {
+    event.respondWith(
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.match(event.request).then((cachedResponse) => {
+          const fetchPromise = fetch(event.request).then((networkResponse) => {
+            // Клонируем ответ, так как его можно прочитать только один раз
+            cache.put(event.request, networkResponse.clone());
+            return networkResponse;
+          });
+          // Возвращаем из кэша немедленно, если есть, или ждем ответа от сети
+          return cachedResponse || fetchPromise;
+        });
+      })
+    );
     return;
   }
 
+  // Для всех остальных (локальных) запросов используем Cache First
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // Если ресурс есть в кэше, возвращаем его.
-      // Иначе делаем запрос к сети.
       return response || fetch(event.request);
     })
   );
