@@ -1,16 +1,17 @@
 {
   "name": "randomatched",
   "short_name": "randomatched",
-  "start_url": ".",
+  "description": "Генератор случайных команд",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
-  "description": "Генератор случайных команд.",
+  "background_color": "#1f2937",
+  "theme_color": "#374151",
   "icons": [
     {
       "src": "icons/icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-512.png",

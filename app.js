@@ -1,10 +1,21 @@
+// --- Imports ---
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import {
+  getAuth,
+  signInAnonymously,
+  onAuthStateChanged,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  updateDoc,
+} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
 // --- Globals & Config ---
-const { initializeApp } = window.firebaseApp;
-const { getAuth, signInAnonymously, onAuthStateChanged } = window.FirebaseAuth;
-const { getFirestore, doc, getDoc, updateDoc } = window.FirebaseFirestore;
 const { CryptoJS } = window;
 
-// These will be populated by the environment
+// These will be populated by the environment from index.html
 const firebaseConfig =
   typeof __firebase_config !== "undefined" ? JSON.parse(__firebase_config) : {};
 const appId =
@@ -19,14 +30,30 @@ let localListsCache = {
   heroes: [],
 };
 
+let currentGeneration = {
+  teams: [],
+  heroes: [],
+};
+
 // --- App Initialization ---
 $(document).ready(function () {
-  // Initialize UI elements
+  // --- Initialize UI elements ---
   const generateBtn = $("#generate-btn");
   const settingsBtn = $("#settings-btn");
   const heroListSelect = $("#hero-list-select");
+  const themeToggle = $("#theme-toggle");
+  const sunIcon = $("#theme-icon-sun");
+  const moonIcon = $("#theme-icon-moon");
+  const html = $("html");
+  const modalContainer = $("#results-modal-container");
+  const modalPanel = $("#results-modal-panel");
+  const closeModalBtn = $("#close-modal-btn");
+  const resultsList = $("#results-list");
+  const shuffleTeamsBtn = $("#shuffle-teams-btn");
+  const shuffleHeroesBtn = $("#shuffle-heroes-btn");
+  const shuffleAllBtn = $("#shuffle-all-btn");
 
-  // Setup Firebase
+  // --- Setup Firebase ---
   try {
     const app = initializeApp(firebaseConfig);
     db = getFirestore(app);
@@ -34,11 +61,14 @@ $(document).ready(function () {
     listsDocRef = doc(db, "lists", "main");
   } catch (e) {
     console.error("Firebase initialization failed:", e);
-    alert("Не удалось подключиться к базе данных. Проверьте конфигурацию.");
+    // Using a non-blocking error display instead of alert()
+    $("#app").prepend(
+      '<div class="absolute top-20 text-center w-full p-4 bg-red-500 text-white rounded-lg">Не удалось подключиться к базе данных. Проверьте конфигурацию.</div>'
+    );
     return;
   }
 
-  // Sign in and fetch data
+  // --- Authentication & Data Fetching ---
   onAuthStateChanged(auth, (user) => {
     if (user) {
       console.log("Authenticated anonymously:", user.uid);
@@ -46,11 +76,35 @@ $(document).ready(function () {
     } else {
       signInAnonymously(auth).catch((error) => {
         console.error("Anonymous sign-in failed:", error);
-        // Load from local storage if sign-in fails
         loadFromLocalStorage();
         populateHeroListsFromCache();
       });
     }
+  });
+
+  // --- Theme Logic ---
+  const applyTheme = (theme) => {
+    if (theme === "dark") {
+      html.addClass("dark").removeClass("light");
+      sunIcon.removeClass("hidden");
+      moonIcon.addClass("hidden");
+      localStorage.setItem("theme", "dark");
+    } else {
+      html.removeClass("dark").addClass("light");
+      moonIcon.removeClass("hidden");
+      sunIcon.addClass("hidden");
+      localStorage.setItem("theme", "light");
+    }
+  };
+  const savedTheme =
+    localStorage.getItem("theme") ||
+    (window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light");
+  applyTheme(savedTheme);
+  themeToggle.on("click", () => {
+    const newTheme = html.hasClass("dark") ? "light" : "dark";
+    applyTheme(newTheme);
   });
 
   // --- Data Sync & Caching ---
@@ -90,6 +144,8 @@ $(document).ready(function () {
       JSON.parse(localStorage.getItem("randomatched_lists")) || {};
     localListsCache.selected =
       localStorage.getItem("randomatched_selected") || "";
+    const lastGen = JSON.parse(localStorage.getItem("lastGeneration"));
+    if (lastGen) currentGeneration = lastGen;
   }
 
   function populateHeroListsFromCache() {
@@ -98,13 +154,14 @@ $(document).ready(function () {
 
     if (listNames.length === 0) {
       heroListSelect.append('<option value="">Нет доступных списков</option>');
-      generateBtn.prop("disabled", true);
+      generateBtn
+        .prop("disabled", true)
+        .addClass("opacity-50 cursor-not-allowed");
       return;
     }
 
-    listNames.forEach((name) => {
-      const option = `<option value="${name}">${name}</option>`;
-      heroListSelect.append(option);
+    listNames.sort().forEach((name) => {
+      heroListSelect.append(`<option value="${name}">${name}</option>`);
     });
 
     const selected =
@@ -115,15 +172,129 @@ $(document).ready(function () {
 
     heroListSelect.val(selected);
     updateCurrentHeroList();
-    generateBtn.prop("disabled", false);
+    generateBtn
+      .prop("disabled", false)
+      .removeClass("opacity-50 cursor-not-allowed");
   }
 
   function updateCurrentHeroList() {
     const selectedListName = heroListSelect.val();
     localListsCache.heroes = localListsCache.lists[selectedListName] || [];
+    console.log(
+      `Selected list "${selectedListName}" with ${localListsCache.heroes.length} heroes.`
+    );
   }
 
   heroListSelect.on("change", updateCurrentHeroList);
+
+  // --- Generation Logic ---
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  function generateNew() {
+    const activeHeroes = getActiveHeroes();
+    if (activeHeroes.length < 4) {
+      alert("В выбранном списке недостаточно героев (нужно минимум 4).");
+      return;
+    }
+    currentGeneration.teams = shuffleArray([1, 2, 3, 4]);
+    currentGeneration.heroes = shuffleArray([...activeHeroes]).slice(0, 4);
+    renderResults();
+    saveGenerationToLocalStorage();
+    openModal();
+  }
+
+  function shuffleTeams() {
+    currentGeneration.teams = shuffleArray(currentGeneration.teams);
+    renderResults();
+    saveGenerationToLocalStorage();
+  }
+
+  function shuffleHeroes() {
+    const activeHeroes = getActiveHeroes();
+    if (activeHeroes.length < 4) {
+      alert("В выбранном списке недостаточно героев для перемешивания.");
+      return;
+    }
+
+    const remainingHeroes = activeHeroes.filter(
+      (h) => !currentGeneration.heroes.includes(h)
+    );
+
+    if (remainingHeroes.length < 4) {
+      alert(
+        "Недостаточно оставшихся героев для полной замены. Заменяем сколько возможно."
+      );
+      const newHeroesCount = Math.min(4, remainingHeroes.length);
+      const newHeroes = shuffleArray(remainingHeroes).slice(0, newHeroesCount);
+      // Take some old heroes to fill the gap if needed
+      const oldHeroesToKeep = shuffleArray(currentGeneration.heroes).slice(
+        0,
+        4 - newHeroes.length
+      );
+      currentGeneration.heroes = shuffleArray([
+        ...newHeroes,
+        ...oldHeroesToKeep,
+      ]);
+    } else {
+      currentGeneration.heroes = shuffleArray(remainingHeroes).slice(0, 4);
+    }
+
+    renderResults();
+    saveGenerationToLocalStorage();
+  }
+
+  generateBtn.on("click", generateNew);
+  shuffleTeamsBtn.on("click", shuffleTeams);
+  shuffleHeroesBtn.on("click", shuffleHeroes);
+  shuffleAllBtn.on("click", generateNew);
+
+  // --- Results Modal Logic ---
+  function renderResults() {
+    resultsList.empty();
+    if (!currentGeneration.teams.length) return;
+
+    for (let i = 0; i < 4; i++) {
+      const teamNumber = currentGeneration.teams[i];
+      const heroName = currentGeneration.heroes[i];
+      const li = `
+                <li class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary text-light-text dark:text-dark-text">
+                    <span class="font-bold text-lg text-blue-500">Команда ${teamNumber}</span>
+                    <span class="text-lg text-center mx-2">${heroName}</span>
+                    <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя (без функции)">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+                    </button>
+                </li>
+            `;
+      resultsList.append(li);
+    }
+  }
+
+  function saveGenerationToLocalStorage() {
+    localStorage.setItem("lastGeneration", JSON.stringify(currentGeneration));
+  }
+
+  function openModal() {
+    modalContainer.removeClass("opacity-0 pointer-events-none");
+    modalPanel.removeClass("translate-y-full");
+  }
+
+  function closeModal() {
+    modalPanel.addClass("translate-y-full");
+    modalContainer.addClass("opacity-0 pointer-events-none");
+  }
+
+  closeModalBtn.on("click", closeModal);
+  modalContainer.on("click", function (e) {
+    if (e.target === this) {
+      closeModal();
+    }
+  });
 
   // --- Settings Modal Logic ---
   const settingsModalContainer = $("#settings-modal-container");
@@ -142,12 +313,13 @@ $(document).ready(function () {
     settingsModalContainer.removeClass("opacity-0 pointer-events-none");
   });
 
-  $("#cancel-password-btn").on("click", () => {
+  $("#cancel-password-btn, #close-settings-btn").on("click", () => {
     settingsModalContainer.addClass("opacity-0 pointer-events-none");
   });
 
   $("#submit-password-btn").on("click", async () => {
     const password = $("#password-input").val();
+    if (!password) return;
     const hash = CryptoJS.SHA256(password).toString();
 
     try {
@@ -165,157 +337,51 @@ $(document).ready(function () {
     }
   });
 
-  // --- CRUD Logic ---
+  // --- CRUD Logic (Stubbed) ---
   async function renderListManagementUI() {
-    // ... CRUD UI rendering and handlers will go here
-    // This part can be extensive, so I'll stub it out conceptually
     managementSection.html(`
             <div class="flex justify-between items-center mb-4">
                 <h2 class="text-2xl font-bold">Управление списками</h2>
-                <button id="add-list-btn" class="p-2 rounded-full bg-blue-500 text-white hover:bg-blue-600">+</button>
+                <button id="add-list-btn" class="p-2 w-10 h-10 flex items-center justify-center text-xl rounded-full bg-blue-500 text-white hover:bg-blue-600">+</button>
             </div>
-            <div id="lists-editor" class="space-y-2"></div>
-            <button id="close-settings-btn" class="mt-4 px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80">Закрыть</button>
+            <div id="lists-editor" class="space-y-2 max-h-96 overflow-y-auto">
+                <!-- Списки будут рендериться здесь -->
+                <p>Функционал управления списками в разработке.</p>
+            </div>
+            <div class="flex justify-end mt-4">
+               <button id="close-settings-btn" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80">Закрыть</button>
+            </div>
         `);
-    // Add event listeners for new buttons inside managementSection
-    $("#close-settings-btn").on("click", () =>
-      settingsModalContainer.addClass("opacity-0 pointer-events-none")
-    );
-    // ... more listeners for add, edit, delete
   }
 
-  // --- Existing Logic (Theme, Generation, etc.) ---
-  // Make sure to adapt the generation logic to use `localListsCache.heroes`
-
-  // Function to get current heroes
+  // --- Helper Functions ---
   function getActiveHeroes() {
     const selectedList = heroListSelect.val();
     return localListsCache.lists[selectedList] || [];
   }
 
-  function generateNew() {
-    const HEROES = getActiveHeroes();
-    if (HEROES.length < 4) {
-      alert("В выбранном списке недостаточно героев (нужно минимум 4).");
-      return;
-    }
-    currentGeneration.teams = shuffleArray([1, 2, 3, 4]);
-    currentGeneration.heroes = shuffleArray([...HEROES]).slice(0, 4);
-    renderResults();
-    saveToLocalStorage();
-    openModal();
-  }
-
-  function shuffleHeroes() {
-    const HEROES = getActiveHeroes();
-    if (HEROES.length < 4) {
-      alert("В выбранном списке недостаточно героев для перемешивания.");
-      return;
-    }
-    const remainingHeroes = HEROES.filter(
-      (h) => !currentGeneration.heroes.includes(h)
-    );
-    if (remainingHeroes.length < 4) {
-      alert("Недостаточно оставшихся героев для полной замены.");
-      // Replace as many as possible
-      const newHeroes = shuffleArray(remainingHeroes).slice(
-        0,
-        currentGeneration.heroes.length
-      );
-      const oldHeroesToKeep = currentGeneration.heroes.slice(newHeroes.length);
-      currentGeneration.heroes = [...newHeroes, ...oldHeroesToKeep];
-    } else {
-      currentGeneration.heroes = shuffleArray(remainingHeroes).slice(0, 4);
-    }
-
-    renderResults();
-    saveToLocalStorage();
-  }
-
-  // Hook up the generate button
-  generateBtn.off("click").on("click", generateNew);
-
-  // Other existing code (shuffle teams, modals, service worker, etc.) remains largely the same
-  // but needs to be placed here. I'll just keep the new functions for brevity.
-
-  // --- STUBS for the rest of the existing code ---
-  const themeToggle = $("#theme-toggle");
-  const sunIcon = $("#theme-icon-sun");
-  const moonIcon = $("#theme-icon-moon");
-  const html = $("html");
-  let currentGeneration = { teams: [], heroes: [] };
-  const modalContainer = $("#results-modal-container");
-  const modalPanel = $("#results-modal-panel");
-  const closeModalBtn = $("#close-modal-btn");
-  const resultsList = $("#results-list");
-  const shuffleTeamsBtn = $("#shuffle-teams-btn");
-  const shuffleHeroesBtn = $("#shuffle-heroes-btn");
-  const shuffleAllBtn = $("#shuffle-all-btn");
-
-  const applyTheme = (theme) => {
-    if (theme === "dark") {
-      html.addClass("dark").removeClass("light");
-      sunIcon.removeClass("hidden");
-      moonIcon.addClass("hidden");
-      localStorage.setItem("theme", "dark");
-    } else {
-      html.removeClass("dark").addClass("light");
-      moonIcon.removeClass("hidden");
-      sunIcon.addClass("hidden");
-      localStorage.setItem("theme", "light");
-    }
-  };
-  const savedTheme =
-    localStorage.getItem("theme") ||
-    (window.matchMedia("(prefers-color-scheme: dark)").matches
-      ? "dark"
-      : "light");
-  applyTheme(savedTheme);
-  themeToggle.on("click", () => {
-    const newTheme = html.hasClass("dark") ? "light" : "dark";
-    applyTheme(newTheme);
-  });
-
-  function shuffleArray(array) {
-    for (let i = array.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [array[i], array[j]] = [array[j], array[i]];
-    }
-    return array;
-  }
-  function renderResults() {
-    /* ... existing code ... */
-  }
-  function saveToLocalStorage() {
-    localStorage.setItem("lastGeneration", JSON.stringify(currentGeneration));
-  }
-  function shuffleTeams() {
-    /* ... existing code ... */
-  }
-  function openModal() {
-    modalContainer.removeClass("opacity-0 pointer-events-none");
-    modalPanel.removeClass("translate-y-full");
-  }
-  function closeModal() {
-    modalContainer.addClass("opacity-0 pointer-events-none");
-    modalPanel.addClass("translate-y-full");
-  }
-
-  shuffleTeamsBtn.on("click", () => {
-    currentGeneration.teams = shuffleArray(currentGeneration.teams);
-    renderResults();
-    saveToLocalStorage();
-  });
-  shuffleHeroesBtn.on("click", shuffleHeroes);
-  shuffleAllBtn.on("click", generateNew);
-  closeModalBtn.on("click", closeModal);
-  modalContainer.on("click", function (e) {
-    if (e.target === this) {
-      closeModal();
-    }
-  });
-
+  // --- Service Worker ---
   if ("serviceWorker" in navigator) {
-    /* ... existing SW code ... */
+    let newWorker;
+    navigator.serviceWorker.register("/sw.js").then((reg) => {
+      reg.addEventListener("updatefound", () => {
+        newWorker = reg.installing;
+        newWorker.addEventListener("statechange", () => {
+          if (
+            newWorker.state === "installed" &&
+            navigator.serviceWorker.controller
+          ) {
+            $("#update-indicator").removeClass("hidden");
+          }
+        });
+      });
+    });
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
+    });
   }
+
+  // Initial Load from cache
+  loadFromLocalStorage();
+  renderResults();
 });
