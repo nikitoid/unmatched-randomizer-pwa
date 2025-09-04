@@ -1,5 +1,6 @@
-const CACHE_NAME = "randomatched-cache-v2";
-// ИЗМЕНЕНО: Добавляем все необходимые для оффлайн-работы файлы, включая внешние
+// ИЗМЕНЕНО: Новая, более надежная версия сервис-воркера
+
+const CACHE_NAME = "randomatched-cache-v3"; // Увеличиваем версию кэша для обновления
 const FILES_TO_CACHE = [
   "/",
   "index.html",
@@ -10,7 +11,7 @@ const FILES_TO_CACHE = [
   "icons/icon-192.png",
   "icons/icon-512.png",
   "https://cdn.tailwindcss.com",
-  "https://unpkg.com/alpinejs",
+  "https://unpkg.com/alpinejs", // Alpine.js теперь будет кэшироваться
   "https://code.jquery.com/jquery-3.6.0.min.js",
   "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js",
   "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js",
@@ -27,7 +28,6 @@ self.addEventListener("install", (evt) => {
 });
 
 self.addEventListener("activate", (evt) => {
-  // Удаляем старые кэши, чтобы приложение всегда использовало актуальную версию
   evt.waitUntil(
     caches.keys().then((keyList) => {
       return Promise.all(
@@ -44,20 +44,36 @@ self.addEventListener("activate", (evt) => {
 });
 
 self.addEventListener("fetch", (evt) => {
-  // Мы не кэшируем запросы к Firestore, так как у него свой оффлайн-механизм
+  // Не кэшируем запросы к Firestore, у него свой оффлайн-механизм
   if (evt.request.url.includes("firestore.googleapis.com")) {
     return;
   }
 
-  // Стратегия "Сначала кэш, потом сеть" для всех остальных запросов
+  // Стратегия "Stale-While-Revalidate"
+  // Сначала отдаем из кэша (для скорости), потом обновляем кэш из сети
   evt.respondWith(
-    caches.match(evt.request).then((response) => {
-      // Если ресурс найден в кэше, возвращаем его
-      if (response) {
-        return response;
-      }
-      // Иначе, идем в сеть
-      return fetch(evt.request);
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.match(evt.request).then((cachedResponse) => {
+        const fetchPromise = fetch(evt.request)
+          .then((networkResponse) => {
+            // Если получили хороший ответ, обновляем кэш
+            if (networkResponse && networkResponse.status === 200) {
+              cache.put(evt.request, networkResponse.clone());
+            }
+            return networkResponse;
+          })
+          .catch((err) => {
+            // Если сеть не удалась, просто игнорируем ошибку (т.к. у нас уже есть ответ из кэша)
+            console.warn(
+              "[ServiceWorker] Fetch failed; returning cached response instead.",
+              err
+            );
+          });
+
+        // Возвращаем ответ из кэша немедленно, если он есть,
+        // или ждем ответа от сети, если в кэше ничего нет.
+        return cachedResponse || fetchPromise;
+      });
     })
   );
 });
