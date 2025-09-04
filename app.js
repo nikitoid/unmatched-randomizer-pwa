@@ -34,6 +34,8 @@ let currentGeneration = {
   heroes: [],
 };
 
+const TEMP_LIST_SUFFIX = " (искл.)";
+
 // --- App Initialization ---
 $(document).ready(function () {
   // --- Initialize UI elements ---
@@ -51,6 +53,9 @@ $(document).ready(function () {
   const shuffleTeamsBtn = $("#shuffle-teams-btn");
   const shuffleHeroesBtn = $("#shuffle-heroes-btn");
   const shuffleAllBtn = $("#shuffle-all-btn");
+  const prevGenBtn = $("#prev-gen-btn");
+  const resetSessionBtn = $("#reset-session-btn");
+  const excludeAllBtn = $("#exclude-all-btn");
 
   // --- Setup Firebase ---
   function initializeFirebase() {
@@ -60,28 +65,24 @@ $(document).ready(function () {
       auth = getAuth(app);
       listsDocRef = doc(db, "lists", "main");
       console.log("Firebase initialized successfully.");
-
-      // Start authentication process
       handleAuthentication();
     } catch (e) {
       console.error("Firebase initialization failed:", e);
       showError("Не удалось инициализировать базу данных.");
-      loadFromLocalStorage(); // Fallback to offline mode
+      loadFromLocalStorage();
       populateHeroListsFromCache();
     }
   }
 
   // --- Authentication & Data Fetching ---
   function handleAuthentication() {
-    // This listener will react to sign-in events
     onAuthStateChanged(auth, (user) => {
       if (user) {
         console.log("Authenticated anonymously:", user.uid);
-        syncWithFirebase(); // Fetch data once authenticated
+        syncWithFirebase();
       }
     });
 
-    // Try to sign in
     signInAnonymously(auth).catch((error) => {
       console.error("Anonymous sign-in failed:", error);
       if (error.code === "auth/operation-not-allowed") {
@@ -89,7 +90,7 @@ $(document).ready(function () {
       } else {
         showError("Ошибка аутентификации.");
       }
-      loadFromLocalStorage(); // Fallback to offline mode
+      loadFromLocalStorage();
       populateHeroListsFromCache();
     });
   }
@@ -129,20 +130,21 @@ $(document).ready(function () {
     }
     try {
       const docSnap = await getDoc(listsDocRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        localListsCache.lists = data.lists || {};
-        localListsCache.selected = data.selected || "";
-        localStorage.setItem(
-          "randomatched_lists",
-          JSON.stringify(localListsCache.lists)
-        );
-        localStorage.setItem("randomatched_selected", localListsCache.selected);
-        console.log("Data synced from Firebase and cached.");
-      } else {
-        console.log("No document found in Firebase. Using local cache.");
-        loadFromLocalStorage();
-      }
+      const firebaseLists = docSnap.exists()
+        ? docSnap.data()
+        : { lists: {}, selected: "" };
+
+      // Merge with local temp lists
+      const localTempLists = getLocalTempLists();
+      localListsCache.lists = { ...firebaseLists.lists, ...localTempLists };
+      localListsCache.selected = firebaseLists.selected || "";
+
+      localStorage.setItem(
+        "randomatched_lists",
+        JSON.stringify(firebaseLists.lists)
+      );
+      localStorage.setItem("randomatched_selected", firebaseLists.selected);
+      console.log("Data synced from Firebase and cached.");
     } catch (error) {
       console.error("Error syncing with Firebase:", error);
       showError("Не удалось загрузить списки из базы.");
@@ -154,12 +156,17 @@ $(document).ready(function () {
 
   function loadFromLocalStorage() {
     try {
-      localListsCache.lists =
+      const storedLists =
         JSON.parse(localStorage.getItem("randomatched_lists")) || {};
+      const localTempLists = getLocalTempLists();
+      localListsCache.lists = { ...storedLists, ...localTempLists };
       localListsCache.selected =
         localStorage.getItem("randomatched_selected") || "";
       const lastGen = JSON.parse(localStorage.getItem("lastGeneration"));
-      if (lastGen) currentGeneration = lastGen;
+      if (lastGen) {
+        currentGeneration = lastGen;
+        updateSessionButtons();
+      }
     } catch (e) {
       console.error("Failed to parse data from localStorage", e);
       localListsCache.lists = {};
@@ -167,8 +174,22 @@ $(document).ready(function () {
     }
   }
 
+  function getLocalTempLists() {
+    const tempLists = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key.startsWith("temp_list_")) {
+        const listName = key.replace("temp_list_", "");
+        tempLists[listName] = JSON.parse(localStorage.getItem(key));
+      }
+    }
+    return tempLists;
+  }
+
   function populateHeroListsFromCache() {
+    const currentVal = heroListSelect.val();
     heroListSelect.empty();
+
     const listNames = Object.keys(localListsCache.lists);
 
     if (listNames.length === 0) {
@@ -183,15 +204,26 @@ $(document).ready(function () {
       heroListSelect.append(`<option value="${name}">${name}</option>`);
     });
 
-    const selected =
-      localListsCache.selected &&
-      localListsCache.lists[localListsCache.selected]
-        ? localListsCache.selected
-        : listNames[0];
+    // Try to preserve current selection, or temp list, or default, or first
+    let selected = currentVal;
+    const tempListName = Object.keys(localListsCache.lists).find((name) =>
+      name.endsWith(TEMP_LIST_SUFFIX)
+    );
+
+    if (tempListName && localListsCache.lists[tempListName]) {
+      selected = tempListName;
+    } else if (!selected || !localListsCache.lists[selected]) {
+      selected =
+        localListsCache.selected &&
+        localListsCache.lists[localListsCache.selected]
+          ? localListsCache.selected
+          : listNames[0];
+    }
 
     if (selected) {
       heroListSelect.val(selected);
     }
+
     updateCurrentHeroList();
     generateBtn
       .prop("disabled", false)
@@ -202,9 +234,6 @@ $(document).ready(function () {
     const selectedListName = heroListSelect.val();
     if (selectedListName) {
       localListsCache.heroes = localListsCache.lists[selectedListName] || [];
-      console.log(
-        `Selected list "${selectedListName}" with ${localListsCache.heroes.length} heroes.`
-      );
     } else {
       localListsCache.heroes = [];
     }
@@ -243,27 +272,135 @@ $(document).ready(function () {
     saveGenerationToLocalStorage();
   }
 
-  function shuffleHeroes() {
+  function shuffleHeroes(count = 4) {
     const activeHeroes = getActiveHeroes();
-
     const availableHeroes = activeHeroes.filter(
       (h) => !currentGeneration.heroes.includes(h)
     );
 
-    if (availableHeroes.length < 4) {
-      showError("Недостаточно героев для полной замены.", 3000);
-      return;
+    if (availableHeroes.length < count) {
+      showError(
+        `Недостаточно героев для замены (${availableHeroes.length}/${count}).`,
+        3000
+      );
+      return false;
     }
 
-    currentGeneration.heroes = shuffleArray(availableHeroes).slice(0, 4);
+    if (count === 4) {
+      currentGeneration.heroes = shuffleArray(availableHeroes).slice(0, 4);
+    } else {
+      // Replacing a single hero
+      const newHero = shuffleArray(availableHeroes)[0];
+      return newHero;
+    }
+
     renderResults();
     saveGenerationToLocalStorage();
+    return true;
   }
 
   generateBtn.on("click", generateNew);
   shuffleTeamsBtn.on("click", shuffleTeams);
-  shuffleHeroesBtn.on("click", shuffleHeroes);
+  shuffleHeroesBtn.on("click", () => shuffleHeroes(4));
   shuffleAllBtn.on("click", generateNew);
+
+  // --- Session Management ---
+  function updateSessionButtons() {
+    const hasLastGen = !!localStorage.getItem("lastGeneration");
+    const hasTempList = Object.keys(localListsCache.lists).some((name) =>
+      name.endsWith(TEMP_LIST_SUFFIX)
+    );
+
+    prevGenBtn
+      .prop("disabled", !hasLastGen)
+      .toggleClass("opacity-50 cursor-not-allowed", !hasLastGen);
+    resetSessionBtn
+      .prop("disabled", !hasTempList)
+      .toggleClass("opacity-50 cursor-not-allowed", !hasTempList);
+  }
+
+  prevGenBtn.on("click", () => {
+    if (currentGeneration.heroes.length > 0) {
+      renderResults();
+      openModal();
+    } else {
+      showError("Нет данных о предыдущей генерации.");
+    }
+  });
+
+  resetSessionBtn.on("click", () => {
+    const tempListName = Object.keys(localListsCache.lists).find((name) =>
+      name.endsWith(TEMP_LIST_SUFFIX)
+    );
+    if (tempListName) {
+      delete localListsCache.lists[tempListName];
+      localStorage.removeItem(`temp_list_${tempListName}`);
+    }
+    localStorage.removeItem("lastGeneration");
+    currentGeneration = { teams: [], heroes: [] };
+
+    populateHeroListsFromCache();
+    updateSessionButtons();
+    showError("Сессия сброшена.", 2000);
+  });
+
+  // --- Exclusion Logic ---
+  function handleExclusion(heroesToExclude) {
+    let currentListName = heroListSelect.val();
+    let currentList = [...getActiveHeroes()];
+
+    let tempListName = currentListName.endsWith(TEMP_LIST_SUFFIX)
+      ? currentListName
+      : `${currentListName}${TEMP_LIST_SUFFIX}`;
+
+    // Create or update the temp list
+    const updatedList = currentList.filter(
+      (hero) => !heroesToExclude.includes(hero)
+    );
+
+    // Save to localStorage and update cache
+    localStorage.setItem(
+      `temp_list_${tempListName}`,
+      JSON.stringify(updatedList)
+    );
+    localListsCache.lists[tempListName] = updatedList;
+
+    // If we created a new temp list from a normal one, repopulate the dropdown
+    if (!currentListName.endsWith(TEMP_LIST_SUFFIX)) {
+      populateHeroListsFromCache();
+    }
+
+    heroListSelect.val(tempListName).trigger("change");
+
+    if (heroesToExclude.length === 1) {
+      // Single hero exclusion
+      const heroIndex = currentGeneration.heroes.indexOf(heroesToExclude[0]);
+      if (heroIndex !== -1) {
+        const newHero = shuffleHeroes(1); // Get one new hero
+        if (newHero) {
+          currentGeneration.heroes[heroIndex] = newHero;
+          renderResults();
+          saveGenerationToLocalStorage();
+        } else {
+          closeModal(); // Not enough heroes to replace
+        }
+      }
+    } else {
+      // Exclude all 4
+      closeModal();
+    }
+
+    updateSessionButtons();
+  }
+
+  resultsList.on("click", ".exclude-hero-btn", function () {
+    const heroName = $(this).data("hero");
+    handleExclusion([heroName]);
+  });
+
+  excludeAllBtn.on("click", () => {
+    handleExclusion([...currentGeneration.heroes]);
+  });
 
   // --- Results Modal Logic ---
   function renderResults() {
@@ -277,7 +414,7 @@ $(document).ready(function () {
                 <li class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary text-light-text dark:text-dark-text">
                     <span class="font-bold text-xl text-blue-500 w-10 text-center">${teamNumber}</span>
                     <span class="text-lg text-center mx-2 flex-1">${heroName}</span>
-                    <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя (без функции)">
+                    <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
                     </button>
                 </li>
@@ -288,6 +425,7 @@ $(document).ready(function () {
 
   function saveGenerationToLocalStorage() {
     localStorage.setItem("lastGeneration", JSON.stringify(currentGeneration));
+    updateSessionButtons();
   }
 
   function openModal() {
@@ -328,10 +466,6 @@ $(document).ready(function () {
   }
 
   settingsBtn.on("click", () => {
-    if (!navigator.onLine) {
-      showError("Редактирование списков доступно только онлайн.", 3000);
-      return;
-    }
     openSettingsModal();
   });
 
@@ -344,6 +478,10 @@ $(document).ready(function () {
   });
 
   $("#submit-password-btn").on("click", async () => {
+    if (!navigator.onLine) {
+      showError("Редактирование списков доступно только онлайн.", 3000);
+      return;
+    }
     const password = $("#password-input").val();
     if (!password) return;
     const hash = CryptoJS.SHA256(password).toString();
@@ -408,7 +546,6 @@ $(document).ready(function () {
         reg.addEventListener("updatefound", () => {
           newWorker = reg.installing;
           newWorker.addEventListener("statechange", () => {
-            // Check if the new worker is installed and there's an active one
             if (
               newWorker.state === "installed" &&
               navigator.serviceWorker.controller
@@ -422,9 +559,7 @@ $(document).ready(function () {
         console.error("Service Worker registration failed:", err)
       );
 
-    // This event fires when the new service worker has taken control
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      // Reload the page to use the new assets
       window.location.reload();
     });
   }

@@ -131,6 +131,23 @@
         >
           Сгенерировать
         </button>
+
+        <div class="mt-4 flex justify-center space-x-4">
+          <button
+            id="prev-gen-btn"
+            class="px-4 py-2 text-sm rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80 transition opacity-50 cursor-not-allowed"
+            disabled
+          >
+            Предыдущая генерация
+          </button>
+          <button
+            id="reset-session-btn"
+            class="px-4 py-2 text-sm rounded-lg bg-red-200 dark:bg-red-800 text-red-700 dark:text-red-200 hover:opacity-80 transition opacity-50 cursor-not-allowed"
+            disabled
+          >
+            Сбросить сессию
+          </button>
+        </div>
       </main>
     </div>
 
@@ -184,6 +201,14 @@
           </button>
         </div>
         <ul id="results-list" class="space-y-2 mb-6"></ul>
+        <div class="mb-4">
+          <button
+            id="exclude-all-btn"
+            class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition"
+          >
+            Исключить текущих героев
+          </button>
+        </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             id="shuffle-teams-btn"
