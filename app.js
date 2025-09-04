@@ -224,15 +224,19 @@ $(document).ready(function () {
     renderResults();
     saveGenerationToLocalStorage();
   });
+  // FIX: Correct shuffle heroes logic
   shuffleHeroesBtn.on("click", () => {
-    const availableHeroes = localListsCache.heroes.filter(
-      (h) => !currentGeneration.heroes.includes(h)
-    );
-    if (availableHeroes.length < 4) {
-      showNotification("Недостаточно героев для полной замены.", "error");
+    if (localListsCache.heroes.length < 4) {
+      showNotification(
+        "В списке недостаточно героев (нужно минимум 4).",
+        "error"
+      );
       return;
     }
-    currentGeneration.heroes = shuffleArray(availableHeroes).slice(0, 4);
+    currentGeneration.heroes = shuffleArray([...localListsCache.heroes]).slice(
+      0,
+      4
+    );
     renderResults();
     saveGenerationToLocalStorage();
   });
@@ -276,7 +280,6 @@ $(document).ready(function () {
         localStorage.removeItem("lastGeneration");
         currentGeneration = { teams: [], heroes: [] };
         populateHeroListsFromCache();
-        // FIX: After reset, select the default list
         const defaultList =
           localListsCache.selected &&
           localListsCache.lists[localListsCache.selected]
@@ -327,7 +330,6 @@ $(document).ready(function () {
     } else closeModal();
     updateSessionButtons();
   }
-  // FIX: Add confirmation for individual exclusion
   resultsList.on("click", ".exclude-hero-btn", function () {
     const heroToExclude = $(this).data("hero");
     showConfirmationModal({
@@ -541,7 +543,6 @@ $(document).ready(function () {
       showNotification(`Список "${listName}" сохранен в Firebase.`, "success");
       await syncWithFirebase();
     }
-    // FIX: If the edited list is the current one, refresh its state for the generator
     if (heroListSelect.val() === listName) {
       heroListSelect.trigger("change");
     }
