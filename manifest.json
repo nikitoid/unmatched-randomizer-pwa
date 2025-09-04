@@ -1,12 +1,11 @@
 {
   "name": "randomatched",
   "short_name": "randomatched",
-  "start_url": "/index.html",
-  "scope": "/",
+  "start_url": "/",
   "display": "standalone",
-  "background_color": "#f3f4f6",
+  "background_color": "#1f2937",
   "theme_color": "#3b82f6",
-  "description": "Генератор случайных команд",
+  "orientation": "portrait-primary",
   "icons": [
     {
       "src": "icons/icon-192.png",
@@ -23,7 +22,8 @@
     {
       "src": "icons/apple-touch-icon.png",
       "type": "image/png",
-      "sizes": "180x180"
+      "sizes": "180x180",
+      "purpose": "any maskable"
     }
   ]
 }

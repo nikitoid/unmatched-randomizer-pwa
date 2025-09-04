@@ -718,7 +718,7 @@ $(document).ready(function () {
 
   // --- Service Worker ---
   if ("serviceWorker" in navigator) {
-    $(window).on("load", () => {
+    window.addEventListener("load", () => {
       navigator.serviceWorker
         .register("/sw.js")
         .then((reg) => {
@@ -728,15 +728,17 @@ $(document).ready(function () {
               if (
                 newWorker.state === "installed" &&
                 navigator.serviceWorker.controller
-              )
+              ) {
                 $("#update-indicator").removeClass("hidden");
+              }
             });
           });
         })
         .catch((err) => console.error("SW registration failed:", err));
-      navigator.serviceWorker.addEventListener("controllerchange", () =>
-        window.location.reload()
-      );
+
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        window.location.reload();
+      });
     });
   }
 
