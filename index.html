@@ -232,46 +232,13 @@
       </div>
     </div>
 
-    <!-- Модальное окно настроек -->
+    <!-- Полноэкранное модальное окно настроек -->
     <div
       id="settings-modal-container"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 opacity-0 pointer-events-none z-50 transition-opacity duration-300"
+      class="fixed inset-0 bg-light-bg dark:bg-dark-bg flex flex-col p-4 pt-6 opacity-0 pointer-events-none z-50 transform translate-y-full transition-transform duration-300 ease-in-out"
     >
-      <div
-        id="settings-modal-panel"
-        class="w-full max-w-md bg-light-primary dark:bg-dark-primary rounded-2xl shadow-lg p-6 transform scale-95 opacity-0 transition-all duration-300 ease-in-out"
-      >
-        <div id="password-section">
-          <h2 class="text-2xl font-bold mb-4">Доступ к настройкам</h2>
-          <p class="mb-4 text-sm text-gray-600 dark:text-gray-300">
-            Для редактирования списков введите пароль.
-          </p>
-          <input
-            type="password"
-            id="password-input"
-            class="w-full p-2 mb-2 rounded-lg border-2 bg-light-primary dark:bg-dark-primary border-light-accent dark:border-dark-accent focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-            placeholder="Пароль"
-          />
-          <p id="password-error" class="text-red-500 text-sm hidden mb-4">
-            Неверный пароль.
-          </p>
-          <div class="flex justify-end space-x-3">
-            <button
-              id="cancel-settings-btn"
-              class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80"
-            >
-              Отмена
-            </button>
-            <button
-              id="submit-password-btn"
-              class="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
-            >
-              Войти
-            </button>
-          </div>
-        </div>
-
-        <div id="lists-management-section" class="hidden"></div>
+      <div id="settings-modal-panel" class="w-full h-full flex flex-col">
+        <!-- Содержимое генерируется в app.js -->
       </div>
     </div>
 
@@ -305,6 +272,45 @@
             class="px-5 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
           >
             Да
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Модальное окно ввода пароля -->
+    <div
+      id="password-modal-container"
+      class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 opacity-0 pointer-events-none z-[70] transition-opacity duration-300"
+    >
+      <div
+        id="password-modal-panel"
+        class="w-full max-w-sm bg-light-primary dark:bg-dark-primary rounded-2xl shadow-lg p-6 transform scale-95 opacity-0 transition-all duration-300 ease-in-out"
+      >
+        <h2 class="text-2xl font-bold mb-4">Доступ к настройкам</h2>
+        <p class="mb-4 text-sm text-gray-600 dark:text-gray-300">
+          Для редактирования этого списка введите пароль.
+        </p>
+        <input
+          type="password"
+          id="password-input"
+          class="w-full p-2 mb-2 rounded-lg border-2 bg-light-primary dark:bg-dark-primary border-light-accent dark:border-dark-accent focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+          placeholder="Пароль"
+        />
+        <p id="password-error" class="text-red-500 text-sm hidden mb-4">
+          Неверный пароль.
+        </p>
+        <div class="flex justify-end space-x-3">
+          <button
+            id="cancel-password-btn"
+            class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80"
+          >
+            Отмена
+          </button>
+          <button
+            id="submit-password-btn"
+            class="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
+          >
+            Войти
           </button>
         </div>
       </div>

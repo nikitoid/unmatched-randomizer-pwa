@@ -17,11 +17,10 @@ import {
 const { CryptoJS } = window;
 const firebaseConfig =
   typeof __firebase_config !== "undefined" ? JSON.parse(__firebase_config) : {};
-const appId =
-  typeof __app_id !== "undefined" ? __app_id : "randomatched-default";
 let db, auth, listsDocRef;
 let localListsCache = { lists: {}, selected: "", heroes: [] };
 let currentGeneration = { teams: [], heroes: [] };
+let isSettingsAuthenticated = false; // Manages auth state for the settings session
 const TEMP_LIST_SUFFIX = " (искл.)";
 
 // --- App Initialization ---
@@ -46,8 +45,8 @@ $(document).ready(function () {
   const settingsBtn = $("#settings-btn"),
     settingsModalContainer = $("#settings-modal-container"),
     settingsModalPanel = $("#settings-modal-panel");
-  const passwordSection = $("#password-section"),
-    managementSection = $("#lists-management-section");
+  const passwordModalContainer = $("#password-modal-container"),
+    passwordModalPanel = $("#password-modal-panel");
 
   // --- Setup Firebase ---
   function initializeFirebase() {
@@ -144,9 +143,7 @@ $(document).ready(function () {
       localListsCache.selected =
         localStorage.getItem("randomatched_selected") || "";
       const lastGen = JSON.parse(localStorage.getItem("lastGeneration"));
-      if (lastGen) {
-        currentGeneration = lastGen;
-      }
+      if (lastGen) currentGeneration = lastGen;
     } catch (e) {
       console.error("Failed to parse data from localStorage", e);
       localListsCache = { lists: {}, selected: "", heroes: [] };
@@ -155,16 +152,15 @@ $(document).ready(function () {
     }
   }
 
-  function getLocalTempLists() {
-    const tempLists = {};
-    Object.keys(localStorage)
-      .filter((key) => key.startsWith("temp_list_"))
-      .forEach((key) => {
-        const listName = key.replace("temp_list_", "");
-        tempLists[listName] = JSON.parse(localStorage.getItem(key));
-      });
-    return tempLists;
-  }
+  const getLocalTempLists = () =>
+    Object.fromEntries(
+      Object.entries(localStorage)
+        .filter(([key]) => key.startsWith("temp_list_"))
+        .map(([key, value]) => [
+          key.replace("temp_list_", ""),
+          JSON.parse(value),
+        ])
+    );
 
   function populateHeroListsFromCache() {
     const currentVal = heroListSelect.val();
@@ -199,10 +195,9 @@ $(document).ready(function () {
       .removeClass("opacity-50 cursor-not-allowed");
   }
 
-  function updateCurrentHeroList() {
+  const updateCurrentHeroList = () => {
     localListsCache.heroes = localListsCache.lists[heroListSelect.val()] || [];
-  }
-
+  };
   heroListSelect.on("change", updateCurrentHeroList);
 
   // --- Generation Logic ---
@@ -265,7 +260,7 @@ $(document).ready(function () {
       openModal();
     }
   });
-  resetSessionBtn.on("click", () => {
+  resetSessionBtn.on("click", () =>
     showConfirmationModal({
       title: "Сбросить сессию?",
       message: "Временный список и последняя генерация будут удалены.",
@@ -284,8 +279,8 @@ $(document).ready(function () {
         updateSessionButtons();
         showNotification("Сессия сброшена.", "success");
       },
-    });
-  });
+    })
+  );
 
   // --- Exclusion Logic ---
   function handleExclusion(heroesToExclude) {
@@ -320,24 +315,22 @@ $(document).ready(function () {
         renderResults();
         saveGenerationToLocalStorage();
       }
-    } else {
-      closeModal();
-    }
+    } else closeModal();
     updateSessionButtons();
   }
   resultsList.on("click", ".exclude-hero-btn", function () {
     handleExclusion([$(this).data("hero")]);
   });
-  excludeAllBtn.on("click", () => {
+  excludeAllBtn.on("click", () =>
     showConfirmationModal({
       title: "Исключить всех?",
       message: "Все 4 героя будут удалены из временного списка.",
       confirmText: "Исключить",
       onConfirm: () => handleExclusion([...currentGeneration.heroes]),
-    });
-  });
+    })
+  );
 
-  // --- Modals Logic (Results, Settings, Confirmation) ---
+  // --- Modals Logic (Results, Settings, etc.) ---
   const openModal = () => {
     modalContainer.removeClass("opacity-0 pointer-events-none");
     modalPanel.removeClass("translate-y-full");
@@ -354,36 +347,45 @@ $(document).ready(function () {
   function renderResults() {
     resultsList.empty();
     if (!currentGeneration.teams || !currentGeneration.heroes) return;
-    currentGeneration.heroes.forEach((heroName, i) => {
+    currentGeneration.heroes.forEach((heroName, i) =>
       resultsList.append(`
-                <li class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary">
-                    <span class="font-bold text-xl text-blue-500 w-10 text-center">${currentGeneration.teams[i]}</span>
-                    <span class="text-lg text-center mx-2 flex-1">${heroName}</span>
-                    <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-                    </button>
-                </li>`);
-    });
+            <li class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary">
+                <span class="font-bold text-xl text-blue-500 w-10 text-center">${currentGeneration.teams[i]}</span>
+                <span class="text-lg text-center mx-2 flex-1">${heroName}</span>
+                <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></button>
+            </li>`)
+    );
   }
   const saveGenerationToLocalStorage = () => {
     localStorage.setItem("lastGeneration", JSON.stringify(currentGeneration));
     updateSessionButtons();
   };
 
-  const openSettingsModal = () => {
-    passwordSection.show();
-    managementSection.hide();
-    $("#password-input").val("").focus();
-    $("#password-error").addClass("hidden");
-    settingsModalContainer.removeClass("opacity-0 pointer-events-none");
-    settingsModalPanel.removeClass("scale-95 opacity-0");
+  // --- New Settings Modal Logic ---
+  const openSettingsModal = async () => {
+    await renderListManagementUI();
+    settingsModalContainer.removeClass(
+      "opacity-0 pointer-events-none translate-y-full"
+    );
   };
   const closeSettingsModal = () => {
-    settingsModalContainer.addClass("opacity-0 pointer-events-none");
-    settingsModalPanel.addClass("scale-95 opacity-0");
+    settingsModalContainer.addClass(
+      "opacity-0 pointer-events-none translate-y-full"
+    );
+    isSettingsAuthenticated = false;
   };
   settingsBtn.on("click", openSettingsModal);
-  $("#cancel-settings-btn").on("click", closeSettingsModal);
+
+  const openPasswordModal = () => {
+    passwordModalPanel.removeClass("scale-95 opacity-0");
+    passwordModalContainer.removeClass("opacity-0 pointer-events-none");
+    $("#password-input").val("").focus();
+  };
+  const closePasswordModal = () => {
+    passwordModalPanel.addClass("scale-95 opacity-0");
+    passwordModalContainer.addClass("opacity-0 pointer-events-none");
+  };
+  $("#cancel-password-btn").on("click", closePasswordModal);
   $("#submit-password-btn").on("click", async () => {
     if (!navigator.onLine) {
       showNotification("Редактирование доступно только онлайн.", "error");
@@ -393,43 +395,55 @@ $(document).ready(function () {
     try {
       const docSnap = await getDoc(listsDocRef);
       if (docSnap.exists() && docSnap.data().passwordHash === hash) {
-        passwordSection.hide();
-        await renderListManagementUI();
-        managementSection.show();
-      } else {
-        $("#password-error").removeClass("hidden");
-      }
+        isSettingsAuthenticated = true;
+        closePasswordModal();
+        await renderListManagementUI(false);
+        showNotification("Доступ предоставлен.", "success");
+      } else $("#password-error").removeClass("hidden");
     } catch (error) {
       $("#password-error").text("Ошибка при проверке.").removeClass("hidden");
     }
   });
-  settingsModalContainer.on("click", function (e) {
-    if (e.target === this) closeSettingsModal();
-  });
 
   async function renderListManagementUI(showSpinner = true) {
     if (showSpinner)
-      managementSection.html(
-        '<div class="flex justify-center items-center p-8"><div class="update-spinner"></div></div>'
+      settingsModalPanel.html(
+        '<div class="flex-grow flex justify-center items-center"><div class="update-spinner"></div></div>'
       );
     const docSnap = await getDoc(listsDocRef);
     const remoteData = docSnap.exists()
       ? docSnap.data()
       : { lists: {}, selected: "" };
-    let ui = `<div class="flex justify-between items-center mb-4"><h2 class="text-2xl font-bold">Управление списками</h2><button id="add-list-btn" class="p-2 w-10 h-10 flex items-center justify-center text-xl rounded-full bg-blue-500 text-white hover:bg-blue-600">+</button></div><div id="lists-editor" class="space-y-3 max-h-96 overflow-y-auto pr-2">${
-      !navigator.onLine
-        ? '<p class="text-center text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900 p-2 rounded-md">Офлайн-режим: редактирование недоступно.</p>'
-        : ""
-    }`;
+    let ui = `<header class="flex justify-between items-center p-4 border-b border-light-accent dark:border-dark-accent flex-shrink-0">
+            <h2 class="text-2xl font-bold">Управление списками</h2>
+            <div class="flex items-center space-x-2">
+                <button id="add-list-btn" class="p-2 w-10 h-10 flex items-center justify-center text-xl rounded-full bg-blue-500 text-white hover:bg-blue-600">+</button>
+                <button id="close-settings-btn-inner" class="p-2 w-10 h-10 flex items-center justify-center rounded-full bg-gray-200 dark:bg-gray-600 hover:opacity-80"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg></button>
+            </div>
+        </header>
+        <div id="lists-editor" class="flex-grow space-y-3 overflow-y-auto p-4">${
+          !navigator.onLine && !isSettingsAuthenticated
+            ? '<p class="text-center text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900 p-2 rounded-md">Офлайн-режим: редактирование глобальных списков недоступно.</p>'
+            : ""
+        }`;
+
     const allLists = { ...remoteData.lists, ...getLocalTempLists() };
     Object.keys(allLists)
       .sort()
       .forEach((name) => {
         const isTemp = name.endsWith(TEMP_LIST_SUFFIX);
+        const isLocked = !isTemp && !isSettingsAuthenticated;
         ui += `<div class="list-item" data-list-name="${name}">
                 <div class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary cursor-pointer list-item-header">
-                    <span class="font-semibold truncate pr-2">${name}</span>
-                    <div class="flex items-center space-x-2">
+                    <div class="flex items-center space-x-2 truncate">
+                        ${
+                          isLocked
+                            ? '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" /></svg>'
+                            : ""
+                        }
+                        <span class="font-semibold truncate">${name}</span>
+                    </div>
+                    <div class="flex items-center space-x-2 flex-shrink-0">
                         ${
                           !isTemp
                             ? `<button class="set-default-btn p-1 ${
@@ -447,24 +461,38 @@ $(document).ready(function () {
                     </div>
                 </div>
                 <div class="list-item-content hidden p-3 border-t border-light-accent dark:border-dark-accent">
-                    <textarea class="w-full h-40 p-2 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600">${allLists[
+                    <textarea class="w-full h-48 p-2 rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600">${allLists[
                       name
                     ].join("\n")}</textarea>
                     <button class="mt-2 px-4 py-2 w-full rounded-lg bg-blue-500 text-white hover:bg-blue-600 save-list-btn">Сохранить</button>
                 </div>
             </div>`;
       });
-    ui += `</div><div class="flex justify-end mt-4"><button id="close-settings-btn-inner" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80">Закрыть</button></div>`;
-    managementSection.html(ui);
-    if (!navigator.onLine)
-      managementSection.find("button").prop("disabled", true);
+    ui += `</div>`;
+    settingsModalPanel.html(ui);
+    if (!navigator.onLine && !isSettingsAuthenticated)
+      settingsModalPanel
+        .find("button")
+        .not("#close-settings-btn-inner")
+        .prop("disabled", true);
     $("#close-settings-btn-inner").on("click", closeSettingsModal);
   }
 
-  managementSection.on("click", ".list-item-header", function () {
-    $(this).siblings(".list-item-content").slideToggle(200);
+  settingsModalPanel.on("click", ".list-item-header", function () {
+    const item = $(this).closest(".list-item");
+    if (item.find(".list-item-content").is(":animated")) return;
+    const isLocked =
+      !item.data("list-name").endsWith(TEMP_LIST_SUFFIX) &&
+      !isSettingsAuthenticated;
+    if (isLocked) openPasswordModal();
+    else item.find(".list-item-content").slideToggle(200);
   });
-  managementSection.on("click", "#add-list-btn", () => {
+  settingsModalPanel.on("click", "#add-list-btn", (e) => {
+    e.stopPropagation();
+    if (!isSettingsAuthenticated) {
+      openPasswordModal();
+      return;
+    }
     const newListName = prompt("Введите название нового списка:");
     if (newListName && !localListsCache.lists[newListName]) {
       const key = `lists.${newListName.replace(/\./g, "_")}`;
@@ -472,11 +500,11 @@ $(document).ready(function () {
         showNotification(`Список "${newListName}" создан.`, "success");
         syncWithFirebase().then(() => renderListManagementUI(false));
       });
-    } else if (newListName) {
+    } else if (newListName)
       showNotification("Список с таким именем уже существует.", "error");
-    }
   });
-  managementSection.on("click", ".save-list-btn", async function () {
+  settingsModalPanel.on("click", ".save-list-btn", async function (e) {
+    e.stopPropagation();
     const listName = $(this).closest(".list-item").data("list-name");
     const heroes = $(this)
       .siblings("textarea")
@@ -496,37 +524,50 @@ $(document).ready(function () {
     }
     $(this).closest(".list-item-content").slideUp(200);
   });
-  managementSection.on("click", ".set-default-btn", async function () {
-    const listName = $(this).closest(".list-item").data("list-name");
-    await updateDoc(listsDocRef, { selected: listName });
-    showNotification(
-      `Список "${listName}" установлен по умолчанию.`,
-      "success"
-    );
-    await syncWithFirebase();
-    renderListManagementUI(false);
-  });
-  managementSection.on("click", ".delete-list-btn", function () {
-    const listName = $(this).closest(".list-item").data("list-name");
-    showConfirmationModal({
-      title: "Удалить список?",
-      message: `Вы уверены, что хотите удалить список "${listName}"? Это действие необратимо.`,
-      confirmText: "Удалить",
-      onConfirm: async () => {
-        const docSnap = await getDoc(listsDocRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          delete data.lists[listName];
-          if (data.selected === listName) data.selected = "";
-          await setDoc(listsDocRef, data);
-          showNotification(`Список "${listName}" удален.`, "success");
-          await syncWithFirebase();
-          await renderListManagementUI(false);
-          populateHeroListsFromCache();
-        }
-      },
-    });
-  });
+  settingsModalPanel.on(
+    "click",
+    ".set-default-btn, .delete-list-btn",
+    function (e) {
+      e.stopPropagation();
+      if (!isSettingsAuthenticated) {
+        openPasswordModal();
+        return;
+      }
+      const listName = $(this).closest(".list-item").data("list-name");
+      const isDelete = $(this).hasClass("delete-list-btn");
+      const action = isDelete
+        ? async () => {
+            const docSnap = await getDoc(listsDocRef);
+            if (docSnap.exists()) {
+              const data = docSnap.data();
+              delete data.lists[listName];
+              if (data.selected === listName) data.selected = "";
+              await setDoc(listsDocRef, data);
+              showNotification(`Список "${listName}" удален.`, "success");
+              await syncWithFirebase();
+              await renderListManagementUI(false);
+              populateHeroListsFromCache();
+            }
+          }
+        : async () => {
+            await updateDoc(listsDocRef, { selected: listName });
+            showNotification(
+              `Список "${listName}" установлен по умолчанию.`,
+              "success"
+            );
+            await syncWithFirebase();
+            renderListManagementUI(false);
+          };
+      if (isDelete)
+        showConfirmationModal({
+          title: "Удалить список?",
+          message: `Вы уверены, что хотите удалить "${listName}"?`,
+          confirmText: "Удалить",
+          onConfirm: action,
+        });
+      else action();
+    }
+  );
 
   const confModal = $("#confirmation-modal-container"),
     confPanel = $("#confirmation-modal-panel");
@@ -568,10 +609,10 @@ $(document).ready(function () {
       `<div id="${notificationId}" class="absolute top-20 text-center w-full max-w-sm p-3 ${color} text-white rounded-lg shadow-lg transition-opacity duration-300">${message}</div>`
     );
     $("#app").prepend(notificationDiv);
-    setTimeout(() => {
-      $(`#${notificationId}`).addClass("opacity-0");
-      setTimeout(() => $(`#${notificationId}`).remove(), 300);
-    }, duration);
+    setTimeout(
+      () => $(`#${notificationId}`).addClass("opacity-0").delay(300).remove(),
+      duration
+    );
   }
 
   // --- Service Worker ---
@@ -586,9 +627,8 @@ $(document).ready(function () {
               if (
                 newWorker.state === "installed" &&
                 navigator.serviceWorker.controller
-              ) {
+              )
                 $("#update-indicator").removeClass("hidden");
-              }
             });
           });
         })
