@@ -1,11 +1,11 @@
 {
-  "name": "Randomatched",
-  "short_name": "Randomatched",
-  "start_url": "/",
+  "name": "randomatched",
+  "short_name": "randomatched",
+  "start_url": ".",
   "display": "standalone",
-  "background_color": "#1a202c",
-  "theme_color": "#1a202c",
-  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
+  "description": "Генератор случайных команд.",
   "icons": [
     {
       "src": "icons/icon-192.png",

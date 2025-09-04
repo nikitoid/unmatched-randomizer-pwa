@@ -1,13 +1,20 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-html,
+/* Кастомные стили */
 body {
-  overflow: hidden; /* Запрещает прокрутку */
-  height: 100%;
+  overflow: hidden; /* Отключаем скролл */
 }
 
-body {
-  -webkit-tap-highlight-color: transparent; /* Убирает синюю подсветку при тапе на iOS */
+/* Анимация и стили для спиннера обновления */
+.update-spinner {
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  border-top-color: #ffffff;
+  width: 24px;
+  height: 24px;
+  animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
