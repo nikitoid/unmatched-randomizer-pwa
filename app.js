@@ -408,6 +408,7 @@ $(document).ready(function () {
         reg.addEventListener("updatefound", () => {
           newWorker = reg.installing;
           newWorker.addEventListener("statechange", () => {
+            // Check if the new worker is installed and there's an active one
             if (
               newWorker.state === "installed" &&
               navigator.serviceWorker.controller
@@ -421,7 +422,9 @@ $(document).ready(function () {
         console.error("Service Worker registration failed:", err)
       );
 
+    // This event fires when the new service worker has taken control
     navigator.serviceWorker.addEventListener("controllerchange", () => {
+      // Reload the page to use the new assets
       window.location.reload();
     });
   }
