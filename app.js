@@ -309,23 +309,38 @@ $(document).ready(function () {
 
   // --- Settings Modal Logic ---
   const settingsModalContainer = $("#settings-modal-container");
+  const settingsModalPanel = $("#settings-modal-panel");
   const passwordSection = $("#password-section");
   const managementSection = $("#lists-management-section");
+
+  function openSettingsModal() {
+    passwordSection.show();
+    managementSection.hide();
+    $("#password-input").val("").focus();
+    $("#password-error").addClass("hidden");
+    settingsModalContainer.removeClass("opacity-0 pointer-events-none");
+    settingsModalPanel.removeClass("scale-95 opacity-0");
+  }
+
+  function closeSettingsModal() {
+    settingsModalContainer.addClass("opacity-0 pointer-events-none");
+    settingsModalPanel.addClass("scale-95 opacity-0");
+  }
 
   settingsBtn.on("click", () => {
     if (!navigator.onLine) {
       showError("Редактирование списков доступно только онлайн.", 3000);
       return;
     }
-    passwordSection.show();
-    managementSection.hide();
-    $("#password-input").val("");
-    $("#password-error").addClass("hidden");
-    settingsModalContainer.removeClass("opacity-0 pointer-events-none");
+    openSettingsModal();
   });
 
-  $("#cancel-password-btn, #close-settings-btn").on("click", () => {
-    settingsModalContainer.addClass("opacity-0 pointer-events-none");
+  $("#cancel-password-btn").on("click", closeSettingsModal);
+
+  settingsModalContainer.on("click", function (e) {
+    if (e.target === this) {
+      closeSettingsModal();
+    }
   });
 
   $("#submit-password-btn").on("click", async () => {
@@ -363,9 +378,7 @@ $(document).ready(function () {
                <button id="close-settings-btn-inner" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80">Закрыть</button>
             </div>
         `);
-    $("#close-settings-btn-inner").on("click", () =>
-      settingsModalContainer.addClass("opacity-0 pointer-events-none")
-    );
+    $("#close-settings-btn-inner").on("click", closeSettingsModal);
   }
 
   // --- Helper Functions ---

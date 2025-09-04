@@ -15,11 +15,11 @@
         theme: {
           extend: {
             colors: {
-              "light-bg": "#f3f4f6", // Светлый фон
-              "light-primary": "#ffffff", // Основной цвет элементов
-              "light-secondary": "#e5e7eb", // Вторичный цвет
-              "light-text": "#1f2937", // Цвет текста
-              "light-accent": "#d1d5db", // Акцент
+              "light-bg": "#f3f4f6",
+              "light-primary": "#ffffff",
+              "light-secondary": "#e5e7eb",
+              "light-text": "#1f2937",
+              "light-accent": "#d1d5db",
               "dark-bg": "#1f2937",
               "dark-primary": "#374151",
               "dark-secondary": "#4b5563",
@@ -76,31 +76,6 @@
             />
           </svg>
         </button>
-        <button
-          id="settings-btn"
-          class="p-2 rounded-full bg-light-accent dark:bg-dark-accent hover:opacity-80 transition-opacity"
-        >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-            />
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-            />
-          </svg>
-        </button>
       </div>
 
       <div
@@ -114,12 +89,40 @@
       <main class="text-center w-full max-w-sm">
         <h1 class="text-4xl md:text-5xl font-bold mb-8">randomatched</h1>
 
-        <select
-          id="hero-list-select"
-          class="w-full p-3 mb-6 rounded-lg border-2 bg-light-primary dark:bg-dark-primary border-light-accent dark:border-dark-accent focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-        >
-          <option value="">Загрузка списков...</option>
-        </select>
+        <div class="relative w-full mb-6">
+          <select
+            id="hero-list-select"
+            class="w-full p-3 rounded-lg border-2 bg-light-primary dark:bg-dark-primary border-light-accent dark:border-dark-accent focus:outline-none focus:ring-2 focus:ring-blue-500 transition appearance-none pr-12"
+          >
+            <option value="">Загрузка списков...</option>
+          </select>
+          <button
+            id="settings-btn"
+            class="absolute top-1/2 right-2 -translate-y-1/2 p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-light-secondary dark:hover:bg-dark-secondary transition-colors"
+            title="Настроить списки"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-6 w-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+              />
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+              />
+            </svg>
+          </button>
+        </div>
 
         <button
           id="generate-btn"
@@ -180,9 +183,7 @@
             </svg>
           </button>
         </div>
-        <ul id="results-list" class="space-y-2 mb-6">
-          <!-- Результаты генерации будут здесь -->
-        </ul>
+        <ul id="results-list" class="space-y-2 mb-6"></ul>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
             id="shuffle-teams-btn"
@@ -206,20 +207,51 @@
       </div>
     </div>
 
-    <!-- Модальное окно настроек (без изменений) -->
+    <!-- Модальное окно настроек -->
     <div
       id="settings-modal-container"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 opacity-0 pointer-events-none z-50"
+      class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 opacity-0 pointer-events-none z-50 transition-opacity duration-300"
     >
-      <!-- ... -->
-    </div>
+      <div
+        id="settings-modal-panel"
+        class="w-full max-w-md bg-light-primary dark:bg-dark-primary rounded-2xl shadow-lg p-6 transform scale-95 opacity-0 transition-all duration-300 ease-in-out"
+      >
+        <!-- Секция ввода пароля -->
+        <div id="password-section">
+          <h2 class="text-2xl font-bold mb-4">Доступ к настройкам</h2>
+          <p class="mb-4 text-sm text-gray-600 dark:text-gray-300">
+            Для редактирования списков введите пароль.
+          </p>
+          <input
+            type="password"
+            id="password-input"
+            class="w-full p-2 mb-2 rounded-lg border-2 bg-light-primary dark:bg-dark-primary border-light-accent dark:border-dark-accent focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            placeholder="Пароль"
+          />
+          <p id="password-error" class="text-red-500 text-sm hidden mb-4">
+            Неверный пароль.
+          </p>
+          <div class="flex justify-end space-x-3">
+            <button
+              id="cancel-password-btn"
+              class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80"
+            >
+              Отмена
+            </button>
+            <button
+              id="submit-password-btn"
+              class="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
+            >
+              Войти
+            </button>
+          </div>
+        </div>
 
-    <!-- Универсальное модальное окно (без изменений) -->
-    <div
-      id="utility-modal-container"
-      class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 opacity-0 pointer-events-none z-50"
-    >
-      <!-- ... -->
+        <!-- Секция управления списками -->
+        <div id="lists-management-section" class="hidden">
+          <!-- Содержимое будет рендериться здесь через JS -->
+        </div>
+      </div>
     </div>
   </body>
 </html>
