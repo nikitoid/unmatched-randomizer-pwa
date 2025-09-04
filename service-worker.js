@@ -1,6 +1,6 @@
-// ИЗМЕНЕНО: Финальная, надежная версия сервис-воркера
+// ИЗМЕНЕНО: Финальная, надежная версия сервис-воркера для оффлайн-запуска
 
-const CACHE_NAME = "randomatched-cache-v5"; // Увеличиваем версию кэша для обновления
+const CACHE_NAME = "randomatched-cache-v6"; // Увеличиваем версию кэша для обновления
 const FILES_TO_CACHE = [
   "/",
   "index.html",
@@ -21,14 +21,7 @@ self.addEventListener("install", (evt) => {
   evt.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log("[ServiceWorker] Pre-caching offline files");
-      // addAll может завершиться неудачей, если хотя бы один ресурс недоступен
-      // Поэтому мы кэшируем каждый файл индивидуально
-      const promises = FILES_TO_CACHE.map((url) => {
-        return cache.add(url).catch((err) => {
-          console.warn(`[ServiceWorker] Failed to cache: ${url}`, err);
-        });
-      });
-      return Promise.all(promises);
+      return cache.addAll(FILES_TO_CACHE);
     })
   );
   self.skipWaiting();
@@ -59,20 +52,12 @@ self.addEventListener("fetch", (evt) => {
     return;
   }
 
-  // Стратегия "Сначала кэш, потом сеть" (Cache First).
+  // Стратегия "Сначала кэш" (Cache First).
   // Это самая надежная стратегия для оффлайн-запуска.
   evt.respondWith(
     caches.match(evt.request).then((cachedResponse) => {
       // Если ресурс найден в кэше, немедленно возвращаем его.
       if (cachedResponse) {
-        // В фоне пытаемся обновить ресурс в кэше
-        fetch(evt.request).then((networkResponse) => {
-          if (networkResponse.ok) {
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(evt.request, networkResponse);
-            });
-          }
-        });
         return cachedResponse;
       }
       // Если в кэше ничего нет, идем в сеть и кэшируем результат.
