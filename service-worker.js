@@ -1,6 +1,6 @@
 // ИЗМЕНЕНО: Финальная, надежная версия сервис-воркера для оффлайн-запуска
 
-const CACHE_NAME = "randomatched-cache-v6"; // Увеличиваем версию кэша для обновления
+const CACHE_NAME = "randomatched-cache-v7"; // Увеличиваем версию кэша для обновления
 const FILES_TO_CACHE = [
   "/",
   "index.html",

@@ -5,16 +5,14 @@ $(document).ready(function () {
   let currentHeroes = [];
   let heroDataFromFirebase = {}; // Данные из Firestore
   let localExclusionLists = {}; // Локальные списки исключений
+  let isDbAuthenticated = false; // Флаг аутентификации для работы с БД
 
-  const PWD_HASH =
-    "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"; // sha256 from '1234'
   const EXCLUSION_SUFFIX = " (искл.)";
   const getAlpineState = () => document.querySelector("[x-data]").__x.$data;
 
   // --- Вспомогательные функции ---
   async function sha256(message) {
     const msgBuffer = new TextEncoder().encode(message);
-    // ИСПРАВЛЕНО: Был указан неверный алгоритм SHA-26
     const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -85,12 +83,9 @@ $(document).ready(function () {
 
   // --- Функции для обновления UI ---
   function rebuildAndPopulateSelects(source) {
-    if (!heroDataFromFirebase.lists) return;
-
-    const mergedLists = {
-      ...heroDataFromFirebase.lists,
-      ...localExclusionLists,
-    };
+    const isOnline = navigator.onLine;
+    const onlineLists = heroDataFromFirebase.lists || {};
+    const mergedLists = { ...onlineLists, ...localExclusionLists };
 
     const mainSelect = $("#hero-list");
     const modalSelect = $("#modal-list-select");
@@ -99,58 +94,90 @@ $(document).ready(function () {
     mainSelect.empty();
     modalSelect.empty();
 
+    // Главный селект всегда показывает все доступные списки
     Object.keys(mergedLists)
       .sort()
       .forEach((listName) => {
         mainSelect.append($("<option>", { value: listName, text: listName }));
-        // В модальное окно настроек добавляем только "чистые" списки
-        if (!listName.endsWith(EXCLUSION_SUFFIX)) {
-          modalSelect.append(
-            $("<option>", { value: listName, text: listName })
-          );
-        }
       });
 
+    // Селект в настройках зависит от статуса сети
+    if (isOnline) {
+      Object.keys(onlineLists)
+        .sort()
+        .forEach((name) =>
+          modalSelect.append($("<option>", { value: name, text: name }))
+        );
+    }
+    Object.keys(localExclusionLists)
+      .sort()
+      .forEach((name) =>
+        modalSelect.append($("<option>", { value: name, text: name }))
+      );
+
     const newSelected =
-      heroDataFromFirebase.selected ||
-      Object.keys(heroDataFromFirebase.lists)[0];
+      heroDataFromFirebase.selected || Object.keys(onlineLists)[0];
     mainSelect.val(
       Object.keys(mergedLists).includes(currentMainVal)
         ? currentMainVal
         : newSelected
     );
-    modalSelect.val(newSelected);
-    updateModalTextarea();
+
+    // Устанавливаем значение для селекта в настройках, если оно есть
+    if (modalSelect.find("option").length > 0) {
+      modalSelect.val(modalSelect.find("option:first").val());
+    }
+
+    handleSettingsListChange(); // Обновляем состояние кнопок
     updateSessionButtonsVisibility();
     console.log(`Списки обновлены из: ${source}`);
   }
 
-  function updateModalTextarea() {
+  function handleSettingsListChange() {
     const selectedList = $("#modal-list-select").val();
-    if (
-      selectedList &&
-      heroDataFromFirebase.lists &&
-      heroDataFromFirebase.lists[selectedList]
-    ) {
-      $("#heroes-textarea").val(
-        heroDataFromFirebase.lists[selectedList].join("\n")
-      );
+    if (!selectedList) {
+      // Если списков нет, отключаем все
+      $("#heroes-textarea").val("");
+      $(
+        "#save-list-btn, #set-default-btn, #delete-list-btn, #create-list-btn"
+      ).prop("disabled", true);
+      return;
+    }
+
+    const isLocal = selectedList.endsWith(EXCLUSION_SUFFIX);
+    const mergedLists = {
+      ...(heroDataFromFirebase.lists || {}),
+      ...localExclusionLists,
+    };
+
+    $("#heroes-textarea").val(mergedLists[selectedList].join("\n"));
+
+    // Локальные списки можно редактировать всегда
+    if (isLocal) {
+      $("#save-list-btn, #delete-list-btn").prop("disabled", false);
+      $("#set-default-btn, #create-list-btn").prop("disabled", true); // Нельзя сделать локальный список по умолчанию или создать новый
+    }
+    // Списки из БД можно редактировать только после аутентификации
+    else {
+      $(
+        "#save-list-btn, #set-default-btn, #delete-list-btn, #create-list-btn"
+      ).prop("disabled", !isDbAuthenticated);
     }
   }
 
   // --- Основная логика рандомизации ---
   function generateTeams() {
-    if (!heroDataFromFirebase.lists) {
+    const mergedLists = {
+      ...(heroDataFromFirebase.lists || {}),
+      ...localExclusionLists,
+    };
+    if (Object.keys(mergedLists).length === 0) {
       return getAlpineState().showToast(
         "Списки героев еще не загружены.",
         "error"
       );
     }
     const selectedListName = $("#hero-list").val();
-    const mergedLists = {
-      ...heroDataFromFirebase.lists,
-      ...localExclusionLists,
-    };
     const heroes = mergedLists[selectedListName];
 
     if (!heroes || heroes.length < 4) {
@@ -181,7 +208,7 @@ $(document).ready(function () {
           "p-1 rounded-full text-gray-400 hover:bg-red-500 hover:text-white transition-colors flex-shrink-0 ml-2",
         "data-hero-name": hero,
         "data-player-index": i,
-        html: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+        html: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
       });
       playerDiv.append(textSpan, excludeBtn);
       resultsContent.append(playerDiv);
@@ -197,10 +224,10 @@ $(document).ready(function () {
     generateTeams();
   }
 
-  // --- Логика исключения героев (теперь полностью локальная) ---
+  // --- Логика исключения героев (полностью локальная) ---
   function excludeHeroes(heroesToExclude) {
     const mergedLists = {
-      ...heroDataFromFirebase.lists,
+      ...(heroDataFromFirebase.lists || {}),
       ...localExclusionLists,
     };
     const currentListName = $("#hero-list").val();
@@ -221,7 +248,7 @@ $(document).ready(function () {
     localExclusionLists[exclusionListName] = newHeroList;
     saveLocalExclusions();
     rebuildAndPopulateSelects("локальной сессии");
-    $("#hero-list").val(exclusionListName); // ИСПРАВЛЕНО: Автоматически выбираем новый список
+    $("#hero-list").val(exclusionListName);
 
     $("#trigger-close-results-modal").click();
     localStorage.removeItem("lastGeneration");
@@ -230,7 +257,7 @@ $(document).ready(function () {
 
   function excludeSingleHero(heroToExclude, playerIndex) {
     const mergedLists = {
-      ...heroDataFromFirebase.lists,
+      ...(heroDataFromFirebase.lists || {}),
       ...localExclusionLists,
     };
     const currentListName = $("#hero-list").val();
@@ -272,16 +299,15 @@ $(document).ready(function () {
 
   // --- Инициализация и обработчики событий ---
   function initApp() {
-    if (!window.db || !window.firestore) {
-      return;
-    }
+    if (!window.db || !window.firestore) return;
+
     const { onSnapshot, doc } = window.firestore;
     window.listsDocRef = doc(window.db, "lists", "main");
 
     const settingsBtn = $("#settings-btn");
     const syncIndicator = $("#sync-indicator");
 
-    loadLocalExclusions(); // Загружаем локальные исключения при старте
+    loadLocalExclusions();
 
     syncIndicator.removeClass("hidden");
     settingsBtn.addClass("hidden");
@@ -292,6 +318,7 @@ $(document).ready(function () {
         const source = docSnap.metadata.fromCache ? "кэша" : "сервера";
         if (docSnap.exists()) {
           heroDataFromFirebase = docSnap.data();
+          isDbAuthenticated = false; // Сбрасываем аутентификацию при обновлении данных
           rebuildAndPopulateSelects(source);
         } else {
           getAlpineState().showToast("База данных не найдена.", "error");
@@ -301,10 +328,10 @@ $(document).ready(function () {
       },
       (error) => {
         getAlpineState().showToast(
-          "Ошибка подключения к базе. Работа в оффлайн-режиме.",
+          "Нет связи с БД. Работа в оффлайн-режиме.",
           "error"
         );
-        console.error("Firestore snapshot error:", error);
+        rebuildAndPopulateSelects("ошибки сети");
         syncIndicator.addClass("hidden");
         settingsBtn.removeClass("hidden");
       }
@@ -312,7 +339,7 @@ $(document).ready(function () {
 
     updateSessionButtonsVisibility();
 
-    // -- ОБРАБОТЧИКИ СОБЫТИЙ --
+    // -- ОСНОВНЫЕ ОБРАБОТЧИКИ --
     $("#generate-btn").on("click", generateTeams);
     $("#remix-teams-btn").on("click", rerollTeams);
     $("#remix-heroes-btn").on("click", rerollHeroes);
@@ -326,7 +353,6 @@ $(document).ready(function () {
       }
     });
 
-    // ИСПРАВЛЕНО: Надежный вызов модального окна подтверждения
     $("#reset-session-btn").on("click", () => {
       const event = new CustomEvent("open-confirm-modal", {
         detail: {
@@ -347,17 +373,26 @@ $(document).ready(function () {
       );
     });
 
-    // -- Логика модального окна настроек (работает только с Firebase) --
-    $("#login-btn").on("click", async () => {
-      const hash = await sha256($("#password-input").val());
-      if (hash === PWD_HASH) {
-        $("#password-section").addClass("hidden");
-        $("#management-section").removeClass("hidden");
+    // -- ОБРАБОТЧИКИ НАСТРОЕК --
+    $("#modal-list-select").on("change", function () {
+      const selectedList = $(this).val();
+      if (!selectedList.endsWith(EXCLUSION_SUFFIX) && !isDbAuthenticated) {
+        $("#trigger-db-password-modal").click();
+      }
+      handleSettingsListChange();
+    });
+
+    $("#check-db-password-btn").on("click", async () => {
+      const hash = await sha256($("#db-password-input").val());
+      if (hash === heroDataFromFirebase.passwordHash) {
+        isDbAuthenticated = true;
+        handleSettingsListChange();
+        getAlpineState().isDbPasswordModalOpen = false;
+        getAlpineState().showToast("Доступ предоставлен!", "success");
       } else {
         getAlpineState().showToast("Неверный пароль!", "error");
       }
     });
-    $("#modal-list-select").on("change", updateModalTextarea);
 
     const saveFirebaseChanges = async (updatedData, successMsg, errorMsg) => {
       try {
@@ -367,6 +402,38 @@ $(document).ready(function () {
         getAlpineState().showToast(errorMsg, "error");
       }
     };
+
+    const saveLocalListChanges = (listName, heroes, successMsg) => {
+      localExclusionLists[listName] = heroes;
+      saveLocalExclusions();
+      rebuildAndPopulateSelects("локального сохранения");
+      getAlpineState().showToast(successMsg, "success");
+    };
+
+    $("#save-list-btn").on("click", () => {
+      const listName = $("#modal-list-select").val();
+      const heroes = $("#heroes-textarea")
+        .val()
+        .split("\n")
+        .map((h) => h.trim())
+        .filter((h) => h);
+
+      if (listName.endsWith(EXCLUSION_SUFFIX)) {
+        saveLocalListChanges(
+          listName,
+          heroes,
+          `Локальный список "${listName}" сохранен!`
+        );
+      } else {
+        const updatedData = { ...heroDataFromFirebase };
+        updatedData.lists[listName] = heroes;
+        saveFirebaseChanges(
+          updatedData,
+          `Список "${listName}" сохранен в БД!`,
+          "Не удалось сохранить изменения."
+        );
+      }
+    });
 
     $("#set-default-btn").on("click", () => {
       const updatedData = {
@@ -379,21 +446,7 @@ $(document).ready(function () {
         "Не удалось сохранить изменения."
       );
     });
-    $("#save-list-btn").on("click", () => {
-      const listName = $("#modal-list-select").val();
-      const heroes = $("#heroes-textarea")
-        .val()
-        .split("\n")
-        .map((h) => h.trim())
-        .filter((h) => h);
-      const updatedData = { ...heroDataFromFirebase };
-      updatedData.lists[listName] = heroes;
-      saveFirebaseChanges(
-        updatedData,
-        `Список "${listName}" сохранен!`,
-        "Не удалось сохранить изменения."
-      );
-    });
+
     $("#create-list-btn").on("click", () => {
       const newName = $("#new-list-name").val().trim();
       if (!newName)
@@ -406,6 +459,7 @@ $(document).ready(function () {
           "Список с таким именем уже существует!",
           "error"
         );
+
       const updatedData = { ...heroDataFromFirebase };
       updatedData.lists[newName] = [];
       saveFirebaseChanges(
@@ -414,31 +468,43 @@ $(document).ready(function () {
         "Не удалось создать список."
       ).then(() => $("#new-list-name").val(""));
     });
+
     $("#delete-list-btn").on("click", () => {
       const listName = $("#modal-list-select").val();
-      if (Object.keys(heroDataFromFirebase.lists).length <= 1) {
-        return getAlpineState().showToast(
-          "Нельзя удалить последний список!",
-          "error"
-        );
-      }
-      const event = new CustomEvent("open-confirm-modal", {
-        detail: {
-          title: "Удалить список?",
-          message: `Вы уверены, что хотите удалить список "${listName}"? Это действие нельзя отменить.`,
-          onConfirm: async () => {
-            const updatedData = { ...heroDataFromFirebase };
-            delete updatedData.lists[listName];
-            if (updatedData.selected === listName) {
-              updatedData.selected = Object.keys(updatedData.lists)[0];
-            }
-            await saveFirebaseChanges(
-              updatedData,
-              `Список "${listName}" удален!`,
-              "Не удалось удалить список."
+      const title = "Удалить список?";
+      const message = `Вы уверены, что хотите удалить список "${listName}"? Это действие нельзя отменить.`;
+
+      const onConfirm = () => {
+        if (listName.endsWith(EXCLUSION_SUFFIX)) {
+          delete localExclusionLists[listName];
+          saveLocalExclusions();
+          rebuildAndPopulateSelects("локального удаления");
+          getAlpineState().showToast(
+            `Локальный список "${listName}" удален!`,
+            "success"
+          );
+        } else {
+          if (Object.keys(heroDataFromFirebase.lists).length <= 1) {
+            return getAlpineState().showToast(
+              "Нельзя удалить последний список из БД!",
+              "error"
             );
-          },
-        },
+          }
+          const updatedData = { ...heroDataFromFirebase };
+          delete updatedData.lists[listName];
+          if (updatedData.selected === listName) {
+            updatedData.selected = Object.keys(updatedData.lists)[0];
+          }
+          saveFirebaseChanges(
+            updatedData,
+            `Список "${listName}" удален из БД!`,
+            "Не удалось удалить список."
+          );
+        }
+      };
+
+      const event = new CustomEvent("open-confirm-modal", {
+        detail: { title, message, onConfirm },
       });
       window.dispatchEvent(event);
     });
