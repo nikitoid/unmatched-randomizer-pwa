@@ -15,7 +15,6 @@ import {
 // --- Globals & Config ---
 const { CryptoJS } = window;
 
-// These will be populated by the environment from index.html
 const firebaseConfig =
   typeof __firebase_config !== "undefined" ? JSON.parse(__firebase_config) : {};
 const appId =
@@ -54,33 +53,46 @@ $(document).ready(function () {
   const shuffleAllBtn = $("#shuffle-all-btn");
 
   // --- Setup Firebase ---
-  try {
-    const app = initializeApp(firebaseConfig);
-    db = getFirestore(app);
-    auth = getAuth(app);
-    listsDocRef = doc(db, "lists", "main");
-  } catch (e) {
-    console.error("Firebase initialization failed:", e);
-    // Using a non-blocking error display instead of alert()
-    $("#app").prepend(
-      '<div class="absolute top-20 text-center w-full p-4 bg-red-500 text-white rounded-lg">Не удалось подключиться к базе данных. Проверьте конфигурацию.</div>'
-    );
-    return;
+  function initializeFirebase() {
+    try {
+      const app = initializeApp(firebaseConfig);
+      db = getFirestore(app);
+      auth = getAuth(app);
+      listsDocRef = doc(db, "lists", "main");
+      console.log("Firebase initialized successfully.");
+
+      // Start authentication process
+      handleAuthentication();
+    } catch (e) {
+      console.error("Firebase initialization failed:", e);
+      showError("Не удалось инициализировать базу данных.");
+      loadFromLocalStorage(); // Fallback to offline mode
+      populateHeroListsFromCache();
+    }
   }
 
   // --- Authentication & Data Fetching ---
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      console.log("Authenticated anonymously:", user.uid);
-      syncWithFirebase();
-    } else {
-      signInAnonymously(auth).catch((error) => {
-        console.error("Anonymous sign-in failed:", error);
-        loadFromLocalStorage();
-        populateHeroListsFromCache();
-      });
-    }
-  });
+  function handleAuthentication() {
+    // This listener will react to sign-in events
+    onAuthStateChanged(auth, (user) => {
+      if (user) {
+        console.log("Authenticated anonymously:", user.uid);
+        syncWithFirebase(); // Fetch data once authenticated
+      }
+    });
+
+    // Try to sign in
+    signInAnonymously(auth).catch((error) => {
+      console.error("Anonymous sign-in failed:", error);
+      if (error.code === "auth/operation-not-allowed") {
+        showError("Анонимный вход не включен в настройках Firebase.");
+      } else {
+        showError("Ошибка аутентификации.");
+      }
+      loadFromLocalStorage(); // Fallback to offline mode
+      populateHeroListsFromCache();
+    });
+  }
 
   // --- Theme Logic ---
   const applyTheme = (theme) => {
@@ -133,6 +145,7 @@ $(document).ready(function () {
       }
     } catch (error) {
       console.error("Error syncing with Firebase:", error);
+      showError("Не удалось загрузить списки из базы.");
       loadFromLocalStorage();
     } finally {
       populateHeroListsFromCache();
@@ -140,12 +153,18 @@ $(document).ready(function () {
   }
 
   function loadFromLocalStorage() {
-    localListsCache.lists =
-      JSON.parse(localStorage.getItem("randomatched_lists")) || {};
-    localListsCache.selected =
-      localStorage.getItem("randomatched_selected") || "";
-    const lastGen = JSON.parse(localStorage.getItem("lastGeneration"));
-    if (lastGen) currentGeneration = lastGen;
+    try {
+      localListsCache.lists =
+        JSON.parse(localStorage.getItem("randomatched_lists")) || {};
+      localListsCache.selected =
+        localStorage.getItem("randomatched_selected") || "";
+      const lastGen = JSON.parse(localStorage.getItem("lastGeneration"));
+      if (lastGen) currentGeneration = lastGen;
+    } catch (e) {
+      console.error("Failed to parse data from localStorage", e);
+      localListsCache.lists = {};
+      localListsCache.selected = "";
+    }
   }
 
   function populateHeroListsFromCache() {
@@ -170,7 +189,9 @@ $(document).ready(function () {
         ? localListsCache.selected
         : listNames[0];
 
-    heroListSelect.val(selected);
+    if (selected) {
+      heroListSelect.val(selected);
+    }
     updateCurrentHeroList();
     generateBtn
       .prop("disabled", false)
@@ -179,10 +200,14 @@ $(document).ready(function () {
 
   function updateCurrentHeroList() {
     const selectedListName = heroListSelect.val();
-    localListsCache.heroes = localListsCache.lists[selectedListName] || [];
-    console.log(
-      `Selected list "${selectedListName}" with ${localListsCache.heroes.length} heroes.`
-    );
+    if (selectedListName) {
+      localListsCache.heroes = localListsCache.lists[selectedListName] || [];
+      console.log(
+        `Selected list "${selectedListName}" with ${localListsCache.heroes.length} heroes.`
+      );
+    } else {
+      localListsCache.heroes = [];
+    }
   }
 
   heroListSelect.on("change", updateCurrentHeroList);
@@ -199,7 +224,10 @@ $(document).ready(function () {
   function generateNew() {
     const activeHeroes = getActiveHeroes();
     if (activeHeroes.length < 4) {
-      alert("В выбранном списке недостаточно героев (нужно минимум 4).");
+      showError(
+        "В выбранном списке недостаточно героев (нужно минимум 4).",
+        3000
+      );
       return;
     }
     currentGeneration.teams = shuffleArray([1, 2, 3, 4]);
@@ -217,34 +245,17 @@ $(document).ready(function () {
 
   function shuffleHeroes() {
     const activeHeroes = getActiveHeroes();
-    if (activeHeroes.length < 4) {
-      alert("В выбранном списке недостаточно героев для перемешивания.");
-      return;
-    }
 
-    const remainingHeroes = activeHeroes.filter(
+    const availableHeroes = activeHeroes.filter(
       (h) => !currentGeneration.heroes.includes(h)
     );
 
-    if (remainingHeroes.length < 4) {
-      alert(
-        "Недостаточно оставшихся героев для полной замены. Заменяем сколько возможно."
-      );
-      const newHeroesCount = Math.min(4, remainingHeroes.length);
-      const newHeroes = shuffleArray(remainingHeroes).slice(0, newHeroesCount);
-      // Take some old heroes to fill the gap if needed
-      const oldHeroesToKeep = shuffleArray(currentGeneration.heroes).slice(
-        0,
-        4 - newHeroes.length
-      );
-      currentGeneration.heroes = shuffleArray([
-        ...newHeroes,
-        ...oldHeroesToKeep,
-      ]);
-    } else {
-      currentGeneration.heroes = shuffleArray(remainingHeroes).slice(0, 4);
+    if (availableHeroes.length < 4) {
+      showError("Недостаточно героев для полной замены.", 3000);
+      return;
     }
 
+    currentGeneration.heroes = shuffleArray(availableHeroes).slice(0, 4);
     renderResults();
     saveGenerationToLocalStorage();
   }
@@ -257,7 +268,7 @@ $(document).ready(function () {
   // --- Results Modal Logic ---
   function renderResults() {
     resultsList.empty();
-    if (!currentGeneration.teams.length) return;
+    if (!currentGeneration.teams || !currentGeneration.teams.length) return;
 
     for (let i = 0; i < 4; i++) {
       const teamNumber = currentGeneration.teams[i];
@@ -265,7 +276,7 @@ $(document).ready(function () {
       const li = `
                 <li class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary text-light-text dark:text-dark-text">
                     <span class="font-bold text-lg text-blue-500">Команда ${teamNumber}</span>
-                    <span class="text-lg text-center mx-2">${heroName}</span>
+                    <span class="text-lg text-center mx-2 flex-1">${heroName}</span>
                     <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя (без функции)">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
                     </button>
@@ -303,7 +314,7 @@ $(document).ready(function () {
 
   settingsBtn.on("click", () => {
     if (!navigator.onLine) {
-      alert("Редактирование списков доступно только онлайн.");
+      showError("Редактирование списков доступно только онлайн.", 3000);
       return;
     }
     passwordSection.show();
@@ -349,9 +360,12 @@ $(document).ready(function () {
                 <p>Функционал управления списками в разработке.</p>
             </div>
             <div class="flex justify-end mt-4">
-               <button id="close-settings-btn" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80">Закрыть</button>
+               <button id="close-settings-btn-inner" class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80">Закрыть</button>
             </div>
         `);
+    $("#close-settings-btn-inner").on("click", () =>
+      settingsModalContainer.addClass("opacity-0 pointer-events-none")
+    );
   }
 
   // --- Helper Functions ---
@@ -360,28 +374,47 @@ $(document).ready(function () {
     return localListsCache.lists[selectedList] || [];
   }
 
+  function showError(message, duration = 5000) {
+    const errorId = `error-${Date.now()}`;
+    const errorDiv = $(
+      `<div id="${errorId}" class="absolute top-20 text-center w-full max-w-sm p-3 bg-red-500 text-white rounded-lg shadow-lg transition-opacity duration-300">${message}</div>`
+    );
+    $("#app").prepend(errorDiv);
+    setTimeout(() => {
+      $(`#${errorId}`).addClass("opacity-0");
+      setTimeout(() => $(`#${errorId}`).remove(), 300);
+    }, duration);
+  }
+
   // --- Service Worker ---
   if ("serviceWorker" in navigator) {
     let newWorker;
-    navigator.serviceWorker.register("/sw.js").then((reg) => {
-      reg.addEventListener("updatefound", () => {
-        newWorker = reg.installing;
-        newWorker.addEventListener("statechange", () => {
-          if (
-            newWorker.state === "installed" &&
-            navigator.serviceWorker.controller
-          ) {
-            $("#update-indicator").removeClass("hidden");
-          }
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((reg) => {
+        reg.addEventListener("updatefound", () => {
+          newWorker = reg.installing;
+          newWorker.addEventListener("statechange", () => {
+            if (
+              newWorker.state === "installed" &&
+              navigator.serviceWorker.controller
+            ) {
+              $("#update-indicator").removeClass("hidden");
+            }
+          });
         });
-      });
-    });
+      })
+      .catch((err) =>
+        console.error("Service Worker registration failed:", err)
+      );
+
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       window.location.reload();
     });
   }
 
-  // Initial Load from cache
-  loadFromLocalStorage();
+  // --- Initial Load ---
+  initializeFirebase();
+  loadFromLocalStorage(); // Load from cache immediately for faster UI
   renderResults();
 });
