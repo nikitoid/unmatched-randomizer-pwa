@@ -1,6 +1,6 @@
 // ИЗМЕНЕНО: Новая, более надежная версия сервис-воркера
 
-const CACHE_NAME = "randomatched-cache-v3"; // Увеличиваем версию кэша для обновления
+const CACHE_NAME = "randomatched-cache-v4"; // Увеличиваем версию кэша для обновления
 const FILES_TO_CACHE = [
   "/",
   "index.html",
