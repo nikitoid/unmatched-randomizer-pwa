@@ -18,12 +18,14 @@
 
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      // Конфигурация Tailwind для поддержки темной темы через класс
       tailwind.config = {
         darkMode: "class",
       };
     </script>
-    <script src="//unpkg.com/alpinejs" defer></script>
+    <script
+      src="https://unpkg.com/alpinejs@3.13.10/dist/cdn.min.js"
+      defer
+    ></script>
   </head>
   <body
     class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans transition-colors duration-300"
@@ -40,18 +42,16 @@
         class="hidden"
       ></button>
       <button
-        id="trigger-confirm-reset-modal"
-        @click="isConfirmResetModalOpen = true"
-        class="hidden"
-      ></button>
-      <button
         id="trigger-close-results-modal"
         @click="isResultsModalOpen = false"
         class="hidden"
       ></button>
 
-      <!-- Кнопка переключения темы -->
-      <div class="absolute top-4 left-4">
+      <!-- Верхняя панель с иконками -->
+      <div
+        class="absolute top-4 left-4 right-4 flex justify-between items-center"
+      >
+        <!-- Кнопка переключения темы -->
         <button
           @click="toggleTheme"
           class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
@@ -95,10 +95,34 @@
             <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
           </svg>
         </button>
+        <!-- Индикатор обновления PWA -->
+        <div x-show="isPwaUpdating" class="p-2">
+          <svg
+            class="animate-spin text-blue-500"
+            xmlns="http://www.w3.org/2000/svg"
+            width="24"
+            height="24"
+            viewBox="0 0 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <line x1="12" y1="2" x2="12" y2="6"></line>
+            <line x1="12" y1="18" x2="12" y2="22"></line>
+            <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line>
+            <line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line>
+            <line x1="2" y1="12" x2="6" y2="12"></line>
+            <line x1="18" y1="12" x2="22" y2="12"></line>
+            <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line>
+            <line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line>
+          </svg>
+        </div>
       </div>
 
       <header class="w-full max-w-md text-center mb-8">
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white mt-12">
           Randomatched
         </h1>
       </header>
@@ -114,12 +138,9 @@
             <select
               id="hero-list"
               class="bg-gray-200 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5"
-            >
-              <!-- Options will be populated by app.js -->
-            </select>
+            ></select>
 
             <div class="relative w-10 h-10 flex-shrink-0">
-              <!-- ИЗМЕНЕНО: Кнопка теперь вызывает функцию проверки сети -->
               <button
                 id="settings-btn"
                 @click="checkOnlineAndOpenSettings()"
@@ -143,7 +164,7 @@
                 </svg>
               </button>
               <div
-                id="update-indicator"
+                id="sync-indicator"
                 class="icon-btn hidden absolute inset-0 flex items-center justify-center p-2"
               >
                 <svg
@@ -195,7 +216,7 @@
         </div>
       </main>
 
-      <!-- НОВОЕ: Всплывающее уведомление (Toast) -->
+      <!-- Всплывающее уведомление (Toast) -->
       <div
         x-show="toast.show"
         x-transition:enter="transition ease-out duration-300"
@@ -204,13 +225,14 @@
         x-transition:leave="transition ease-in duration-300"
         x-transition:leave-start="transform translate-y-0 opacity-100"
         x-transition:leave-end="transform translate-y-full opacity-0"
-        class="fixed bottom-4 right-4 bg-red-500 text-white py-2 px-4 rounded-lg shadow-lg z-50"
+        class="fixed bottom-4 right-4 text-white py-2 px-4 rounded-lg shadow-lg z-50"
+        :class="{ 'bg-green-500': toast.type === 'success', 'bg-red-500': toast.type === 'error', 'bg-gray-700': toast.type === 'info' }"
         style="display: none"
       >
         <p x-text="toast.message"></p>
       </div>
 
-      <!-- Модальное окно Настроек -->
+      <!-- Модальное окно Настроек (без изменений) ... -->
       <div
         x-show="isSettingsModalOpen"
         x-transition:enter="ease-out duration-300"
@@ -340,7 +362,7 @@
         </div>
       </div>
 
-      <!-- Модальное окно Результатов -->
+      <!-- Модальное окно Результатов (без изменений) ... -->
       <div
         x-show="isResultsModalOpen"
         x-transition:enter="ease-out duration-300"
@@ -353,7 +375,6 @@
         class="fixed inset-0 bg-black bg-opacity-60 flex items-end justify-center z-40"
         style="display: none"
       >
-        <!-- Sliding Panel -->
         <div
           id="results-panel"
           @click.stop
@@ -389,11 +410,10 @@
               </svg>
             </button>
           </div>
-
-          <section id="results-content" class="w-full text-base space-y-2">
-            <!-- Results will be generated here -->
-          </section>
-
+          <section
+            id="results-content"
+            class="w-full text-base space-y-2"
+          ></section>
           <div id="controls-panel" class="w-full mt-6 grid grid-cols-2 gap-2">
             <div class="col-span-2 grid grid-cols-3 gap-2">
               <button
@@ -425,9 +445,9 @@
         </div>
       </div>
 
-      <!-- Модальное окно Подтверждения Сброса -->
+      <!-- Универсальное модальное окно Подтверждения -->
       <div
-        x-show="isConfirmResetModalOpen"
+        x-show="confirmModal.show"
         x-transition:enter="ease-out duration-300"
         x-transition:enter-start="opacity-0"
         x-transition:enter-end="opacity-100"
@@ -438,29 +458,29 @@
         style="display: none"
       >
         <div
-          @click.away="isConfirmResetModalOpen = false"
+          @click.away="confirmModal.show = false"
           class="bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 w-full max-w-sm text-center"
         >
-          <h3 class="text-lg font-bold mb-2 text-gray-900 dark:text-white">
-            Сбросить сессию?
-          </h3>
-          <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
-            Все временные списки с исключенными героями будут удалены. Это
-            действие нельзя отменить.
-          </p>
+          <h3
+            class="text-lg font-bold mb-2 text-gray-900 dark:text-white"
+            x-text="confirmModal.title"
+          ></h3>
+          <p
+            class="text-sm text-gray-500 dark:text-gray-400 mb-6"
+            x-text="confirmModal.message"
+          ></p>
           <div class="flex justify-center gap-4">
             <button
-              @click="isConfirmResetModalOpen = false"
+              @click="confirmModal.show = false"
               class="bg-gray-200 dark:bg-gray-600 hover:bg-gray-300 dark:hover:bg-gray-500 font-bold py-2 px-6 rounded-lg"
             >
               Отмена
             </button>
             <button
-              id="confirm-reset-btn"
-              @click="isConfirmResetModalOpen = false"
+              @click="confirmModal.onConfirm(); confirmModal.show = false"
               class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded-lg"
             >
-              Удалить
+              Подтвердить
             </button>
           </div>
         </div>
@@ -470,66 +490,77 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <script type="module">
+      // Инициализация Firebase (без изменений) ...
       import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
       import {
         getFirestore,
         enableIndexedDbPersistence,
+        onSnapshot,
+        doc,
+        setDoc,
       } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
 
-      const firebaseConfig = {
-        apiKey: "AIzaSyBSvSbR_NJj7riu0HZPz3nile1X4tuxfsI",
-        authDomain: "unmatched-randomizer.firebaseapp.com",
-        projectId: "unmatched-randomizer",
-        storageBucket: "unmatched-randomizer.firebasestorage.app",
-        messagingSenderId: "168086799887",
-        appId: "1:168086799887:web:3c8af51f935999b7d6c57a",
-        measurementId: "G-GEQPMK68B0",
-      };
+      try {
+        const firebaseConfig = {
+          apiKey: "AIzaSyBSvSbR_NJj7riu0HZPz3nile1X4tuxfsI",
+          authDomain: "unmatched-randomizer.firebaseapp.com",
+          projectId: "unmatched-randomizer",
+          storageBucket: "unmatched-randomizer.firebasestorage.app",
+          messagingSenderId: "168086799887",
+          appId: "1:168086799887:web:3c8af51f935999b7d6c57a",
+          measurementId: "G-GEQPMK68B0",
+        };
 
-      const app = initializeApp(firebaseConfig);
-      window.db = getFirestore(app);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-      (async () => {
-        try {
-          await enableIndexedDbPersistence(window.db);
-          console.log("Firebase offline persistence enabled.");
-        } catch (err) {
+        // Передаем функции Firestore в глобальный объект для app.js
+        window.db = db;
+        window.firestore = { onSnapshot, doc, setDoc };
+
+        enableIndexedDbPersistence(db).catch((err) => {
           if (err.code == "failed-precondition") {
             console.warn("Firebase persistence failed: multiple tabs open.");
           } else if (err.code == "unimplemented") {
             console.warn("Firebase persistence not available in this browser.");
           }
-        }
-      })();
+        });
+      } catch (e) {
+        console.error("Firebase initialization failed:", e);
+        // Уведомляем пользователя, если Firebase не смог запуститься
+        const alpineState = document.querySelector("[x-data]").__x.$data;
+        alpineState.showToast(
+          "Ошибка подключения к базе. Оффлайн-режим может быть ограничен.",
+          "error"
+        );
+      }
     </script>
 
     <script>
-      // Глобальное состояние для Alpine.js
       document.addEventListener("alpine:init", () => {
         Alpine.data("appState", () => ({
           isDark: true,
           isSettingsModalOpen: false,
           isResultsModalOpen: false,
-          isConfirmResetModalOpen: false,
-          // НОВОЕ: Состояние для всплывающего уведомления
-          toast: { show: false, message: "" },
+          isPwaUpdating: false,
+          toast: { show: false, message: "", type: "info" },
+          confirmModal: {
+            show: false,
+            title: "",
+            message: "",
+            onConfirm: () => {},
+          },
           init() {
             const savedTheme = localStorage.getItem("theme");
-            if (
+            this.isDark =
               savedTheme === "dark" ||
               (savedTheme === null &&
-                window.matchMedia("(prefers-color-scheme: dark)").matches)
-            ) {
-              this.isDark = true;
-              document.documentElement.classList.add("dark");
-            } else {
-              this.isDark = false;
-              document.documentElement.classList.remove("dark");
-            }
-
-            this.$watch("isSettingsModalOpen", (isOpen) => {
-              if (!isOpen) this.resetSettingsModal();
-            });
+                window.matchMedia("(prefers-color-scheme: dark)").matches);
+            document.documentElement.classList.toggle("dark", this.isDark);
+            this.$watch(
+              "isSettingsModalOpen",
+              (isOpen) => !isOpen && this.resetSettingsModal()
+            );
           },
           toggleTheme() {
             this.isDark = !this.isDark;
@@ -538,53 +569,62 @@
           },
           resetSettingsModal() {
             setTimeout(() => {
-              document
-                .querySelector("#password-section")
-                .classList.remove("hidden");
-              document
-                .querySelector("#management-section")
-                .classList.add("hidden");
-              document.querySelector("#password-input").value = "";
+              $("#password-section").removeClass("hidden");
+              $("#management-section").addClass("hidden");
+              $("#password-input").val("");
             }, 300);
           },
           closeAllModals() {
             this.isSettingsModalOpen = false;
             this.isResultsModalOpen = false;
-            this.isConfirmResetModalOpen = false;
+            this.confirmModal.show = false;
           },
-          // НОВОЕ: Функция для проверки сети и открытия настроек
           checkOnlineAndOpenSettings() {
             if (navigator.onLine) {
               this.isSettingsModalOpen = true;
             } else {
               this.showToast(
-                "Для доступа к настройкам требуется подключение к интернету."
+                "Для доступа к настройкам требуется подключение к интернету.",
+                "error"
               );
             }
           },
-          // НОВОЕ: Функция для показа уведомления
-          showToast(message) {
+          showToast(message, type = "info") {
             this.toast.message = message;
+            this.toast.type = type;
             this.toast.show = true;
             setTimeout(() => {
               this.toast.show = false;
-            }, 3000); // Скрыть через 3 секунды
+            }, 3000);
+          },
+          openConfirmModal(title, message, onConfirmCallback) {
+            this.confirmModal.title = title;
+            this.confirmModal.message = message;
+            this.confirmModal.onConfirm = onConfirmCallback;
+            this.confirmModal.show = true;
           },
         }));
       });
-    </script>
 
-    <script src="app.js" type="module"></script>
-
-    <script>
-      // Регистрация Service Worker
+      // --- Логика обновления Service Worker ---
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("/service-worker.js").then((reg) => {
-            console.log("Service worker registered.", reg);
+            reg.addEventListener("updatefound", () => {
+              const appState = document.querySelector("[x-data]").__x.$data;
+              appState.isPwaUpdating = true;
+              console.log("Найдено обновление, начинается установка...");
+            });
+          });
+
+          navigator.serviceWorker.addEventListener("controllerchange", () => {
+            console.log("Приложение обновлено! Перезагрузка...");
+            window.location.reload();
           });
         });
       }
     </script>
+
+    <script src="app.js" type="module"></script>
   </body>
 </html>

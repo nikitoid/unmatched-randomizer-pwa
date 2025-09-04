@@ -1,29 +1,20 @@
-// Импортируем функции Firestore из глобального window
-import {
-  doc,
-  onSnapshot,
-  setDoc,
-} from "https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore.js";
-
+// Ждем, пока Alpine.js и Firebase будут готовы
 $(document).ready(function () {
   // --- Глобальные переменные и константы ---
   let currentPlayers = [];
   let currentHeroes = [];
-  let heroData = {}; // Локальная копия данных из Firestore
-  let listsDocRef; // Ссылка на документ в Firestore
+  let heroData = {}; // Локальная копия данных
   const PWD_HASH =
     "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"; // sha256 from '1234'
   const EXCLUSION_SUFFIX = " (искл.)";
+  const alpineState = () => document.querySelector("[x-data]").__x.$data;
 
   // --- Вспомогательные функции ---
   async function sha256(message) {
     const msgBuffer = new TextEncoder().encode(message);
     const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
-    return hashHex;
+    return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
 
   function saveLastGeneration() {
@@ -35,7 +26,7 @@ $(document).ready(function () {
       localStorage.setItem("lastGeneration", data);
       $("#show-last-gen-btn").removeClass("hidden");
     } catch (e) {
-      console.error("Failed to save last generation:", e);
+      console.error("Не удалось сохранить последнюю генерацию:", e);
     }
   }
 
@@ -49,7 +40,7 @@ $(document).ready(function () {
         return true;
       }
     } catch (e) {
-      console.error("Failed to load last generation:", e);
+      console.error("Не удалось загрузить последнюю генерацию:", e);
     }
     return false;
   }
@@ -61,31 +52,41 @@ $(document).ready(function () {
   }
 
   // --- Функции для обновления UI ---
-  function populateSelects(data) {
+  function populateSelects(data, source) {
     if (!data || !data.lists) return;
     heroData = data;
 
     const mainSelect = $("#hero-list");
     const modalSelect = $("#modal-list-select");
-    const hasExclusionLists = Object.keys(data.lists).some((name) =>
-      name.endsWith(EXCLUSION_SUFFIX)
-    );
+    const currentMainVal = mainSelect.val();
 
     mainSelect.empty();
     modalSelect.empty();
 
-    for (const listName in data.lists) {
-      mainSelect.append($("<option>", { value: listName, text: listName }));
-      modalSelect.append($("<option>", { value: listName, text: listName }));
-    }
+    Object.keys(data.lists)
+      .sort()
+      .forEach((listName) => {
+        mainSelect.append($("<option>", { value: listName, text: listName }));
+        modalSelect.append($("<option>", { value: listName, text: listName }));
+      });
 
-    mainSelect.val(data.selected);
-    modalSelect.val(data.selected);
+    const newSelected = data.selected || Object.keys(data.lists)[0];
+    // Сохраняем выбор пользователя, если список еще существует
+    mainSelect.val(
+      Object.keys(data.lists).includes(currentMainVal)
+        ? currentMainVal
+        : newSelected
+    );
+    modalSelect.val(newSelected);
     updateModalTextarea();
 
+    const hasExclusionLists = Object.keys(data.lists).some((name) =>
+      name.endsWith(EXCLUSION_SUFFIX)
+    );
     hasExclusionLists
       ? $("#reset-session-btn").removeClass("hidden")
       : $("#reset-session-btn").addClass("hidden");
+    console.log(`Списки обновлены из: ${source}`);
   }
 
   function updateModalTextarea() {
@@ -97,16 +98,20 @@ $(document).ready(function () {
 
   // --- Основная логика рандомизации ---
   function generateTeams() {
-    const selectedListName = $("#hero-list").val();
-    if (!selectedListName || !heroData.lists[selectedListName]) {
-      alert("Данные о героях еще не загружены или список пуст.");
-      return;
+    if (Object.keys(heroData).length === 0) {
+      return alpineState().showToast(
+        "Списки героев еще не загружены. Попробуйте позже.",
+        "error"
+      );
     }
+    const selectedListName = $("#hero-list").val();
     const heroes = heroData.lists[selectedListName];
 
     if (!heroes || heroes.length < 4) {
-      alert("В выбранном списке должно быть не менее 4 героев!");
-      return;
+      return alpineState().showToast(
+        "В выбранном списке должно быть не менее 4 героев!",
+        "error"
+      );
     }
 
     currentPlayers = [1, 2, 3, 4].sort(() => Math.random() - 0.5);
@@ -119,70 +124,60 @@ $(document).ready(function () {
 
   function displayResults() {
     const resultsContent = $("#results-content").empty();
-    for (let i = 0; i < 4; i++) {
+    currentHeroes.forEach((hero, i) => {
       const playerDiv = $("<div>", {
         class:
           "py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center",
-      }).text(`Игрок ${currentPlayers[i]}: ${currentHeroes[i]}`);
-
+      }).text(`Игрок ${currentPlayers[i]}: ${hero}`);
       const excludeBtn = $("<button>", {
         class:
           "p-1 rounded-full text-gray-400 hover:bg-red-500 hover:text-white transition-colors",
-        "data-hero-name": currentHeroes[i],
+        "data-hero-name": hero,
         "data-player-index": i,
-        html: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+        html: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
       });
       playerDiv.append(excludeBtn);
       resultsContent.append(playerDiv);
-    }
+    });
   }
 
   function rerollTeams() {
-    currentPlayers.sort(() => Math.random() - 0.5);
+    currentPlayers.sort(() => 0.5 - Math.random());
     displayResults();
     saveLastGeneration();
   }
-
   function rerollHeroes() {
-    const selectedListName = $("#hero-list").val();
-    const heroes = heroData.lists[selectedListName];
-    if (!heroes || heroes.length < 4) return;
-    currentHeroes = [...heroes].sort(() => Math.random() - 0.5).slice(0, 4);
-    displayResults();
-    saveLastGeneration();
+    generateTeams();
   }
 
   // --- Логика исключения героев ---
-
   async function excludeHeroes(heroesToExclude) {
     const currentListName = $("#hero-list").val();
     const baseListName = getBaseListName(currentListName);
     const exclusionListName = baseListName + EXCLUSION_SUFFIX;
-
     const sourceHeroes = heroData.lists[currentListName];
-    if (!sourceHeroes) return alert("Не найден текущий список героев!");
-
     const newHeroList = sourceHeroes.filter(
       (h) => !heroesToExclude.includes(h)
     );
 
     if (newHeroList.length < 4) {
-      return alert(
-        "После исключения в списке останется меньше 4 героев. Действие отменено."
+      return alpineState().showToast(
+        "После исключения в списке останется меньше 4 героев.",
+        "error"
       );
     }
 
-    heroData.lists[exclusionListName] = newHeroList;
-    heroData.selected = exclusionListName;
+    const updatedData = { ...heroData };
+    updatedData.lists[exclusionListName] = newHeroList;
+    updatedData.selected = exclusionListName;
 
     try {
-      await setDoc(listsDocRef, heroData);
-
+      await window.firestore.setDoc(window.listsDocRef, updatedData);
       $("#trigger-close-results-modal").click();
       localStorage.removeItem("lastGeneration");
       $("#show-last-gen-btn").addClass("hidden");
     } catch (error) {
-      alert("Не удалось применить исключение. Ошибка: " + error.message);
+      alpineState().showToast("Ошибка при исключении героев.", "error");
     }
   }
 
@@ -190,40 +185,33 @@ $(document).ready(function () {
     const currentListName = $("#hero-list").val();
     const baseListName = getBaseListName(currentListName);
     const exclusionListName = baseListName + EXCLUSION_SUFFIX;
-
-    const sourceListForExclusion = heroData.lists[currentListName];
-    if (!sourceListForExclusion)
-      return alert("Не найден текущий список героев для исключения!");
-
-    const newExclusionList = sourceListForExclusion.filter(
-      (h) => h !== heroToExclude
-    );
-
-    const otherHeroesOnScreen = currentHeroes.filter(
-      (h) => h !== heroToExclude
-    );
+    const sourceList = heroData.lists[currentListName];
+    const newExclusionList = sourceList.filter((h) => h !== heroToExclude);
+    const otherHeroes = currentHeroes.filter((h) => h !== heroToExclude);
     const replacementPool = newExclusionList.filter(
-      (h) => !otherHeroesOnScreen.includes(h)
+      (h) => !otherHeroes.includes(h)
     );
 
     if (replacementPool.length === 0) {
-      alert("Нет доступных героев для замены!");
-      return;
+      return alpineState().showToast(
+        "Нет доступных героев для замены!",
+        "error"
+      );
     }
 
-    heroData.lists[exclusionListName] = newExclusionList;
-    heroData.selected = exclusionListName;
+    const updatedData = { ...heroData };
+    updatedData.lists[exclusionListName] = newExclusionList;
+    updatedData.selected = exclusionListName;
 
-    const newHero =
+    currentHeroes[playerIndex] =
       replacementPool[Math.floor(Math.random() * replacementPool.length)];
-    currentHeroes[playerIndex] = newHero;
 
     try {
-      await setDoc(listsDocRef, heroData);
+      await window.firestore.setDoc(window.listsDocRef, updatedData);
       displayResults();
       saveLastGeneration();
     } catch (error) {
-      alert("Не удалось применить исключение. Ошибка: " + error.message);
+      alpineState().showToast("Ошибка при замене героя.", "error");
     }
   }
 
@@ -233,60 +221,52 @@ $(document).ready(function () {
     );
     if (listsToDelete.length === 0) return;
 
-    listsToDelete.forEach((listName) => {
-      delete heroData.lists[listName];
-    });
+    const updatedData = { ...heroData };
+    listsToDelete.forEach((listName) => delete updatedData.lists[listName]);
 
-    if (heroData.selected.endsWith(EXCLUSION_SUFFIX)) {
-      heroData.selected = getBaseListName(heroData.selected);
+    if (updatedData.selected.endsWith(EXCLUSION_SUFFIX)) {
+      updatedData.selected = getBaseListName(updatedData.selected);
     }
 
     try {
-      await setDoc(listsDocRef, heroData);
+      await window.firestore.setDoc(window.listsDocRef, updatedData);
       localStorage.removeItem("lastGeneration");
       $("#show-last-gen-btn").addClass("hidden");
-      alert("Сессия сброшена!");
+      alpineState().showToast("Сессия сброшена!", "success");
     } catch (error) {
-      alert("Не удалось сбросить сессию. Ошибка: " + error.message);
+      alpineState().showToast("Не удалось сбросить сессию.", "error");
     }
   }
 
   // --- Инициализация и обработчики событий ---
   function initApp() {
-    // Проверяем, инициализирована ли база данных
-    if (!window.db) {
-      alert(
-        "Ошибка инициализации Firebase. Пожалуйста, убедитесь, что вы правильно вставили ваш 'firebaseConfig' в файл index.html."
-      );
-      $("#update-indicator").addClass("hidden");
-      $("#settings-btn").removeClass("hidden");
-      return; // Прекращаем выполнение, чтобы избежать дальнейших ошибок
+    if (!window.db || !window.firestore) {
+      return; // Firebase не инициализирован
     }
-
-    const db = window.db;
-    listsDocRef = doc(db, "lists", "main");
+    const { onSnapshot, doc } = window.firestore;
+    window.listsDocRef = doc(window.db, "lists", "main");
 
     const settingsBtn = $("#settings-btn");
-    const syncIndicator = $("#update-indicator");
+    const syncIndicator = $("#sync-indicator");
 
     syncIndicator.removeClass("hidden");
     settingsBtn.addClass("hidden");
 
     onSnapshot(
-      listsDocRef,
+      window.listsDocRef,
       (docSnap) => {
+        const source = docSnap.metadata.fromCache ? "кэша" : "сервера";
         if (docSnap.exists()) {
-          populateSelects(docSnap.data());
+          populateSelects(docSnap.data(), source);
         } else {
-          alert("База данных не найдена. Обратитесь к администратору.");
+          alpineState().showToast("База данных не найдена.", "error");
         }
         syncIndicator.addClass("hidden");
         settingsBtn.removeClass("hidden");
       },
       (error) => {
-        alert(
-          "Не удалось подключиться к базе данных. Проверьте интернет-соединение."
-        );
+        alpineState().showToast("Ошибка подключения к базе.", "error");
+        console.error("Firestore snapshot error:", error);
         syncIndicator.addClass("hidden");
         settingsBtn.removeClass("hidden");
       }
@@ -301,105 +281,122 @@ $(document).ready(function () {
     $("#remix-teams-btn").on("click", rerollTeams);
     $("#remix-heroes-btn").on("click", rerollHeroes);
     $("#reset-btn").on("click", generateTeams);
-
     $("#show-last-gen-btn").on("click", () => {
       if (loadLastGeneration()) {
         displayResults();
         $("#trigger-results-modal").click();
       } else {
-        alert("Нет данных о последней генерации.");
+        alpineState().showToast("Нет данных о последней генерации.");
       }
     });
-
-    $("#reset-session-btn").on("click", () =>
-      $("#trigger-confirm-reset-modal").click()
-    );
-    $("#confirm-reset-btn").on("click", resetSession);
-
+    $("#reset-session-btn").on("click", () => {
+      alpineState().openConfirmModal(
+        "Сбросить сессию?",
+        "Все временные списки будут удалены. Это действие нельзя отменить.",
+        resetSession
+      );
+    });
     $("#exclude-all-btn").on("click", () => excludeHeroes(currentHeroes));
     $("#results-content").on("click", "button", function () {
-      const heroName = $(this).data("hero-name");
-      const playerIndex = $(this).data("player-index");
-      excludeSingleHero(heroName, playerIndex);
+      excludeSingleHero(
+        $(this).data("hero-name"),
+        $(this).data("player-index")
+      );
     });
 
     // -- Логика модального окна настроек --
     $("#login-btn").on("click", async () => {
-      const password = $("#password-input").val();
-      const hash = await sha256(password);
+      const hash = await sha256($("#password-input").val());
       if (hash === PWD_HASH) {
         $("#password-section").addClass("hidden");
         $("#management-section").removeClass("hidden");
       } else {
-        alert("Неверный пароль!");
+        alpineState().showToast("Неверный пароль!", "error");
       }
     });
     $("#modal-list-select").on("change", updateModalTextarea);
 
-    $("#set-default-btn").on("click", async function () {
-      const newSelectedList = $("#modal-list-select").val();
-      heroData.selected = newSelectedList;
+    const saveChanges = async (updatedData, successMsg, errorMsg) => {
       try {
-        await setDoc(listsDocRef, heroData);
-        alert(`Список "${newSelectedList}" установлен по умолчанию!`);
+        await window.firestore.setDoc(window.listsDocRef, updatedData);
+        alpineState().showToast(successMsg, "success");
       } catch (error) {
-        alert("Не удалось сохранить изменения.");
+        alpineState().showToast(errorMsg, "error");
       }
+    };
+
+    $("#set-default-btn").on("click", () => {
+      const updatedData = {
+        ...heroData,
+        selected: $("#modal-list-select").val(),
+      };
+      saveChanges(
+        updatedData,
+        `Список "${updatedData.selected}" установлен по умолчанию!`,
+        "Не удалось сохранить изменения."
+      );
     });
-    $("#save-list-btn").on("click", async function () {
+    $("#save-list-btn").on("click", () => {
       const listName = $("#modal-list-select").val();
       const heroes = $("#heroes-textarea")
         .val()
         .split("\n")
         .map((h) => h.trim())
         .filter((h) => h);
-      heroData.lists[listName] = heroes;
-      try {
-        await setDoc(listsDocRef, heroData);
-        alert(`Список "${listName}" сохранен!`);
-      } catch (error) {
-        alert("Не удалось сохранить изменения.");
-      }
+      const updatedData = { ...heroData };
+      updatedData.lists[listName] = heroes;
+      saveChanges(
+        updatedData,
+        `Список "${listName}" сохранен!`,
+        "Не удалось сохранить изменения."
+      );
     });
-    $("#create-list-btn").on("click", async function () {
+    $("#create-list-btn").on("click", () => {
       const newName = $("#new-list-name").val().trim();
-      if (!newName) return alert("Введите имя нового списка!");
+      if (!newName)
+        return alpineState().showToast("Введите имя нового списка!", "error");
       if (heroData.lists[newName])
-        return alert("Список с таким именем уже существует!");
-      heroData.lists[newName] = [];
-      try {
-        await setDoc(listsDocRef, heroData);
-        $("#new-list-name").val("");
-        alert(`Список "${newName}" создан!`);
-      } catch (error) {
-        alert("Не удалось создать список.");
-      }
+        return alpineState().showToast(
+          "Список с таким именем уже существует!",
+          "error"
+        );
+      const updatedData = { ...heroData };
+      updatedData.lists[newName] = [];
+      saveChanges(
+        updatedData,
+        `Список "${newName}" создан!`,
+        "Не удалось создать список."
+      ).then(() => $("#new-list-name").val(""));
     });
-    $("#delete-list-btn").on("click", async function () {
+    $("#delete-list-btn").on("click", () => {
       const listName = $("#modal-list-select").val();
       if (Object.keys(heroData.lists).length <= 1) {
-        return alert("Нельзя удалить последний список!");
+        return alpineState().showToast(
+          "Нельзя удалить последний список!",
+          "error"
+        );
       }
-      if (confirm(`Вы уверены, что хотите удалить список "${listName}"?`)) {
-        delete heroData.lists[listName];
-        if (heroData.selected === listName) {
-          heroData.selected = Object.keys(heroData.lists)[0];
+      alpineState().openConfirmModal(
+        "Удалить список?",
+        `Вы уверены, что хотите удалить список "${listName}"? Это действие нельзя отменить.`,
+        async () => {
+          const updatedData = { ...heroData };
+          delete updatedData.lists[listName];
+          if (updatedData.selected === listName) {
+            updatedData.selected = Object.keys(updatedData.lists)[0];
+          }
+          await saveChanges(
+            updatedData,
+            `Список "${listName}" удален!`,
+            "Не удалось удалить список."
+          );
         }
-        try {
-          await setDoc(listsDocRef, heroData);
-          alert(`Список "${listName}" удален!`);
-        } catch (error) {
-          alert("Не удалось удалить список.");
-        }
-      }
-    });
-
-    // Глобальный слушатель для закрытия модальных окон из любого места
-    document.addEventListener("close-modals", () => {
-      const appState = document.querySelector("[x-data]").__x.$data;
-      appState.closeAllModals();
+      );
     });
   }
 
-  initApp();
+  // Запускаем приложение только если Firebase успешно загрузился
+  if (window.db) {
+    initApp();
+  }
 });
