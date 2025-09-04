@@ -7,12 +7,12 @@ $(document).ready(function () {
   const PWD_HASH =
     "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4"; // sha256 from '1234'
   const EXCLUSION_SUFFIX = " (искл.)";
-  const alpineState = () => document.querySelector("[x-data]").__x.$data;
+  const getAlpineState = () => document.querySelector("[x-data]").__x.$data;
 
   // --- Вспомогательные функции ---
   async function sha256(message) {
     const msgBuffer = new TextEncoder().encode(message);
-    const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
+    const hashBuffer = await crypto.subtle.digest("SHA-26", msgBuffer);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
   }
@@ -24,7 +24,7 @@ $(document).ready(function () {
         heroes: currentHeroes,
       });
       localStorage.setItem("lastGeneration", data);
-      $("#show-last-gen-btn").removeClass("hidden");
+      updateSessionButtonsVisibility();
     } catch (e) {
       console.error("Не удалось сохранить последнюю генерацию:", e);
     }
@@ -51,6 +51,20 @@ $(document).ready(function () {
       : listName;
   }
 
+  function updateSessionButtonsVisibility() {
+    const hasExclusionLists = Object.keys(heroData.lists || {}).some((name) =>
+      name.endsWith(EXCLUSION_SUFFIX)
+    );
+    const hasLastGen = !!localStorage.getItem("lastGeneration");
+
+    hasLastGen
+      ? $("#show-last-gen-btn").removeClass("hidden")
+      : $("#show-last-gen-btn").addClass("hidden");
+    hasExclusionLists || hasLastGen
+      ? $("#reset-session-btn").removeClass("hidden")
+      : $("#reset-session-btn").addClass("hidden");
+  }
+
   // --- Функции для обновления UI ---
   function populateSelects(data, source) {
     if (!data || !data.lists) return;
@@ -71,7 +85,6 @@ $(document).ready(function () {
       });
 
     const newSelected = data.selected || Object.keys(data.lists)[0];
-    // Сохраняем выбор пользователя, если список еще существует
     mainSelect.val(
       Object.keys(data.lists).includes(currentMainVal)
         ? currentMainVal
@@ -79,13 +92,7 @@ $(document).ready(function () {
     );
     modalSelect.val(newSelected);
     updateModalTextarea();
-
-    const hasExclusionLists = Object.keys(data.lists).some((name) =>
-      name.endsWith(EXCLUSION_SUFFIX)
-    );
-    hasExclusionLists
-      ? $("#reset-session-btn").removeClass("hidden")
-      : $("#reset-session-btn").addClass("hidden");
+    updateSessionButtonsVisibility();
     console.log(`Списки обновлены из: ${source}`);
   }
 
@@ -98,8 +105,8 @@ $(document).ready(function () {
 
   // --- Основная логика рандомизации ---
   function generateTeams() {
-    if (Object.keys(heroData).length === 0) {
-      return alpineState().showToast(
+    if (!heroData || Object.keys(heroData).length === 0) {
+      return getAlpineState().showToast(
         "Списки героев еще не загружены. Попробуйте позже.",
         "error"
       );
@@ -108,7 +115,7 @@ $(document).ready(function () {
     const heroes = heroData.lists[selectedListName];
 
     if (!heroes || heroes.length < 4) {
-      return alpineState().showToast(
+      return getAlpineState().showToast(
         "В выбранном списке должно быть не менее 4 героев!",
         "error"
       );
@@ -128,15 +135,16 @@ $(document).ready(function () {
       const playerDiv = $("<div>", {
         class:
           "py-3 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center",
-      }).text(`Игрок ${currentPlayers[i]}: ${hero}`);
+      });
+      const textSpan = $("<span>").text(`Игрок ${currentPlayers[i]}: ${hero}`);
       const excludeBtn = $("<button>", {
         class:
-          "p-1 rounded-full text-gray-400 hover:bg-red-500 hover:text-white transition-colors",
+          "p-1 rounded-full text-gray-400 hover:bg-red-500 hover:text-white transition-colors flex-shrink-0 ml-2",
         "data-hero-name": hero,
         "data-player-index": i,
-        html: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+        html: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
       });
-      playerDiv.append(excludeBtn);
+      playerDiv.append(textSpan, excludeBtn);
       resultsContent.append(playerDiv);
     });
   }
@@ -161,7 +169,7 @@ $(document).ready(function () {
     );
 
     if (newHeroList.length < 4) {
-      return alpineState().showToast(
+      return getAlpineState().showToast(
         "После исключения в списке останется меньше 4 героев.",
         "error"
       );
@@ -175,9 +183,9 @@ $(document).ready(function () {
       await window.firestore.setDoc(window.listsDocRef, updatedData);
       $("#trigger-close-results-modal").click();
       localStorage.removeItem("lastGeneration");
-      $("#show-last-gen-btn").addClass("hidden");
+      updateSessionButtonsVisibility();
     } catch (error) {
-      alpineState().showToast("Ошибка при исключении героев.", "error");
+      getAlpineState().showToast("Ошибка при исключении героев.", "error");
     }
   }
 
@@ -193,7 +201,7 @@ $(document).ready(function () {
     );
 
     if (replacementPool.length === 0) {
-      return alpineState().showToast(
+      return getAlpineState().showToast(
         "Нет доступных героев для замены!",
         "error"
       );
@@ -211,7 +219,7 @@ $(document).ready(function () {
       displayResults();
       saveLastGeneration();
     } catch (error) {
-      alpineState().showToast("Ошибка при замене героя.", "error");
+      getAlpineState().showToast("Ошибка при замене героя.", "error");
     }
   }
 
@@ -219,29 +227,37 @@ $(document).ready(function () {
     const listsToDelete = Object.keys(heroData.lists).filter((name) =>
       name.endsWith(EXCLUSION_SUFFIX)
     );
-    if (listsToDelete.length === 0) return;
-
     const updatedData = { ...heroData };
-    listsToDelete.forEach((listName) => delete updatedData.lists[listName]);
+    let wasChanged = false;
 
-    if (updatedData.selected.endsWith(EXCLUSION_SUFFIX)) {
-      updatedData.selected = getBaseListName(updatedData.selected);
+    if (listsToDelete.length > 0) {
+      listsToDelete.forEach((listName) => delete updatedData.lists[listName]);
+      if (updatedData.selected.endsWith(EXCLUSION_SUFFIX)) {
+        updatedData.selected = getBaseListName(updatedData.selected);
+      }
+      wasChanged = true;
     }
 
-    try {
-      await window.firestore.setDoc(window.listsDocRef, updatedData);
+    if (localStorage.getItem("lastGeneration")) {
       localStorage.removeItem("lastGeneration");
-      $("#show-last-gen-btn").addClass("hidden");
-      alpineState().showToast("Сессия сброшена!", "success");
-    } catch (error) {
-      alpineState().showToast("Не удалось сбросить сессию.", "error");
+      wasChanged = true;
     }
+
+    if (wasChanged) {
+      try {
+        await window.firestore.setDoc(window.listsDocRef, updatedData);
+        getAlpineState().showToast("Сессия сброшена!", "success");
+      } catch (error) {
+        getAlpineState().showToast("Не удалось сбросить сессию.", "error");
+      }
+    }
+    updateSessionButtonsVisibility();
   }
 
   // --- Инициализация и обработчики событий ---
   function initApp() {
     if (!window.db || !window.firestore) {
-      return; // Firebase не инициализирован
+      return;
     }
     const { onSnapshot, doc } = window.firestore;
     window.listsDocRef = doc(window.db, "lists", "main");
@@ -259,22 +275,20 @@ $(document).ready(function () {
         if (docSnap.exists()) {
           populateSelects(docSnap.data(), source);
         } else {
-          alpineState().showToast("База данных не найдена.", "error");
+          getAlpineState().showToast("База данных не найдена.", "error");
         }
         syncIndicator.addClass("hidden");
         settingsBtn.removeClass("hidden");
       },
       (error) => {
-        alpineState().showToast("Ошибка подключения к базе.", "error");
+        getAlpineState().showToast("Ошибка подключения к базе.", "error");
         console.error("Firestore snapshot error:", error);
         syncIndicator.addClass("hidden");
         settingsBtn.removeClass("hidden");
       }
     );
 
-    if (loadLastGeneration()) {
-      $("#show-last-gen-btn").removeClass("hidden");
-    }
+    updateSessionButtonsVisibility();
 
     // -- ОБРАБОТЧИКИ СОБЫТИЙ --
     $("#generate-btn").on("click", generateTeams);
@@ -286,15 +300,19 @@ $(document).ready(function () {
         displayResults();
         $("#trigger-results-modal").click();
       } else {
-        alpineState().showToast("Нет данных о последней генерации.");
+        getAlpineState().showToast("Нет данных о последней генерации.");
       }
     });
     $("#reset-session-btn").on("click", () => {
-      alpineState().openConfirmModal(
-        "Сбросить сессию?",
-        "Все временные списки будут удалены. Это действие нельзя отменить.",
-        resetSession
-      );
+      const event = new CustomEvent("open-confirm-modal", {
+        detail: {
+          title: "Сбросить сессию?",
+          message:
+            "Все временные списки и последняя генерация будут удалены. Это действие нельзя отменить.",
+          onConfirm: resetSession,
+        },
+      });
+      window.dispatchEvent(event);
     });
     $("#exclude-all-btn").on("click", () => excludeHeroes(currentHeroes));
     $("#results-content").on("click", "button", function () {
@@ -311,7 +329,7 @@ $(document).ready(function () {
         $("#password-section").addClass("hidden");
         $("#management-section").removeClass("hidden");
       } else {
-        alpineState().showToast("Неверный пароль!", "error");
+        getAlpineState().showToast("Неверный пароль!", "error");
       }
     });
     $("#modal-list-select").on("change", updateModalTextarea);
@@ -319,9 +337,9 @@ $(document).ready(function () {
     const saveChanges = async (updatedData, successMsg, errorMsg) => {
       try {
         await window.firestore.setDoc(window.listsDocRef, updatedData);
-        alpineState().showToast(successMsg, "success");
+        getAlpineState().showToast(successMsg, "success");
       } catch (error) {
-        alpineState().showToast(errorMsg, "error");
+        getAlpineState().showToast(errorMsg, "error");
       }
     };
 
@@ -354,9 +372,12 @@ $(document).ready(function () {
     $("#create-list-btn").on("click", () => {
       const newName = $("#new-list-name").val().trim();
       if (!newName)
-        return alpineState().showToast("Введите имя нового списка!", "error");
+        return getAlpineState().showToast(
+          "Введите имя нового списка!",
+          "error"
+        );
       if (heroData.lists[newName])
-        return alpineState().showToast(
+        return getAlpineState().showToast(
           "Список с таким именем уже существует!",
           "error"
         );
@@ -371,31 +392,33 @@ $(document).ready(function () {
     $("#delete-list-btn").on("click", () => {
       const listName = $("#modal-list-select").val();
       if (Object.keys(heroData.lists).length <= 1) {
-        return alpineState().showToast(
+        return getAlpineState().showToast(
           "Нельзя удалить последний список!",
           "error"
         );
       }
-      alpineState().openConfirmModal(
-        "Удалить список?",
-        `Вы уверены, что хотите удалить список "${listName}"? Это действие нельзя отменить.`,
-        async () => {
-          const updatedData = { ...heroData };
-          delete updatedData.lists[listName];
-          if (updatedData.selected === listName) {
-            updatedData.selected = Object.keys(updatedData.lists)[0];
-          }
-          await saveChanges(
-            updatedData,
-            `Список "${listName}" удален!`,
-            "Не удалось удалить список."
-          );
-        }
-      );
+      const event = new CustomEvent("open-confirm-modal", {
+        detail: {
+          title: "Удалить список?",
+          message: `Вы уверены, что хотите удалить список "${listName}"? Это действие нельзя отменить.`,
+          onConfirm: async () => {
+            const updatedData = { ...heroData };
+            delete updatedData.lists[listName];
+            if (updatedData.selected === listName) {
+              updatedData.selected = Object.keys(updatedData.lists)[0];
+            }
+            await saveChanges(
+              updatedData,
+              `Список "${listName}" удален!`,
+              "Не удалось удалить список."
+            );
+          },
+        },
+      });
+      window.dispatchEvent(event);
     });
   }
 
-  // Запускаем приложение только если Firebase успешно загрузился
   if (window.db) {
     initApp();
   }

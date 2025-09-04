@@ -34,6 +34,7 @@
       class="container mx-auto p-4 flex flex-col items-center min-h-screen justify-center relative overflow-hidden"
       x-data="appState"
       @keydown.escape.window="closeAllModals()"
+      @open-confirm-modal.window="openConfirmModal($event.detail.title, $event.detail.message, $event.detail.onConfirm)"
     >
       <!-- Скрытые триггеры для управления модальными окнами из jQuery -->
       <button
@@ -232,7 +233,7 @@
         <p x-text="toast.message"></p>
       </div>
 
-      <!-- Модальное окно Настроек (без изменений) ... -->
+      <!-- Модальное окно Настроек -->
       <div
         x-show="isSettingsModalOpen"
         x-transition:enter="ease-out duration-300"
@@ -362,7 +363,7 @@
         </div>
       </div>
 
-      <!-- Модальное окно Результатов (без изменений) ... -->
+      <!-- Модальное окно Результатов -->
       <div
         x-show="isResultsModalOpen"
         x-transition:enter="ease-out duration-300"
@@ -490,7 +491,6 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <script type="module">
-      // Инициализация Firebase (без изменений) ...
       import { initializeApp } from "https://www.gstatic.com/firebasejs/9.6.10/firebase-app.js";
       import {
         getFirestore,
@@ -514,7 +514,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Передаем функции Firestore в глобальный объект для app.js
         window.db = db;
         window.firestore = { onSnapshot, doc, setDoc };
 
@@ -527,12 +526,12 @@
         });
       } catch (e) {
         console.error("Firebase initialization failed:", e);
-        // Уведомляем пользователя, если Firebase не смог запуститься
-        const alpineState = document.querySelector("[x-data]").__x.$data;
-        alpineState.showToast(
-          "Ошибка подключения к базе. Оффлайн-режим может быть ограничен.",
-          "error"
-        );
+        document.addEventListener("alpine:init", () => {
+          Alpine.store("appState").showToast(
+            "Ошибка подключения к базе. Оффлайн-режим может быть ограничен.",
+            "error"
+          );
+        });
       }
     </script>
 
@@ -606,17 +605,15 @@
         }));
       });
 
-      // --- Логика обновления Service Worker ---
       if ("serviceWorker" in navigator) {
         window.addEventListener("load", () => {
           navigator.serviceWorker.register("/service-worker.js").then((reg) => {
             reg.addEventListener("updatefound", () => {
-              const appState = document.querySelector("[x-data]").__x.$data;
-              appState.isPwaUpdating = true;
+              const alpine = document.querySelector("[x-data]").__x;
+              if (alpine) alpine.$data.isPwaUpdating = true;
               console.log("Найдено обновление, начинается установка...");
             });
           });
-
           navigator.serviceWorker.addEventListener("controllerchange", () => {
             console.log("Приложение обновлено! Перезагрузка...");
             window.location.reload();

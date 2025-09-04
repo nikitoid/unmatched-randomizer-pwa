@@ -1,7 +1,6 @@
 // ИЗМЕНЕНО: Финальная, надежная версия сервис-воркера
 
-const CACHE_NAME = "randomatched-cache-v4"; // Увеличиваем версию кэша для обновления
-// Добавляем точные URL библиотек, чтобы избежать редиректов
+const CACHE_NAME = "randomatched-cache-v5"; // Увеличиваем версию кэша для обновления
 const FILES_TO_CACHE = [
   "/",
   "index.html",
@@ -22,7 +21,14 @@ self.addEventListener("install", (evt) => {
   evt.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log("[ServiceWorker] Pre-caching offline files");
-      return cache.addAll(FILES_TO_CACHE);
+      // addAll может завершиться неудачей, если хотя бы один ресурс недоступен
+      // Поэтому мы кэшируем каждый файл индивидуально
+      const promises = FILES_TO_CACHE.map((url) => {
+        return cache.add(url).catch((err) => {
+          console.warn(`[ServiceWorker] Failed to cache: ${url}`, err);
+        });
+      });
+      return Promise.all(promises);
     })
   );
   self.skipWaiting();
@@ -45,31 +51,39 @@ self.addEventListener("activate", (evt) => {
 });
 
 self.addEventListener("fetch", (evt) => {
-  // Не кэшируем запросы к Firestore, у него свой оффлайн-механизм
-  if (evt.request.url.includes("firestore.googleapis.com")) {
-    return; // Позволяем запросу идти напрямую в сеть
+  // Игнорируем запросы, не связанные с GET, и запросы к Firestore
+  if (
+    evt.request.method !== "GET" ||
+    evt.request.url.includes("firestore.googleapis.com")
+  ) {
+    return;
   }
 
-  // Стратегия "Stale-While-Revalidate"
+  // Стратегия "Сначала кэш, потом сеть" (Cache First).
+  // Это самая надежная стратегия для оффлайн-запуска.
   evt.respondWith(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.match(evt.request).then((cachedResponse) => {
-        const fetchPromise = fetch(evt.request)
-          .then((networkResponse) => {
-            // Если получили хороший ответ, обновляем кэш
-            if (networkResponse && networkResponse.status === 200) {
-              cache.put(evt.request, networkResponse.clone());
-            }
+    caches.match(evt.request).then((cachedResponse) => {
+      // Если ресурс найден в кэше, немедленно возвращаем его.
+      if (cachedResponse) {
+        // В фоне пытаемся обновить ресурс в кэше
+        fetch(evt.request).then((networkResponse) => {
+          if (networkResponse.ok) {
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(evt.request, networkResponse);
+            });
+          }
+        });
+        return cachedResponse;
+      }
+      // Если в кэше ничего нет, идем в сеть и кэшируем результат.
+      return fetch(evt.request).then((networkResponse) => {
+        if (networkResponse.ok) {
+          return caches.open(CACHE_NAME).then((cache) => {
+            cache.put(evt.request, networkResponse.clone());
             return networkResponse;
-          })
-          .catch((err) => {
-            // Если сеть недоступна, а в кэше ничего нет, запрос провалится.
-            // Это нормально, т.к. cachedResponse будет возвращен, если он есть.
           });
-
-        // Возвращаем ответ из кэша немедленно (если он есть),
-        // и позволяем фоновому запросу обновить кэш на будущее.
-        return cachedResponse || fetchPromise;
+        }
+        return networkResponse;
       });
     })
   );
