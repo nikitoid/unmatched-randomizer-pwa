@@ -18,3 +18,12 @@ body {
     transform: rotate(360deg);
   }
 }
+
+/* Стили для плавного появления/исчезновения модального окна */
+#results-modal-container {
+  transition: opacity 0.3s ease-in-out;
+}
+
+#results-modal-panel {
+  transition: transform 0.3s ease-in-out;
+}
