@@ -1,15 +1,10 @@
-/* Кастомные стили */
-body {
-  overflow: hidden; /* Отключаем скролл */
-}
-
-/* Анимация и стили для спиннера обновления */
+/* Spinner for update notification */
 .update-spinner {
-  border: 4px solid rgba(255, 255, 255, 0.3);
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 50%;
-  border-top-color: #ffffff;
-  width: 24px;
-  height: 24px;
+  border-top-color: #fff;
   animation: spin 1s ease-in-out infinite;
 }
 
@@ -19,11 +14,17 @@ body {
   }
 }
 
-/* Стили для плавного появления/исчезновения модального окна */
-#results-modal-container {
-  transition: opacity 0.3s ease-in-out;
-}
-
-#results-modal-panel {
-  transition: transform 0.3s ease-in-out;
+/*
+  Fix for "sticky hover" on touch devices.
+  This media query targets devices that do not support proper hovering (like touchscreens)
+  and disables the visual feedback intended for mouse cursors, preventing it from
+  getting stuck after a tap.
+*/
+@media (hover: none) and (pointer: coarse) {
+  #generate-btn:hover {
+    transform: scale(1); /* Resets the hover:scale-105 effect */
+  }
+  .exclude-hero-btn:hover {
+    color: #9ca3af; /* Resets the hover color to its default (Tailwind's gray-400) */
+  }
 }

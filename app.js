@@ -275,7 +275,7 @@ $(document).ready(function () {
       const heroName = currentGeneration.heroes[i];
       const li = `
                 <li class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary text-light-text dark:text-dark-text">
-                    <span class="font-bold text-lg text-blue-500">Команда ${teamNumber}</span>
+                    <span class="font-bold text-xl text-blue-500 w-10 text-center">${teamNumber}</span>
                     <span class="text-lg text-center mx-2 flex-1">${heroName}</span>
                     <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя (без функции)">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
