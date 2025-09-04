@@ -276,6 +276,15 @@ $(document).ready(function () {
         localStorage.removeItem("lastGeneration");
         currentGeneration = { teams: [], heroes: [] };
         populateHeroListsFromCache();
+        // FIX: After reset, select the default list
+        const defaultList =
+          localListsCache.selected &&
+          localListsCache.lists[localListsCache.selected]
+            ? localListsCache.selected
+            : Object.keys(localListsCache.lists)[0];
+        if (defaultList) {
+          heroListSelect.val(defaultList).trigger("change");
+        }
         updateSessionButtons();
         showNotification("Сессия сброшена.", "success");
       },
@@ -318,8 +327,18 @@ $(document).ready(function () {
     } else closeModal();
     updateSessionButtons();
   }
+  // FIX: Add confirmation for individual exclusion
   resultsList.on("click", ".exclude-hero-btn", function () {
-    handleExclusion([$(this).data("hero")]);
+    const heroToExclude = $(this).data("hero");
+    showConfirmationModal({
+      title: "Исключить героя?",
+      message: `Вы уверены, что хотите исключить "${heroToExclude}"?`,
+      confirmText: "Исключить",
+      isDestructive: false,
+      onConfirm: () => {
+        handleExclusion([heroToExclude]);
+      },
+    });
   });
   excludeAllBtn.on("click", () =>
     showConfirmationModal({
@@ -352,7 +371,7 @@ $(document).ready(function () {
             <li class="flex items-center justify-between p-3 rounded-lg bg-light-secondary dark:bg-dark-secondary">
                 <span class="font-bold text-xl text-blue-500 w-10 text-center">${currentGeneration.teams[i]}</span>
                 <span class="text-lg text-center mx-2 flex-1">${heroName}</span>
-                <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></button>
+                <button class="p-1 text-gray-400 hover:text-red-500 transition-colors exclude-hero-btn" data-hero="${heroName}" title="Исключить героя"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 B24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg></button>
             </li>`)
     );
   }
@@ -521,6 +540,10 @@ $(document).ready(function () {
       await updateDoc(listsDocRef, { [key]: heroes });
       showNotification(`Список "${listName}" сохранен в Firebase.`, "success");
       await syncWithFirebase();
+    }
+    // FIX: If the edited list is the current one, refresh its state for the generator
+    if (heroListSelect.val() === listName) {
+      heroListSelect.trigger("change");
     }
     $(this).closest(".list-item-content").slideUp(200);
   });
