@@ -1,4 +1,4 @@
-const CACHE_NAME = "randomatched-cache-v1";
+const CACHE_NAME = "randomatched-cache-v2";
 // ИЗМЕНЕНО: Добавляем все необходимые для оффлайн-работы файлы, включая внешние
 const FILES_TO_CACHE = [
   "/",
