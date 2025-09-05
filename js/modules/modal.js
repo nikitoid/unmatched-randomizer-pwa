@@ -1,6 +1,6 @@
 /**
  * Класс для создания и управления модальными окнами.
- * Поддерживает разные типы и колбэки.
+ * Сочетает плавную анимацию и поддержку вложенных окон.
  */
 export default class Modal {
   constructor(options = {}) {
@@ -24,21 +24,23 @@ export default class Modal {
   }
 
   createModalHTML(baseZIndex) {
+    // --- Классы для анимации (взяты из вашей первоначальной версии) ---
     const typeClasses = {
-      dialog: "max-w-md w-full m-auto rounded-xl shadow-lg relative",
+      dialog: "max-w-md w-full m-auto rounded-xl shadow-lg",
       fullscreen: "w-full h-full rounded-none",
       "bottom-sheet": "w-full absolute bottom-0 rounded-t-2xl shadow-lg",
     };
 
-    const animationClasses = {
-      dialog: "animate-fade-in-up",
-      fullscreen: "animate-fade-in",
-      "bottom-sheet": "animate-slide-in-up",
+    const initialStateClasses = {
+      dialog: "opacity-0 -translate-y-8",
+      fullscreen: "opacity-0 scale-95",
+      "bottom-sheet": "translate-y-full",
     };
 
     const containerPadding =
       this.options.type === "fullscreen" ? "" : "p-4 sm:p-6";
 
+    // --- Условное отображение кнопок ---
     const footerHTML =
       this.options.confirmText !== null
         ? `
@@ -49,16 +51,15 @@ export default class Modal {
         `
         : "";
 
+    // --- HTML-структура с поддержкой z-index для вложенности ---
     return `
-            <div class="modal-overlay fixed inset-0 bg-black bg-opacity-60 animate-fade-in" style="z-index: ${baseZIndex};"></div>
-            <div class="modal-container fixed inset-0 flex items-center justify-center ${containerPadding}" role="dialog" aria-modal="true" aria-labelledby="modal-title" style="z-index: ${
+            <div class="modal-overlay fixed inset-0 bg-black bg-opacity-60 z-40 opacity-0 transition-opacity duration-300" style="z-index: ${baseZIndex};"></div>
+            <div class="modal-container fixed inset-0 z-50 flex items-center justify-center ${containerPadding}" role="dialog" aria-modal="true" aria-labelledby="modal-title" style="z-index: ${
       baseZIndex + 10
     };">
-                <div class="modal ${
-                  typeClasses[this.options.type]
-                } bg-white dark:bg-gray-900 flex flex-col max-h-full overflow-hidden ${
-      animationClasses[this.options.type]
-    }">
+                <div class="modal ${typeClasses[this.options.type]} ${
+      initialStateClasses[this.options.type]
+    } bg-white dark:bg-gray-900 flex flex-col max-h-full overflow-hidden transform transition-all duration-300 ease-out">
                     <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
                         <h2 id="modal-title" class="text-xl font-bold text-gray-800 dark:text-gray-100">${
                           this.options.title
@@ -77,7 +78,6 @@ export default class Modal {
   }
 
   open() {
-    // --- ИСПРАВЛЕНИЕ: Динамический z-index для корректной работы вложенных окон ---
     const existingModalsCount =
       document.querySelectorAll(".modal-container").length;
     const baseZIndex = 40;
@@ -95,6 +95,18 @@ export default class Modal {
     this.modalElement = containers[containers.length - 1];
     const overlays = document.querySelectorAll(".modal-overlay");
     this.overlayElement = overlays[overlays.length - 1];
+
+    // --- Надежный запуск анимации открытия ---
+    requestAnimationFrame(() => {
+      this.overlayElement.classList.remove("opacity-0");
+      const modal = this.modalElement.querySelector(".modal");
+      modal.classList.remove(
+        "opacity-0",
+        "-translate-y-8",
+        "translate-y-full",
+        "scale-95"
+      );
+    });
 
     this.addEventListeners();
   }
@@ -122,40 +134,33 @@ export default class Modal {
   }
 
   close() {
-    if (!this.modalElement || !this.overlayElement) {
-      return; // Already closing or closed
-    }
+    if (!this.modalElement || !this.overlayElement) return;
 
-    // Возвращаем скролл, только если это последнее открытое окно
-    if (document.querySelectorAll(".modal-container").length <= 1) {
-      document.body.style.overflow = "";
-    }
-
+    // --- Плавная анимация закрытия ---
+    this.overlayElement.classList.add("opacity-0");
     const modal = this.modalElement.querySelector(".modal");
-
-    modal.classList.remove(
-      "animate-fade-in-up",
-      "animate-fade-in",
-      "animate-slide-in-up"
-    );
-    this.overlayElement.classList.remove("animate-fade-in");
-
-    // --- ИСПРАВЛЕНИЕ: Используем requestAnimationFrame для мгновенного старта анимации закрытия ---
-    requestAnimationFrame(() => {
-      modal.classList.add("animate-fade-out");
-      this.overlayElement.classList.add("animate-fade-out");
-    });
+    const initialStateClasses = {
+      dialog: ["opacity-0", "-translate-y-8"],
+      fullscreen: ["opacity-0", "scale-95"],
+      "bottom-sheet": ["translate-y-full"],
+    };
+    modal.classList.add(...initialStateClasses[this.options.type]);
 
     const modalToRemove = this.modalElement;
     const overlayToRemove = this.overlayElement;
 
+    // Очищаем ссылки, чтобы избежать повторного вызова
     this.modalElement = null;
     this.overlayElement = null;
 
     setTimeout(() => {
       modalToRemove.remove();
       overlayToRemove.remove();
-    }, 300); // Должно совпадать с длительностью анимации в CSS
+
+      if (document.querySelectorAll(".modal-container").length === 0) {
+        document.body.style.overflow = "";
+      }
+    }, 300); // Соответствует duration-300
 
     document.removeEventListener("keydown", this.boundHandleKey);
     this.options.onClose();
