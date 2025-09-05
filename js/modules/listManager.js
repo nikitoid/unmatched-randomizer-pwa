@@ -8,15 +8,16 @@ import Toast from "./toast.js";
 const ListManager = {
   // --- Состояние модуля ---
   modal: null,
-  container: null, // Ссылка на контейнер контента
+  container: null,
   heroLists: {},
   defaultList: "",
   onUpdateCallback: () => {},
-  currentView: "manager", // 'manager' или 'editor'
+  currentView: "manager",
   listToEdit: null,
-  isListenerAttached: false, // Флаг для предотвращения дублирования слушателей
+  isListenerAttached: false,
+  isCopyRegex: /\(искл\.( \d+)?\)$/, // Регулярное выражение для обнаружения копий
 
-  // --- Иконки для кнопок ---
+  // ... (иконки остаются без изменений)
   icons: {
     rename: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg>`,
     delete: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`,
@@ -26,11 +27,8 @@ const ListManager = {
     add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
   },
 
-  /**
-   * Инициализация и отображение модуля.
-   */
   show(heroLists, onUpdate) {
-    this.heroLists = { ...heroLists }; // Работаем с копией, чтобы избежать мутаций
+    this.heroLists = { ...heroLists };
     this.defaultList = Storage.loadDefaultList();
     this.onUpdateCallback = onUpdate;
     this.currentView = "manager";
@@ -39,38 +37,28 @@ const ListManager = {
     this.modal = new Modal({
       type: "fullscreen",
       title: "Управление списками",
-      // Используем вложенный div, чтобы безопасно обновлять его innerHTML
       content: '<div class="modal-content-wrapper h-full"></div>',
       confirmText: null,
       onClose: () => {
         this.onUpdateCallback();
-        this.isListenerAttached = false; // Сбрасываем флаг при закрытии
+        this.isListenerAttached = false;
       },
     });
 
     this.modal.open();
     this.container = document.querySelector(".modal-content-wrapper");
-    this.attachPersistentListener(); // Прикрепляем слушатель один раз
-    this.render(); // Рендерим начальное состояние
+    this.attachPersistentListener();
+    this.render();
   },
 
-  /**
-   * Прикрепляет единственный обработчик событий к модальному окну.
-   */
   attachPersistentListener() {
     if (this.isListenerAttached) return;
-
     const modalElement = document.querySelector(".modal-container");
     if (!modalElement) return;
-
-    // Используем .bind(this) чтобы сохранить контекст ListManager
     modalElement.addEventListener("click", this.handleClicks.bind(this));
     this.isListenerAttached = true;
   },
 
-  /**
-   * Единый обработчик кликов (делегирование событий).
-   */
   handleClicks(e) {
     const target = e.target;
     const actionButton = target.closest("button[data-action]");
@@ -104,12 +92,8 @@ const ListManager = {
     }
   },
 
-  /**
-   * Обновляет HTML внутри модального окна без перепривязки событий.
-   */
   render() {
     if (!this.container) return;
-
     let html = "";
     const titleElement = document.getElementById("modal-title");
 
@@ -129,24 +113,37 @@ const ListManager = {
       .map((listName) => {
         const isDefault = listName === this.defaultList;
         const heroCount = this.heroLists[listName].length;
+        const isCopy = this.isCopyRegex.test(listName);
+
+        const buttonsHTML = isCopy
+          ? `<div class="w-28 flex-shrink-0"></div>` // Заглушка для выравнивания
+          : `
+            <div class="flex items-center space-x-1 flex-shrink-0">
+                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
+                    ${isDefault ? this.icons.starFilled : this.icons.star}
+                </button>
+                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать">
+                    ${this.icons.rename}
+                </button>
+                <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
+                    ${this.icons.delete}
+                </button>
+            </div>`;
+
+        const titleClass = isCopy
+          ? "text-gray-500 dark:text-gray-400"
+          : "text-gray-800 dark:text-gray-100";
+        const subtitle = isCopy
+          ? `${heroCount} героев (временный)`
+          : `${heroCount} героев`;
 
         return `
             <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
                 <div class="flex-grow cursor-pointer" data-action="edit">
-                    <p class="font-semibold text-lg text-gray-800 dark:text-gray-100">${listName}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">${heroCount} героев</p>
+                    <p class="font-semibold text-lg ${titleClass}">${listName}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
                 </div>
-                <div class="flex items-center space-x-1">
-                    <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
-                        ${isDefault ? this.icons.starFilled : this.icons.star}
-                    </button>
-                    <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать">
-                        ${this.icons.rename}
-                    </button>
-                    <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
-                        ${this.icons.delete}
-                    </button>
-                </div>
+                ${buttonsHTML}
             </div>`;
       })
       .join("");
@@ -161,12 +158,14 @@ const ListManager = {
   createEditorHTML() {
     const heroNames = this.heroLists[this.listToEdit] || [];
     const heroText = heroNames.join("\n");
+    const isCopy = this.isCopyRegex.test(this.listToEdit);
+    const backButtonText = isCopy ? "Закрыть редактор" : "Назад к спискам";
 
     return `
         <div class="flex flex-col h-full">
             <div class="flex-shrink-0 flex justify-between items-center mb-4">
                  <button data-action="back" class="flex items-center gap-2 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-teal-500 transition-colors py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
-                    ${this.icons.back} Назад
+                    ${this.icons.back} ${backButtonText}
                 </button>
                 <button data-action="save" class="text-sm font-bold text-white bg-teal-500 active:bg-teal-600 py-2 px-5 rounded-lg transition-transform transform active:scale-95">
                     Сохранить
@@ -194,6 +193,10 @@ const ListManager = {
   },
 
   handleSetDefault(listName) {
+    if (this.isCopyRegex.test(listName)) {
+      Toast.error("Временный список не может быть установлен по умолчанию.");
+      return;
+    }
     this.defaultList = listName;
     Storage.saveDefaultList(listName);
     Toast.success(`Список "${listName}" установлен по умолчанию.`);
@@ -209,9 +212,14 @@ const ListManager = {
       content: content,
       onConfirm: () => {
         const input = document.getElementById("new-list-name-input");
-        if (!input) return; // Защита, если модальное окно уже закрыто
+        if (!input) return;
 
         const newName = input.value.trim();
+        if (this.isCopyRegex.test(newName)) {
+          Toast.error("Название списка не может содержать '(искл.)'.");
+          return;
+        }
+
         if (newName && !this.heroLists[newName]) {
           this.heroLists[newName] = [];
           Storage.saveHeroLists(this.heroLists);
@@ -229,6 +237,10 @@ const ListManager = {
   },
 
   handleRenameList(oldName) {
+    if (this.isCopyRegex.test(oldName)) {
+      Toast.error("Временные списки не могут быть переименованы.");
+      return;
+    }
     const content = `<input type="text" id="rename-list-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" value="${oldName}">`;
     new Modal({
       title: "Переименовать список",
@@ -238,6 +250,12 @@ const ListManager = {
         if (!input) return;
 
         const newName = input.value.trim();
+
+        if (this.isCopyRegex.test(newName)) {
+          Toast.error("Название списка не может содержать '(искл.)'.");
+          return;
+        }
+
         if (newName && oldName !== newName && !this.heroLists[newName]) {
           const updatedLists = {};
           Object.keys(this.heroLists).forEach((key) => {
@@ -270,6 +288,10 @@ const ListManager = {
   },
 
   handleDeleteList(listName) {
+    if (this.isCopyRegex.test(listName)) {
+      Toast.error("Временные списки не могут быть удалены отсюда.");
+      return;
+    }
     if (listName === this.defaultList) {
       Toast.warning("Нельзя удалить список, который установлен по умолчанию.");
       return;

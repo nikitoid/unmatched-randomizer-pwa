@@ -36,7 +36,6 @@ function updateHeroSelect() {
   const activeList = Storage.loadActiveList();
   const defaultList = Storage.loadDefaultList();
 
-  // Проверяем, существует ли активный/дефолтный список. Если нет, сбрасываем на первый доступный.
   let targetSelection = activeList;
   if (!heroLists[targetSelection]) {
     targetSelection = defaultList;
@@ -46,7 +45,7 @@ function updateHeroSelect() {
     Storage.saveActiveList(targetSelection);
   }
 
-  heroSelect.innerHTML = ""; // Очищаем старые опции
+  heroSelect.innerHTML = "";
 
   if (Object.keys(heroLists).length === 0) {
     const option = document.createElement("option");
@@ -77,7 +76,6 @@ function initializeAppState() {
   heroLists = Storage.loadHeroLists();
   let defaultList = Storage.loadDefaultList();
 
-  // Если списков нет, создаем один стартовый
   if (!heroLists || Object.keys(heroLists).length === 0) {
     const starterHeroes = [
       "Король Артур",
@@ -106,7 +104,6 @@ function initializeAppState() {
 
 // --- Обработчики событий ---
 document.addEventListener("DOMContentLoaded", () => {
-  // Переключение темы
   const themeToggle = document.getElementById("theme-toggle");
   const themeIconLight = document.getElementById("theme-icon-light");
   const themeIconDark = document.getElementById("theme-icon-dark");
@@ -130,10 +127,8 @@ document.addEventListener("DOMContentLoaded", () => {
   updateThemeIcons();
   window.addEventListener("theme-changed", updateThemeIcons);
 
-  // Инициализация состояния приложения
   initializeAppState();
 
-  // Кнопка настроек
   const settingsBtn = document.getElementById("settings-btn");
   if (settingsBtn) {
     settingsBtn.addEventListener("click", () => {
@@ -141,7 +136,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Кнопка генерации
   const generateBtn = document.getElementById("generate-teams-btn");
   if (generateBtn) {
     generateBtn.addEventListener("click", () => {
@@ -181,7 +175,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Смена активного списка
   const heroSelect = document.getElementById("hero-select");
   if (heroSelect) {
     heroSelect.addEventListener("change", (e) => {
@@ -189,7 +182,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Кнопка последней генерации
   const lastGenBtn = document.getElementById("last-gen-btn");
   if (lastGenBtn) {
     lastGenBtn.addEventListener("click", () => {
@@ -207,7 +199,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Кнопка сброса сессии
   const resetBtn = document.getElementById("reset-session-btn");
   if (resetBtn) {
     resetBtn.addEventListener("click", () => {
@@ -215,9 +206,10 @@ document.addEventListener("DOMContentLoaded", () => {
         type: "dialog",
         title: "Подтверждение",
         content:
-          "Вы уверены, что хотите сбросить сессию? Данные о последней генерации будут удалены.",
+          "Вы уверены, что хотите сбросить сессию? Все временные списки (с пометкой 'искл.') и последняя генерация будут удалены.",
         onConfirm: () => {
-          Storage.clearSession();
+          Storage.clearSession(); // Новая логика теперь здесь
+          initializeAppState(); // Обновляем UI
           Toast.success("Сессия сброшена.");
         },
       }).open();

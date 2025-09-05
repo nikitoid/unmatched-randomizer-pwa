@@ -6,13 +6,12 @@ import Toast from "./toast.js";
 let currentGeneration = null;
 let allHeroesData = []; // Пул ВСЕХ уникальных героев для реролла одного
 let resultsModal = null;
-let onListUpdateCallback = () => {}; // Колбэк для обновления UI на главном экране
+let onListUpdateCallback = () => {};
 
 /**
  * Создает HTML-разметку для отображения результатов.
  */
 function createResultsHTML(generation) {
-  // ... existing code ...
   const { assignment, shuffledPlayers } = generation;
 
   const playersHTML = shuffledPlayers
@@ -86,44 +85,67 @@ function createUniqueExclusionListName(baseName, existingLists) {
 }
 
 /**
- * Основная логика: создает новый список с исключениями и делает его активным.
+ * Логика исключения героев: либо изменяет существующую копию, либо создает новую.
  */
-function createAndActivateExclusionList(heroesToExclude) {
+function handleExclusion(heroesToExclude) {
   const activeListName = Storage.loadActiveList();
-  if (!activeListName) {
-    Toast.error("Не найден активный список.");
-    return null;
-  }
   const heroLists = Storage.loadHeroLists() || {};
-  const originalHeroList = heroLists[activeListName];
-  if (!originalHeroList) {
-    Toast.error(`Список "${activeListName}" не найден.`);
-    return null;
-  }
+  const originalMap = Storage.loadOriginalListMap();
+  const isCopy = originalMap.hasOwnProperty(activeListName);
 
-  const newHeroList = originalHeroList.filter(
-    (name) => !heroesToExclude.includes(name)
-  );
-
-  if (newHeroList.length < 4) {
-    Toast.warning(
-      `После исключения в списке останется меньше 4 героев. Новый список не создан.`
+  if (isCopy) {
+    // --- Изменяем существующую копию ---
+    const currentHeroes = heroLists[activeListName] || [];
+    const newHeroList = currentHeroes.filter(
+      (name) => !heroesToExclude.includes(name)
     );
-    return null;
+
+    if (newHeroList.length < 4) {
+      Toast.warning(
+        "После исключения в списке останется меньше 4 героев. Изменения не применены."
+      );
+      return { success: false };
+    }
+
+    heroLists[activeListName] = newHeroList;
+    Storage.saveHeroLists(heroLists);
+    Toast.success(`Герои исключены из списка "${activeListName}".`);
+    if (onListUpdateCallback) onListUpdateCallback();
+    return { success: true };
+  } else {
+    // --- Создаем новую копию ---
+    const originalHeroList = heroLists[activeListName];
+    if (!originalHeroList) {
+      Toast.error(`Список "${activeListName}" не найден.`);
+      return { success: false };
+    }
+
+    const newHeroList = originalHeroList.filter(
+      (name) => !heroesToExclude.includes(name)
+    );
+
+    if (newHeroList.length < 4) {
+      Toast.warning(
+        "После исключения в списке останется меньше 4 героев. Новый список не создан."
+      );
+      return { success: false };
+    }
+
+    const newListName = createUniqueExclusionListName(
+      activeListName,
+      heroLists
+    );
+    heroLists[newListName] = newHeroList;
+    originalMap[newListName] = activeListName; // Запоминаем оригинал
+
+    Storage.saveHeroLists(heroLists);
+    Storage.saveOriginalListMap(originalMap);
+    Storage.saveActiveList(newListName);
+
+    Toast.success(`Создан и активирован список "${newListName}".`);
+    if (onListUpdateCallback) onListUpdateCallback();
+    return { success: true };
   }
-
-  const newListName = createUniqueExclusionListName(activeListName, heroLists);
-  heroLists[newListName] = newHeroList;
-
-  Storage.saveHeroLists(heroLists);
-  Storage.saveActiveList(newListName);
-
-  if (onListUpdateCallback) {
-    onListUpdateCallback();
-  }
-
-  Toast.success(`Создан и активирован список "${newListName}".`);
-  return newListName;
 }
 
 /**
@@ -218,14 +240,14 @@ function addEventListeners() {
           type: "dialog",
           title: "Исключить 4 героев?",
           content:
-            "Будет создан новый список без этих героев и он станет активным.",
+            "Будет создан или обновлен временный список без этих героев.",
           confirmText: "Да, исключить",
           onConfirm: () => {
             const heroesToExclude = currentGeneration.shuffledHeroes.map(
               (h) => h.name
             );
-            const newListName = createAndActivateExclusionList(heroesToExclude);
-            if (newListName) {
+            const result = handleExclusion(heroesToExclude);
+            if (result.success) {
               resultsModal.close();
             }
           },
@@ -237,20 +259,22 @@ function addEventListeners() {
         new Modal({
           type: "dialog",
           title: "Исключить героя?",
-          content: `Будет создан новый список без героя "${heroNameToExclude}" и он станет активным.`,
+          content: `Будет создан или обновлен временный список без героя "${heroNameToExclude}".`,
           confirmText: "Да, исключить",
           onConfirm: () => {
-            const newListName = createAndActivateExclusionList([
-              heroNameToExclude,
-            ]);
+            const result = handleExclusion([heroNameToExclude]);
 
-            if (newListName) {
-              // Ререролл героя в текущем окне
-              const currentNames = Object.values(
+            if (result.success) {
+              const otherThreeHeroes = Object.values(
                 currentGeneration.assignment
-              ).map((h) => h.name);
+              )
+                .map((h) => h.name)
+                .filter((name) => name !== heroNameToExclude);
+
               const heroesForReplacement = allHeroesData.filter(
-                (h) => !currentNames.includes(h.name)
+                (h) =>
+                  !otherThreeHeroes.includes(h.name) &&
+                  h.name !== heroNameToExclude
               );
 
               if (heroesForReplacement.length > 0) {
@@ -299,7 +323,7 @@ function addEventListeners() {
 function show(generation, allHeroes, onListUpdate) {
   currentGeneration = generation;
   allHeroesData = allHeroes;
-  onListUpdateCallback = onListUpdate; // Сохраняем колбэк
+  onListUpdateCallback = onListUpdate;
 
   resultsModal = new Modal({
     type: "fullscreen",

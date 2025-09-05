@@ -6,6 +6,7 @@ const LAST_GEN_KEY = "last-generation";
 const HERO_LISTS_KEY = "hero-lists";
 const DEFAULT_LIST_KEY = "default-list-name";
 const ACTIVE_LIST_KEY = "active-list-name";
+const ORIGINAL_LIST_MAP_KEY = "original-list-map"; // Карта для отслеживания оригиналов
 
 const Storage = {
   get(key) {
@@ -76,9 +77,51 @@ const Storage = {
     return this.get(ACTIVE_LIST_KEY);
   },
 
+  // --- Методы для карт оригинальных списков ---
+  saveOriginalListMap(map) {
+    this.set(ORIGINAL_LIST_MAP_KEY, map);
+  },
+
+  loadOriginalListMap() {
+    return this.get(ORIGINAL_LIST_MAP_KEY) || {};
+  },
+
   clearSession() {
+    const heroLists = this.loadHeroLists() || {};
+    const originalMap = this.loadOriginalListMap();
+    const activeList = this.loadActiveList();
+
+    let newActiveList = activeList;
+
+    // Если активный список - копия, найти его оригинал
+    if (originalMap[activeList]) {
+      newActiveList = originalMap[activeList];
+    }
+
+    // Удаляем все списки, которые являются копиями
+    const newHeroLists = {};
+    for (const listName in heroLists) {
+      if (!originalMap.hasOwnProperty(listName)) {
+        newHeroLists[listName] = heroLists[listName];
+      }
+    }
+
+    this.saveHeroLists(newHeroLists);
+
+    // Если новый активный список не существует (был удален), сбросить на дефолтный или первый
+    if (!newHeroLists[newActiveList]) {
+      const defaultList = this.loadDefaultList();
+      if (newHeroLists[defaultList]) {
+        newActiveList = defaultList;
+      } else {
+        newActiveList = Object.keys(newHeroLists)[0];
+      }
+    }
+
+    this.saveActiveList(newActiveList);
+    this.remove(ORIGINAL_LIST_MAP_KEY);
     this.remove(LAST_GEN_KEY);
-    console.log("Сессия очищена.");
+    console.log("Сессия очищена, временные списки удалены.");
   },
 };
 
