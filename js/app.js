@@ -16,14 +16,17 @@ if ("serviceWorker" in navigator) {
       .catch((error) =>
         console.log("Ошибка регистрации Service Worker:", error)
       );
+
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data && event.data.type === "CACHE_UPDATED") {
+        Toast.info("Приложение обновлено и готово к работе офлайн.");
+      }
+    });
   });
 }
 
 // --- Инициализация темы ---
 Theme.init();
-
-// --- Глобальное состояние ---
-let heroLists = {};
 
 /**
  * Обновляет UI индикатора статуса сети.
@@ -45,8 +48,6 @@ function updateOnlineStatus() {
  * Перезагружает данные из Storage и обновляет UI.
  */
 function refreshUI() {
-  const appData = Storage.getFullData();
-  heroLists = appData.lists || {};
   updateHeroSelect();
 }
 
@@ -66,12 +67,13 @@ function updateHeroSelect() {
     if (!currentHeroLists[targetSelection]) {
       targetSelection = Object.keys(currentHeroLists)[0];
     }
-    Storage.saveActiveList(targetSelection);
+    if (targetSelection) Storage.saveActiveList(targetSelection);
   }
 
   heroSelect.innerHTML = "";
 
-  if (Object.keys(currentHeroLists).length === 0) {
+  const listNames = Object.keys(currentHeroLists);
+  if (listNames.length === 0) {
     heroSelect.innerHTML = `<option disabled>Списки не найдены</option>`;
     document.getElementById("generate-teams-btn").disabled = true;
     return;
@@ -79,15 +81,17 @@ function updateHeroSelect() {
 
   document.getElementById("generate-teams-btn").disabled = false;
 
-  for (const listName in currentHeroLists) {
-    const option = document.createElement("option");
-    option.value = listName;
-    option.textContent = listName;
-    if (listName === targetSelection) {
-      option.selected = true;
-    }
-    heroSelect.appendChild(option);
-  }
+  listNames
+    .sort((a, b) => a.localeCompare(b))
+    .forEach((listName) => {
+      const option = document.createElement("option");
+      option.value = listName;
+      option.textContent = listName;
+      if (listName === targetSelection) {
+        option.selected = true;
+      }
+      heroSelect.appendChild(option);
+    });
 }
 
 /**
@@ -122,7 +126,6 @@ function initializeAppState() {
     Toast.info("Создан стартовый набор героев.");
   }
 
-  heroLists = appData.lists;
   refreshUI();
   updateOnlineStatus();
 
@@ -135,7 +138,7 @@ function initializeAppState() {
         }
       });
     }
-  }, 1000); // Небольшая задержка для инициализации Firebase
+  }, 1500); // Небольшая задержка для полной инициализации Firebase
 }
 
 // --- Обработчики событий ---

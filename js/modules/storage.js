@@ -2,20 +2,39 @@
  * Модуль-обертка для работы с localStorage с единым объектом данных.
  */
 const APP_DATA_KEY = "randomatched-data";
+const DEFAULT_STRUCTURE = {
+  lists: {},
+  originalMap: {},
+  defaultList: null,
+  activeList: null,
+};
 
 function loadAppData() {
   try {
     const value = localStorage.getItem(APP_DATA_KEY);
-    // Обеспечиваем возврат объекта, даже если в хранилище пусто
-    return value ? JSON.parse(value) : { lists: {}, originalMap: {} };
+    if (!value) {
+      return { ...DEFAULT_STRUCTURE };
+    }
+    const parsed = JSON.parse(value);
+    // Проверка на корректность структуры
+    if (typeof parsed === "object" && parsed !== null && "lists" in parsed) {
+      return { ...DEFAULT_STRUCTURE, ...parsed };
+    }
+    return { ...DEFAULT_STRUCTURE };
   } catch (error) {
-    console.error("Ошибка при получении данных из localStorage", error);
-    return { lists: {}, originalMap: {} }; // Возвращаем пустую структуру при ошибке
+    console.error(
+      "Ошибка при получении данных из localStorage, возврат к defaults.",
+      error
+    );
+    return { ...DEFAULT_STRUCTURE };
   }
 }
 
 function saveAppData(data) {
   try {
+    if (typeof data !== "object" || data === null) {
+      throw new Error("Попытка сохранить некорректные данные.");
+    }
     localStorage.setItem(APP_DATA_KEY, JSON.stringify(data));
   } catch (error) {
     console.error("Ошибка при сохранении данных в localStorage", error);

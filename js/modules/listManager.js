@@ -8,7 +8,6 @@ const ListManager = {
   // --- Состояние модуля ---
   modal: null,
   container: null,
-  appData: {},
   onUpdateCallback: () => {},
   currentView: "manager",
   listToEdit: null,
@@ -25,7 +24,6 @@ const ListManager = {
   },
 
   show(onUpdate) {
-    this.appData = Storage.getFullData();
     this.onUpdateCallback = onUpdate;
     this.currentView = "manager";
     this.isListenerAttached = false;
@@ -59,31 +57,35 @@ const ListManager = {
     const target = e.target;
     const actionButton = target.closest("button[data-action]");
 
-    if (this.currentView === "manager") {
+    if (!actionButton && this.currentView === "manager") {
       const listContainer = target.closest("div[data-list-name]");
-      if (actionButton) {
-        const action = actionButton.dataset.action;
-        const listName = listContainer ? listContainer.dataset.listName : null;
-        if (action === "create") await this.handleCreateList();
-        else if (listName) {
-          if (action === "set-default") await this.handleSetDefault(listName);
-          if (action === "rename") await this.handleRenameList(listName);
-          if (action === "delete") await this.handleDeleteList(listName);
-        }
-      } else if (listContainer && target.closest('[data-action="edit"]')) {
+      if (listContainer && listContainer.dataset.listName) {
         this.listToEdit = listContainer.dataset.listName;
         this.currentView = "editor";
         this.render();
       }
+      return;
+    }
+
+    if (!actionButton) return;
+
+    const listContainer = target.closest("div[data-list-name]");
+    const listName = listContainer ? listContainer.dataset.listName : null;
+    const action = actionButton.dataset.action;
+
+    if (this.currentView === "manager") {
+      if (action === "create") await this.handleCreateList();
+      else if (listName) {
+        if (action === "set-default") await this.handleSetDefault(listName);
+        if (action === "rename") await this.handleRenameList(listName);
+        if (action === "delete") await this.handleDeleteList(listName);
+      }
     } else if (this.currentView === "editor") {
-      if (actionButton) {
-        const action = actionButton.dataset.action;
-        if (action === "back") {
-          this.currentView = "manager";
-          this.render();
-        } else if (action === "save") {
-          await this.handleSaveList();
-        }
+      if (action === "back") {
+        this.currentView = "manager";
+        this.render();
+      } else if (action === "save") {
+        await this.handleSaveList();
       }
     }
   },
@@ -92,7 +94,6 @@ const ListManager = {
     if (!this.container) return;
     let html = "";
     const titleElement = document.getElementById("modal-title");
-    this.appData = Storage.getFullData(); // Всегда получаем свежие данные перед рендером
 
     if (this.currentView === "manager") {
       if (titleElement) titleElement.textContent = "Управление списками";
@@ -103,15 +104,15 @@ const ListManager = {
       html = this.createEditorHTML();
     }
     this.container.innerHTML = html;
-    this.onUpdateCallback(); // Обновляем главный экран после любого рендера
   },
 
   createManagerHTML() {
-    const heroLists = this.appData.lists || {};
-    const defaultList = this.appData.defaultList;
+    const appData = Storage.getFullData();
+    const heroLists = appData.lists || {};
+    const defaultList = appData.defaultList;
 
     const listItems = Object.keys(heroLists)
-      .sort((a, b) => a.localeCompare(b)) // Сортируем для порядка
+      .sort((a, b) => a.localeCompare(b))
       .map((listName) => {
         const isDefault = listName === defaultList;
         const heroCount = heroLists[listName] ? heroLists[listName].length : 0;
@@ -139,7 +140,7 @@ const ListManager = {
 
         return `
             <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
-                <div class="flex-grow cursor-pointer" data-action="edit">
+                <div class="flex-grow cursor-pointer">
                     <p class="font-semibold text-lg ${titleClass}">${listName}</p>
                     <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
                 </div>
@@ -159,7 +160,8 @@ const ListManager = {
   },
 
   createEditorHTML() {
-    const heroNames = (this.appData.lists || {})[this.listToEdit] || [];
+    const appData = Storage.getFullData();
+    const heroNames = (appData.lists || {})[this.listToEdit] || [];
     const heroText = heroNames.join("\n");
     const isCopy = this.isCopyRegex.test(this.listToEdit);
     const backButtonText = isCopy ? "Закрыть редактор" : "Назад к спискам";
@@ -187,14 +189,15 @@ const ListManager = {
       .map((name) => name.trim())
       .filter((name) => name);
 
-    this.appData.lists[this.listToEdit] = newHeroNames;
-    Storage.setFullData(this.appData);
+    const appData = Storage.getFullData();
+    appData.lists[this.listToEdit] = newHeroNames;
+    Storage.setFullData(appData);
     Toast.success(`Список "${this.listToEdit}" сохранен локально.`);
 
     if (navigator.onLine) {
       try {
         const password = await Auth.requestPassword();
-        await Firebase.updateList(this.listToEdit, newHeroNames, password);
+        await Firebase.updateAllData(Storage.getFullData(), password);
       } catch (error) {
         Toast.error("Аутентификация отменена. Список не синхронизирован.");
       }
@@ -206,15 +209,16 @@ const ListManager = {
 
   async handleSetDefault(listName) {
     if (this.isCopyRegex.test(listName)) return;
-    this.appData.defaultList = listName;
-    Storage.setFullData(this.appData);
+
+    const appData = Storage.getFullData();
+    appData.defaultList = listName;
+    Storage.setFullData(appData);
     Toast.success(`Список "${listName}" установлен по умолчанию.`);
 
     if (navigator.onLine) {
       try {
         const password = await Auth.requestPassword();
-        // Обновляем весь объект, так как меняется не только список
-        await Firebase.updateAllData(this.appData, password);
+        await Firebase.updateAllData(Storage.getFullData(), password);
       } catch (e) {
         Toast.error("Аутентификация отменена. Изменение не синхронизировано.");
       }
@@ -229,27 +233,27 @@ const ListManager = {
       onConfirm: async () => {
         const input = document.getElementById("new-list-name-input");
         const newName = input.value.trim();
+        const appData = Storage.getFullData();
+
         if (this.isCopyRegex.test(newName)) {
           Toast.error("Название не может содержать '(искл.)'.");
           return;
         }
-        if (newName && !this.appData.lists[newName]) {
-          this.appData.lists[newName] = [];
-          Storage.setFullData(this.appData);
+        if (newName && !appData.lists[newName]) {
+          appData.lists[newName] = [];
+          Storage.setFullData(appData);
           Toast.success(`Список "${newName}" создан локально.`);
 
           if (navigator.onLine) {
             try {
               const password = await Auth.requestPassword();
-              await Firebase.updateList(newName, [], password);
+              await Firebase.updateAllData(Storage.getFullData(), password);
             } catch (e) {
               Toast.error("Аутентификация отменена.");
             }
           }
-          this.listToEdit = newName;
-          this.currentView = "editor";
-          this.render();
-        } else if (this.appData.lists[newName]) {
+          this.render(); // Сразу перерисовываем менеджер
+        } else if (appData.lists[newName]) {
           Toast.error("Список с таким именем уже существует.");
         } else {
           Toast.error("Название не может быть пустым.");
@@ -271,42 +275,47 @@ const ListManager = {
           Toast.error("Название не может содержать '(искл.)'.");
           return;
         }
-        if (newName && oldName !== newName && !this.appData.lists[newName]) {
-          const fullData = Storage.getFullData();
-          fullData.lists[newName] = fullData.lists[oldName];
-          delete fullData.lists[oldName];
+        const appData = Storage.getFullData();
+        if (newName && oldName !== newName && !appData.lists[newName]) {
+          appData.lists[newName] = appData.lists[oldName];
+          delete appData.lists[oldName];
 
-          if (fullData.defaultList === oldName) fullData.defaultList = newName;
-          if (fullData.activeList === oldName) fullData.activeList = newName;
+          if (appData.defaultList === oldName) appData.defaultList = newName;
+          if (appData.activeList === oldName) appData.activeList = newName;
 
-          Storage.setFullData(fullData);
-          this.appData = fullData; // Обновляем локальное состояние
+          Storage.setFullData(appData);
           Toast.success("Список переименован локально.");
 
           if (navigator.onLine) {
             try {
               const password = await Auth.requestPassword();
-              await Firebase.updateAllData(this.appData, password);
+              await Firebase.updateAllData(Storage.getFullData(), password);
             } catch (e) {
               Toast.error("Аутентификация отменена.");
             }
           }
           this.render();
         } else {
-          /*... обработки ошибок ...*/
+          if (!newName) Toast.error("Имя не может быть пустым.");
+          else if (oldName === newName) return; // Ничего не делаем
+          else Toast.error("Список с таким именем уже существует.");
         }
       },
     }).open();
   },
 
   async handleDeleteList(listName) {
+    const appData = Storage.getFullData();
     if (this.isCopyRegex.test(listName)) return;
-    if (listName === this.appData.defaultList) {
+    if (listName === appData.defaultList) {
       Toast.warning("Нельзя удалить список по умолчанию.");
       return;
     }
-    if (Object.keys(this.appData.lists).length <= 1) {
-      Toast.error("Нельзя удалить последний список.");
+    if (
+      Object.keys(appData.lists).filter((name) => !this.isCopyRegex.test(name))
+        .length <= 1
+    ) {
+      Toast.error("Нельзя удалить последний основной список.");
       return;
     }
 
@@ -321,13 +330,12 @@ const ListManager = {
           fullData.activeList = fullData.defaultList;
         }
         Storage.setFullData(fullData);
-        this.appData = fullData; // Обновляем локальное состояние
         Toast.success(`Список "${listName}" удален локально.`);
 
         if (navigator.onLine) {
           try {
             const password = await Auth.requestPassword();
-            await Firebase.deleteList(listName, password);
+            await Firebase.updateAllData(Storage.getFullData(), password);
           } catch (e) {
             Toast.error("Аутентификация отменена.");
           }
