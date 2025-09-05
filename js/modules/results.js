@@ -1,216 +1,148 @@
 import Modal from "./modal.js";
-import Storage from "./storage.js";
-import Generator from "./generator.js";
 import Toast from "./toast.js";
 
-let currentGeneration = null;
-let allHeroesData = [];
-let resultsModal = null;
-
 /**
- * Создает HTML-разметку для отображения результатов.
- * Игроки отображаются в случайном порядке их генерации.
- * @param {object} generation - Объект с данными генерации.
- * @returns {string} - HTML-строка.
+ * Класс для отображения результатов генерации в модальном окне.
  */
-function createResultsHTML(generation) {
-  const { assignment, shuffledPlayers } = generation;
+export default class Results {
+  constructor(options) {
+    this.players = options.players;
+    this.generator = options.generator;
+    this.onRegenerate = options.onRegenerate || (() => {});
+    this.modal = null;
+  }
 
-  const playersHTML = shuffledPlayers
-    .map((playerNum) => {
-      const hero = assignment[playerNum];
-      if (!hero) return ""; // Защита на случай неполных данных
-      const teamNum = playerNum % 2 === 0 ? 1 : 2;
-      const teamColor =
-        teamNum === 1
-          ? "bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300"
-          : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300";
+  renderContent() {
+    const playersHTML = this.players
+      .map(
+        (player) => `
+            <div class="player-row flex items-center justify-between p-3 bg-gray-100 dark:bg-gray-800 rounded-lg mb-2" data-hero="${player.hero}">
+                <div class="flex flex-col text-left">
+                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Игрок №${player.playerNumber} (Команда ${player.team})</span>
+                    <span class="text-lg font-bold text-gray-800 dark:text-gray-100">${player.hero}</span>
+                </div>
+                <button class="exclude-hero-btn-single p-2 text-red-500 hover:text-red-700">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                </button>
+            </div>
+        `
+      )
+      .join("");
 
-      return `
-            <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded-md shadow-sm">
-                <div class="text-left">
-                    <p class="font-semibold text-lg text-gray-800 dark:text-gray-100">${hero.name}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Игрок ${playerNum} <span class="text-xs font-medium px-2 py-0.5 rounded-full ${teamColor}">Команда ${teamNum}</span></p>
+    return `
+            <div>
+                <div class="mb-4">${playersHTML}</div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-4 text-sm">
+                    <button id="reshuffle-teams-btn" class="p-2 rounded-md bg-sky-500 text-white active:bg-sky-600">Перемешать команды</button>
+                    <button id="reshuffle-heroes-btn" class="p-2 rounded-md bg-blue-500 text-white active:bg-blue-600">Перемешать героев</button>
+                    <button id="reshuffle-all-btn" class="p-2 rounded-md bg-purple-500 text-white active:bg-purple-600">Перемешать всё</button>
                 </div>
-                <div class="flex items-center space-x-1">
-                    <button class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-teal-500 transition-colors focus:outline-none" data-action="reshuffle-hero" data-player="${playerNum}" title="Сменить героя">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
-                    </button>
-                    <button class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-red-500 transition-colors focus:outline-none" data-action="exclude-hero" data-hero-name="${hero.name}" title="Исключить героя">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
-                    </button>
-                </div>
+                <button id="exclude-heroes-btn" class="w-full bg-red-500 text-white font-bold py-2 px-4 rounded-lg active:bg-red-600">Исключить героев</button>
             </div>
         `;
-    })
-    .join("");
+  }
 
-  return `
-        <div id="results-content" class="space-y-3">
-            ${playersHTML}
-        </div>
-        <div class="grid grid-cols-2 gap-3 mt-6 text-sm">
-            <button data-action="reshuffle-teams" class="w-full bg-gray-600 active:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать команды</button>
-            <button data-action="reshuffle-heroes" class="w-full bg-gray-600 active:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать героев</button>
-            <button data-action="exclude-these-heroes" class="w-full bg-red-600 active:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Исключить этих героев</button>
-            <button data-action="reshuffle-all" class="w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать всё</button>
-        </div>
-    `;
-}
+  show() {
+    const content = this.renderContent();
+    this.modal = new Modal({
+      type: "dialog",
+      title: "Результаты генерации",
+      content: content,
+      confirmText: null, // Убираем кнопки по умолчанию
+    });
+    this.modal.open();
+    this.addEventListeners();
+  }
 
-/**
- * Обновляет содержимое модального окна новыми данными.
- * @param {object} generation - Новый объект генерации.
- */
-function updateResults(generation) {
-  currentGeneration = generation;
-  Storage.saveLastGeneration(generation);
-  const newHTML = createResultsHTML(generation);
-  const contentElement = document.querySelector(".modal-content");
-  if (contentElement) {
-    contentElement.innerHTML = newHTML;
+  addEventListeners() {
+    const modalContainer = document.querySelector(
+      ".modal-container:last-of-type"
+    );
+    if (!modalContainer) return;
+
+    modalContainer.addEventListener("click", (e) => {
+      const target = e.target.closest("button");
+      if (!target) return;
+
+      if (target.id === "reshuffle-teams-btn") this.reshuffleTeams();
+      if (target.id === "reshuffle-heroes-btn") this.reshuffleHeroes();
+      if (target.id === "reshuffle-all-btn") this.reshuffleAll();
+      if (target.id === "exclude-heroes-btn") this.excludeMultipleHeroes();
+      if (target.classList.contains("exclude-hero-btn-single")) {
+        const heroName = target.closest(".player-row").dataset.hero;
+        this.excludeSingleHero(heroName);
+      }
+    });
+  }
+
+  updateResults(newPlayers) {
+    this.players = newPlayers;
+    this.onRegenerate({ players: this.players });
+
+    const modalContent = document.querySelector(
+      ".modal-container:last-of-type .modal-content"
+    );
+    if (modalContent) {
+      modalContent.innerHTML = this.renderContent();
+    }
+  }
+
+  reshuffleTeams() {
+    const currentHeroes = this.players.map((p) => p.hero);
+    const newNumbers = this.generator.shuffleNumbers();
+    const newPlayers = newNumbers
+      .map((num, index) => ({
+        playerNumber: num,
+        hero: currentHeroes[index], // Герои остаются те же
+        team: num % 2 === 0 ? 1 : 2,
+      }))
+      .sort((a, b) => a.playerNumber - b.playerNumber);
+
+    this.updateResults(newPlayers);
+    new Toast().success("Команды перемешаны!");
+  }
+
+  reshuffleHeroes() {
+    const newHeroes = this.generator.shuffleHeroes();
+    const newPlayers = this.players.map((player, index) => ({
+      ...player,
+      hero: newHeroes[index], // Новые герои, команды те же
+    }));
+
+    this.updateResults(newPlayers);
+    new Toast().success("Герои перемешаны!");
+  }
+
+  reshuffleAll() {
+    const result = this.generator.generateAll();
+    this.updateResults(result.players);
+    new Toast().success("Всё перемешано!");
+  }
+
+  excludeSingleHero(heroName) {
+    new Modal({
+      title: "Подтверждение",
+      content: `Вы уверены, что хотите исключить героя "${heroName}" из следующих генераций в этой сессии?`,
+      onConfirm: () => {
+        // TODO: Реализовать логику исключения
+        new Toast().info(
+          `Функционал исключения для "${heroName}" будет добавлен позже.`
+        );
+      },
+    }).open();
+  }
+
+  excludeMultipleHeroes() {
+    new Modal({
+      title: "Подтверждение",
+      content:
+        "Вы уверены, что хотите исключить всех показанных героев из следующих генераций в этой сессии?",
+      onConfirm: () => {
+        // TODO: Реализовать логику исключения
+        new Toast().info(
+          "Функционал массового исключения будет добавлен позже."
+        );
+      },
+    }).open();
   }
 }
-
-/**
- * Назначает обработчики событий на кнопки внутри модального окна.
- */
-function addEventListeners() {
-  const modalElement = document.querySelector(".modal-container");
-  if (!modalElement) return;
-
-  modalElement.addEventListener("click", (e) => {
-    const button = e.target.closest("button[data-action]");
-    if (!button) return;
-
-    e.stopPropagation();
-    const action = button.dataset.action;
-    const excludedHeroes = Storage.loadExcludedHeroes();
-
-    switch (action) {
-      case "reshuffle-all":
-        const newFullGen = Generator.generateAll(allHeroesData, excludedHeroes);
-        if (newFullGen) updateResults(newFullGen);
-        else Toast.error("Недостаточно героев");
-        break;
-
-      case "reshuffle-teams":
-        const newPlayers = Generator.shuffleNumbers();
-        const newTeamGen = {
-          ...currentGeneration,
-          shuffledPlayers: newPlayers,
-        };
-        newTeamGen.assignment = {};
-        newPlayers.forEach((playerNum, index) => {
-          newTeamGen.assignment[playerNum] =
-            currentGeneration.shuffledHeroes[index];
-        });
-        updateResults(newTeamGen);
-        break;
-
-      case "reshuffle-heroes":
-        const newHeroes = Generator.shuffleHeroes(
-          allHeroesData,
-          excludedHeroes,
-          4
-        );
-
-        if (newHeroes && newHeroes.length === 4) {
-          const newHeroGen = {
-            ...currentGeneration,
-            shuffledHeroes: newHeroes,
-          };
-          newHeroGen.assignment = {};
-          currentGeneration.shuffledPlayers.forEach((playerNum, index) => {
-            newHeroGen.assignment[playerNum] = newHeroes[index];
-          });
-          updateResults(newHeroGen);
-        } else {
-          Toast.error("Недостаточно героев для замены.");
-        }
-        break;
-
-      case "reshuffle-hero":
-        const playerToReshuffle = button.dataset.player;
-        const currentHeroNames = Object.values(
-          currentGeneration.assignment
-        ).map((h) => h.name);
-        const heroesForReshuffle = allHeroesData.filter(
-          (h) =>
-            !currentHeroNames.includes(h.name) &&
-            !excludedHeroes.includes(h.name)
-        );
-
-        if (heroesForReshuffle.length > 0) {
-          const newHero = Generator.shuffle(heroesForReshuffle)[0];
-          const newAssignment = { ...currentGeneration.assignment };
-          newAssignment[playerToReshuffle] = newHero;
-
-          const heroIndex = currentGeneration.shuffledHeroes.findIndex(
-            (h) =>
-              h.name === currentGeneration.assignment[playerToReshuffle].name
-          );
-          const newShuffledHeroes = [...currentGeneration.shuffledHeroes];
-          if (heroIndex !== -1) newShuffledHeroes[heroIndex] = newHero;
-
-          updateResults({
-            ...currentGeneration,
-            assignment: newAssignment,
-            shuffledHeroes: newShuffledHeroes,
-          });
-        } else {
-          Toast.warning("Нет свободных героев для замены");
-        }
-        break;
-
-      case "exclude-these-heroes":
-        new Modal({
-          type: "dialog",
-          title: "Исключить 4 героев?",
-          content: `Герои из текущей генерации не будут появляться в следующих. Это действие нельзя отменить до сброса сессии.`,
-          confirmText: "Да, исключить",
-          onConfirm: () => {
-            // --- ИСПРАВЛЕНИЕ: Логика временно отключена ---
-            Toast.info("Функционал в разработке.");
-          },
-        }).open();
-        break;
-
-      case "exclude-hero":
-        const heroNameToExclude = button.dataset.heroName;
-        new Modal({
-          type: "dialog",
-          title: "Исключить героя?",
-          content: `Герой "${heroNameToExclude}" не будет появляться в следующих генерациях до сброса сессии.`,
-          confirmText: "Да, исключить",
-          onConfirm: () => {
-            // --- ИСПРАВЛЕНИЕ: Логика временно отключена ---
-            Toast.info("Функционал в разработке.");
-          },
-        }).open();
-        break;
-    }
-  });
-}
-
-/**
- * Открывает модальное окно с результатами.
- * @param {object} generation - Объект с данными генерации.
- * @param {object[]} allHeroes - Полный список героев.
- */
-function show(generation, allHeroes) {
-  currentGeneration = generation;
-  allHeroesData = allHeroes;
-
-  resultsModal = new Modal({
-    type: "fullscreen",
-    title: "Результаты генерации",
-    content: createResultsHTML(generation),
-    confirmText: null,
-  });
-
-  resultsModal.open();
-  addEventListeners();
-}
-
-export default { show };

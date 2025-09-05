@@ -7,7 +7,8 @@ export default class Theme {
     this.themeToggleBtn = document.getElementById("theme-toggle");
     this.sunIcon = `
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-15.66l-.7.7M4.04 19.96l-.7.7M21 12h-1M4 12H3m15.66 8.66l-.7-.7M4.04 4.04l-.7-.7M12 18a6 6 0 100-12 6 6 0 000 12z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m8.66-15.66l-.7.7m-12.728 0l.7.7M21 12h-1M4 12H3m15.66 8.66l-.7-.7m-12.728 0l.7-.7"></path>
+                <circle cx="12" cy="12" r="5"></circle>
             </svg>`;
     this.moonIcon = `
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
