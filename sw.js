@@ -1,6 +1,6 @@
 // --- Service Worker ---
 
-const CACHE_NAME = "randomatched-v2"; // Увеличена версия для финального исправления
+const CACHE_NAME = "randomatched-v1"; // Увеличена версия для финального исправления
 const URLS_TO_CACHE = [
   // Локальные ассеты
   "/",
