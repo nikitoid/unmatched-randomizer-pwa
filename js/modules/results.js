@@ -109,7 +109,6 @@ function addEventListeners() {
         break;
 
       case "reshuffle-heroes":
-        // --- ИСПРАВЛЕНИЕ: Получаем 4 случайных героя из активного списка (не исключая показанных) ---
         const newHeroes = Generator.shuffleHeroes(
           allHeroesData,
           excludedHeroes,
@@ -165,22 +164,14 @@ function addEventListeners() {
         break;
 
       case "exclude-these-heroes":
-        const heroesToExclude = currentGeneration.shuffledHeroes.map(
-          (h) => h.name
-        );
         new Modal({
           type: "dialog",
           title: "Исключить 4 героев?",
           content: `Герои из текущей генерации не будут появляться в следующих. Это действие нельзя отменить до сброса сессии.`,
           confirmText: "Да, исключить",
           onConfirm: () => {
-            const currentExcluded = Storage.loadExcludedHeroes();
-            const newExcludedList = [
-              ...new Set([...currentExcluded, ...heroesToExclude]),
-            ];
-            Storage.saveExcludedHeroes(newExcludedList);
-            Toast.success(`4 героя исключены.`);
-            if (resultsModal) resultsModal.close();
+            // --- ИСПРАВЛЕНИЕ: Логика временно отключена ---
+            Toast.info("Функционал в разработке.");
           },
         }).open();
         break;
@@ -193,25 +184,8 @@ function addEventListeners() {
           content: `Герой "${heroNameToExclude}" не будет появляться в следующих генерациях до сброса сессии.`,
           confirmText: "Да, исключить",
           onConfirm: () => {
-            const currentExcluded = Storage.loadExcludedHeroes();
-            if (!currentExcluded.includes(heroNameToExclude)) {
-              Storage.saveExcludedHeroes([
-                ...currentExcluded,
-                heroNameToExclude,
-              ]);
-              Toast.success(`Герой "${heroNameToExclude}" исключен.`);
-
-              const newGenAfterExclude = Generator.generateAll(
-                allHeroesData,
-                Storage.loadExcludedHeroes()
-              );
-              if (newGenAfterExclude) {
-                updateResults(newGenAfterExclude);
-              } else {
-                Toast.error("Недостаточно героев для новой генерации.");
-                if (resultsModal) resultsModal.close();
-              }
-            }
+            // --- ИСПРАВЛЕНИЕ: Логика временно отключена ---
+            Toast.info("Функционал в разработке.");
           },
         }).open();
         break;

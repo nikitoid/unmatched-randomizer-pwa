@@ -36,7 +36,6 @@ export default class Modal {
       "bottom-sheet": "animate-slide-in-up",
     };
 
-    // --- ИСПРАВЛЕНИЕ: Контейнер для fullscreen-окон не должен иметь отступов ---
     const containerPadding =
       this.options.type === "fullscreen" ? "" : "p-4 sm:p-6";
 
@@ -110,30 +109,16 @@ export default class Modal {
   }
 
   close() {
+    // --- ИСПРАВЛЕНИЕ: Мгновенное удаление элементов для быстрого отклика ---
     document.body.style.overflow = "";
 
-    if (this.modalElement && this.overlayElement) {
-      const modal = this.modalElement.querySelector(".modal");
-      modal.classList.remove(
-        "animate-fade-in-up",
-        "animate-fade-in",
-        "animate-slide-in-up"
-      );
-      modal.classList.add("animate-fade-out");
-
-      // --- ИСПРАВЛЕНИЕ: Правильный селектор для оверлея ---
-      this.overlayElement.classList.add("animate-fade-out");
-
-      setTimeout(() => {
-        if (this.modalElement) {
-          this.modalElement.remove();
-          this.modalElement = null;
-        }
-        if (this.overlayElement) {
-          this.overlayElement.remove();
-          this.overlayElement = null;
-        }
-      }, 300);
+    if (this.modalElement) {
+      this.modalElement.remove();
+      this.modalElement = null;
+    }
+    if (this.overlayElement) {
+      this.overlayElement.remove();
+      this.overlayElement = null;
     }
 
     document.removeEventListener("keydown", this.boundHandleKey);
