@@ -1,5 +1,5 @@
 // Меняем версию кэша, чтобы спровоцировать обновление
-const CACHE_NAME = "randomatched-cache-v7";
+const CACHE_NAME = "randomatched-cache-v6";
 const urlsToCache = [
   "/",
   "/index.html",
@@ -9,15 +9,32 @@ const urlsToCache = [
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
+  // --- Добавленные модули для кэширования ---
+  "/js/modules/generator.js",
+  "/js/modules/listManager.js",
+  "/js/modules/modal.js",
+  "/js/modules/results.js",
+  "/js/modules/storage.js",
+  "/js/modules/theme.js",
+  "/js/modules/toast.js",
 ];
 
 // Установка Service Worker и кэширование статических файлов
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log("Кэш открыт");
-      return cache.addAll(urlsToCache);
-    })
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
+        console.log("Кэш открыт");
+        return cache.addAll(urlsToCache);
+      })
+      .then(() => {
+        // --- Ключевое изменение: активируем SW немедленно ---
+        console.log(
+          "Service Worker: пропуск ожидания и немедленная активация."
+        );
+        return self.skipWaiting();
+      })
   );
   console.log("Service Worker: установлен");
 });
