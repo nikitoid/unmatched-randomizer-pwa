@@ -29,8 +29,8 @@ function createResultsHTML(generation) {
       return `
             <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded-md shadow-sm">
                 <div class="text-left">
-                    <p class="font-semibold text-gray-800 dark:text-gray-100">Игрок ${playerNum} <span class="text-xs font-medium px-2 py-0.5 rounded-full ${teamColor}">Команда ${teamNum}</span></p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">${hero.name}</p>
+                    <p class="font-semibold text-gray-800 dark:text-gray-100">${hero.name}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Игрок ${playerNum} <span class="text-xs font-medium px-2 py-0.5 rounded-full ${teamColor}">Команда ${teamNum}</span></p>
                 </div>
                 <div class="flex items-center space-x-1">
                     <button class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-teal-500 transition-colors focus:outline-none" data-action="reshuffle-hero" data-player="${playerNum}" title="Сменить героя">
@@ -112,19 +112,14 @@ function addEventListeners() {
         break;
 
       case "reshuffle-heroes":
-        const currentHeroNamesInGen = currentGeneration.shuffledHeroes.map(
-          (h) => h.name
-        );
-        const heroesToFilterOut = [
-          ...new Set([...excludedHeroes, ...currentHeroNamesInGen]),
-        ];
+        // Получаем новый набор из 4 случайных героев из доступного пула
         const newHeroes = Generator.shuffleHeroes(
           allHeroesData,
-          heroesToFilterOut,
+          excludedHeroes,
           4
         );
 
-        if (newHeroes && newHeroes.length === 4) {
+        if (newHeroes) {
           const newHeroGen = {
             ...currentGeneration,
             shuffledHeroes: newHeroes,
@@ -237,11 +232,12 @@ function show(generation, allHeroes) {
   currentGeneration = generation;
   allHeroesData = allHeroes;
 
-  // Создаем модальное окно без кнопок "Готово" и "Отмена"
+  // Создаем модальное окно, передавая null для confirmText, чтобы скрыть стандартные кнопки
   resultsModal = new Modal({
     type: "fullscreen",
     title: "Результаты генерации",
     content: createResultsHTML(generation),
+    confirmText: null,
   });
 
   resultsModal.open();
