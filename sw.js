@@ -1,119 +1,73 @@
-const CACHE_NAME = "randomatched-v1.0.0";
+const CACHE_NAME = "randomatched-cache-v1";
 const urlsToCache = [
   "/",
   "/index.html",
   "/css/style.css",
   "/js/app.js",
   "/manifest.json",
-  "/icons/icon-192.png",
+  "/icons/icon-192.png", // Убедитесь, что у вас есть эти файлы
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
-  "https://cdn.tailwindcss.com",
-  "https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js",
 ];
 
-// Install Event - кэшируем файлы
+// Установка Service Worker и кэширование статических файлов
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => {
-        console.log("Opened cache");
-        return cache.addAll(urlsToCache);
-      })
-      .then(() => self.skipWaiting())
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log("Кэш открыт");
+      return cache.addAll(urlsToCache);
+    })
   );
+  console.log("Service Worker: установлен");
 });
 
-// Activate Event - очищаем старый кэш
+// Активация Service Worker и удаление старых кэшей
 self.addEventListener("activate", (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
-              console.log("Deleting old cache:", cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      })
-      .then(() => self.clients.claim())
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log("Service Worker: удаление старого кэша", cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
   );
+  console.log("Service Worker: активирован");
+  return self.clients.claim();
 });
 
-// Fetch Event - стратегия Cache First с фоновым обновлением
+// Обработка запросов (стратегия "Cache First")
 self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // Возвращаем кэшированную версию если есть
+      // Если ресурс есть в кэше, возвращаем его
       if (response) {
-        // Фоновое обновление кэша
-        fetchAndCache(event.request);
         return response;
       }
 
-      // Если нет в кэше, загружаем из сети
-      return fetch(event.request)
-        .then((response) => {
-          // Проверяем валидность ответа
-          if (
-            !response ||
-            response.status !== 200 ||
-            response.type !== "basic"
-          ) {
-            return response;
-          }
+      // В противном случае, делаем запрос к сети
+      return fetch(event.request).then((networkResponse) => {
+        // Проверяем, что ответ корректный
+        if (
+          !networkResponse ||
+          networkResponse.status !== 200 ||
+          networkResponse.type !== "basic"
+        ) {
+          return networkResponse;
+        }
 
-          // Клонируем ответ для кэша
-          const responseToCache = response.clone();
+        // Клонируем ответ, так как его можно использовать только один раз
+        const responseToCache = networkResponse.clone();
 
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
-
-          return response;
-        })
-        .catch(() => {
-          // Офлайн fallback
-          if (event.request.destination === "document") {
-            return caches.match("/index.html");
-          }
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
         });
+
+        return networkResponse;
+      });
     })
   );
-});
-
-// Функция для фонового обновления кэша
-function fetchAndCache(request) {
-  return fetch(request)
-    .then((response) => {
-      if (response && response.status === 200) {
-        const responseToCache = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(request, responseToCache);
-        });
-      }
-    })
-    .catch(() => {
-      console.log("Background update failed for:", request.url);
-    });
-}
-
-// Обработка push-уведомлений (для будущего использования)
-self.addEventListener("push", (event) => {
-  const options = {
-    body: event.data ? event.data.text() : "Новое обновление!",
-    icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
-    vibrate: [100, 50, 100],
-    data: {
-      dateOfArrival: Date.now(),
-      primaryKey: 1,
-    },
-  };
-
-  event.waitUntil(self.registration.showNotification("Randomatched", options));
 });
