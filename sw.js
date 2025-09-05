@@ -1,4 +1,4 @@
-const CACHE_NAME = "randomatched-cache-v1";
+const CACHE_NAME = "randomatched-cache-v2";
 const urlsToCache = [
   "/",
   "/index.html",

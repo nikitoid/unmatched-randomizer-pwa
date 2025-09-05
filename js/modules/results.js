@@ -69,7 +69,6 @@ function updateResults(generation) {
   const contentElement = document.querySelector(".modal-content");
   if (contentElement) {
     contentElement.innerHTML = newHTML;
-    // Слушатели уже назначены на родительский элемент и продолжат работать.
   }
 }
 
@@ -77,15 +76,14 @@ function updateResults(generation) {
  * Назначает обработчики событий на кнопки внутри модального окна.
  */
 function addEventListeners() {
-  const modalElement = document.querySelector(".modal-container"); // Ищем по modal-container, он стабильнее
+  const modalElement = document.querySelector(".modal-container");
   if (!modalElement) return;
 
-  // Используем делегирование событий
   modalElement.addEventListener("click", (e) => {
     const button = e.target.closest("button[data-action]");
     if (!button) return;
 
-    e.stopPropagation(); // Предотвращаем срабатывание других кликов
+    e.stopPropagation();
     const action = button.dataset.action;
     const excludedHeroes = Storage.loadExcludedHeroes();
 
@@ -102,7 +100,6 @@ function addEventListeners() {
           ...currentGeneration,
           shuffledPlayers: newPlayers,
         };
-        // Пересобираем назначение: герои остаются, меняются номера игроков
         newTeamGen.assignment = {};
         newPlayers.forEach((playerNum, index) => {
           newTeamGen.assignment[playerNum] =
@@ -112,21 +109,26 @@ function addEventListeners() {
         break;
 
       case "reshuffle-heroes":
-        // --- ИСПРАВЛЕНИЕ: Перемешиваем текущих героев, а не выбираем новых ---
-        const shuffledCurrentHeroes = Generator.shuffle([
-          ...currentGeneration.shuffledHeroes,
-        ]);
-        const newHeroGen = {
-          ...currentGeneration,
-          shuffledHeroes: shuffledCurrentHeroes,
-        };
+        // --- ИСПРАВЛЕНИЕ: Получаем 4 случайных героя из активного списка (не исключая показанных) ---
+        const newHeroes = Generator.shuffleHeroes(
+          allHeroesData,
+          excludedHeroes,
+          4
+        );
 
-        // Переназначаем перемешанных героев текущим игрокам
-        newHeroGen.assignment = {};
-        currentGeneration.shuffledPlayers.forEach((playerNum, index) => {
-          newHeroGen.assignment[playerNum] = shuffledCurrentHeroes[index];
-        });
-        updateResults(newHeroGen);
+        if (newHeroes && newHeroes.length === 4) {
+          const newHeroGen = {
+            ...currentGeneration,
+            shuffledHeroes: newHeroes,
+          };
+          newHeroGen.assignment = {};
+          currentGeneration.shuffledPlayers.forEach((playerNum, index) => {
+            newHeroGen.assignment[playerNum] = newHeroes[index];
+          });
+          updateResults(newHeroGen);
+        } else {
+          Toast.error("Недостаточно героев для замены.");
+        }
         break;
 
       case "reshuffle-hero":
@@ -226,7 +228,6 @@ function show(generation, allHeroes) {
   currentGeneration = generation;
   allHeroesData = allHeroes;
 
-  // Создаем модальное окно, передавая null для confirmText, чтобы скрыть стандартные кнопки
   resultsModal = new Modal({
     type: "fullscreen",
     title: "Результаты генерации",
@@ -235,7 +236,6 @@ function show(generation, allHeroes) {
   });
 
   resultsModal.open();
-  // Назначаем слушатели один раз при открытии
   addEventListeners();
 }
 

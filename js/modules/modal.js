@@ -36,7 +36,10 @@ export default class Modal {
       "bottom-sheet": "animate-slide-in-up",
     };
 
-    // --- ИСПРАВЛЕНИЕ: Блок кнопок создается только если confirmText не равен null ---
+    // --- ИСПРАВЛЕНИЕ: Контейнер для fullscreen-окон не должен иметь отступов ---
+    const containerPadding =
+      this.options.type === "fullscreen" ? "" : "p-4 sm:p-6";
+
     const footerHTML =
       this.options.confirmText !== null
         ? `
@@ -49,7 +52,7 @@ export default class Modal {
 
     return `
             <div class="modal-overlay fixed inset-0 bg-black bg-opacity-60 z-40 animate-fade-in"></div>
-            <div class="modal-container fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div class="modal-container fixed inset-0 z-50 flex items-center justify-center ${containerPadding}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
                 <div class="modal ${
                   typeClasses[this.options.type]
                 } bg-white dark:bg-gray-900 flex flex-col max-h-full overflow-hidden ${
@@ -73,7 +76,6 @@ export default class Modal {
   }
 
   open() {
-    // Предотвращаем скролл фона
     document.body.style.overflow = "hidden";
 
     const modalHTML = this.createModalHTML();
@@ -108,23 +110,20 @@ export default class Modal {
   }
 
   close() {
-    // Возвращаем скролл
     document.body.style.overflow = "";
 
-    if (this.modalElement) {
+    if (this.modalElement && this.overlayElement) {
       const modal = this.modalElement.querySelector(".modal");
       modal.classList.remove(
         "animate-fade-in-up",
         "animate-fade-in",
         "animate-slide-in-up"
       );
-      modal.classList.add("animate-fade-out"); // общая анимация исчезновения
+      modal.classList.add("animate-fade-out");
 
-      this.modalElement
-        .querySelector(".modal-overlay")
-        .classList.add("animate-fade-out");
+      // --- ИСПРАВЛЕНИЕ: Правильный селектор для оверлея ---
+      this.overlayElement.classList.add("animate-fade-out");
 
-      // Удаляем элементы после анимации
       setTimeout(() => {
         if (this.modalElement) {
           this.modalElement.remove();
@@ -134,7 +133,7 @@ export default class Modal {
           this.overlayElement.remove();
           this.overlayElement = null;
         }
-      }, 300); // Длительность анимации
+      }, 300);
     }
 
     document.removeEventListener("keydown", this.boundHandleKey);
