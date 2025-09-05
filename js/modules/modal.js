@@ -1,158 +1,149 @@
 /**
- * Класс для создания модальных окон.
- * @example
- * const modal = new Modal({
- * type: 'dialog', // 'dialog', 'bottom-sheet', 'fullscreen'
- * title: 'Заголовок',
- * content: '<p>Содержимое модального окна.</p>',
- * onConfirm: () => { console.log('Подтверждено'); },
- * onCancel: () => { console.log('Отменено'); }
- * });
- * modal.open();
+ * Класс для создания и управления модальными окнами.
+ * Поддерживает разные типы и колбэки.
  */
-class Modal {
+export default class Modal {
   constructor(options = {}) {
     this.options = Object.assign(
       {
-        type: "dialog",
-        title: "",
+        type: "dialog", // 'dialog', 'fullscreen', 'bottom-sheet'
+        title: "Заголовок",
         content: "",
         confirmText: "Принять",
         cancelText: "Отмена",
         onConfirm: () => {},
-        onCancel: () => {},
+        onClose: () => {},
       },
       options
     );
 
     this.modalElement = null;
     this.overlayElement = null;
-    this._createModal();
+    this.boundClose = this.close.bind(this);
+    this.boundHandleKey = this.handleKey.bind(this);
   }
 
-  _createModal() {
-    // Создание оверлея
-    this.overlayElement = document.createElement("div");
-    this.overlayElement.className =
-      "fixed inset-0 bg-black bg-opacity-60 z-40 opacity-0 transition-opacity duration-300";
+  createModalHTML() {
+    const typeClasses = {
+      dialog: "max-w-md w-full m-auto rounded-xl shadow-lg relative",
+      fullscreen: "w-full h-full rounded-none",
+      "bottom-sheet": "w-full absolute bottom-0 rounded-t-2xl shadow-lg",
+    };
 
-    // Создание контейнера модального окна
-    this.modalElement = document.createElement("div");
+    const animationClasses = {
+      dialog: "animate-fade-in-up",
+      fullscreen: "animate-fade-in",
+      "bottom-sheet": "animate-slide-in-up",
+    };
 
-    const baseClasses =
-      "fixed z-50 bg-gray-800 text-gray-100 shadow-lg p-6 transform transition-all duration-300 ease-out";
-    let positionClasses = "";
-    let typeClasses = "";
-    let animationClasses = "";
-
-    switch (this.options.type) {
-      case "fullscreen":
-        positionClasses = "inset-0";
-        typeClasses = "w-full h-full rounded-none";
-        animationClasses = "opacity-0 scale-95";
-        break;
-      case "bottom-sheet":
-        positionClasses = "bottom-0 left-0 right-0";
-        typeClasses = "w-full rounded-t-2xl";
-        animationClasses = "translate-y-full";
-        break;
-      case "dialog":
-      default:
-        positionClasses = "inset-0 m-auto";
-        // FIX: Удален 'relative' и лишний 'mx-auto'
-        typeClasses = "w-11/12 max-w-md rounded-2xl h-fit";
-        animationClasses = "opacity-0 -translate-y-8";
-        break;
-    }
-
-    this.modalElement.className = `${baseClasses} ${positionClasses} ${typeClasses} ${animationClasses}`;
-
-    // Содержимое модального окна
-    this.modalElement.innerHTML = `
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-bold text-teal-400">${this.options.title}</h2>
-                <button class="modal-close-btn text-gray-400 text-3xl leading-none">&times;</button>
+    // --- ИСПРАВЛЕНИЕ: Блок кнопок создается только если confirmText не равен null ---
+    const footerHTML =
+      this.options.confirmText !== null
+        ? `
+            <div class="flex justify-end items-center gap-3 p-4 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700">
+                <button class="modal-cancel w-full sm:w-auto px-6 py-2.5 text-sm font-bold text-gray-700 dark:text-gray-200 bg-gray-200 dark:bg-gray-600 rounded-lg transition-transform transform active:scale-95">${this.options.cancelText}</button>
+                <button class="modal-confirm w-full sm:w-auto px-6 py-2.5 text-sm font-bold text-white bg-teal-500 rounded-lg transition-transform transform active:scale-95">${this.options.confirmText}</button>
             </div>
-            <div class="modal-content text-gray-300 mb-6">
-                ${this.options.content}
-            </div>
-            <div class="modal-actions flex justify-end space-x-4">
-                <button class="modal-cancel-btn bg-gray-600 active:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">${this.options.cancelText}</button>
-                <button class="modal-confirm-btn bg-teal-500 active:bg-teal-600 text-white font-bold py-2 px-4 rounded-lg transition-colors">${this.options.confirmText}</button>
+        `
+        : "";
+
+    return `
+            <div class="modal-overlay fixed inset-0 bg-black bg-opacity-60 z-40 animate-fade-in"></div>
+            <div class="modal-container fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+                <div class="modal ${
+                  typeClasses[this.options.type]
+                } bg-white dark:bg-gray-900 flex flex-col max-h-full overflow-hidden ${
+      animationClasses[this.options.type]
+    }">
+                    <div class="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
+                        <h2 id="modal-title" class="text-xl font-bold text-gray-800 dark:text-gray-100">${
+                          this.options.title
+                        }</h2>
+                        <button class="modal-close-btn p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+                            <svg class="w-6 h-6 text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
+                    <div class="modal-content p-6 overflow-y-auto flex-grow">
+                        ${this.options.content}
+                    </div>
+                    ${footerHTML}
+                </div>
             </div>
         `;
-
-    // Добавление обработчиков событий
-    this.overlayElement.addEventListener("click", () => this.close());
-    this.modalElement
-      .querySelector(".modal-close-btn")
-      .addEventListener("click", () => this.close());
-    this.modalElement
-      .querySelector(".modal-cancel-btn")
-      .addEventListener("click", () => {
-        this.options.onCancel();
-        this.close();
-      });
-    this.modalElement
-      .querySelector(".modal-confirm-btn")
-      .addEventListener("click", () => {
-        this.options.onConfirm();
-        this.close();
-      });
   }
 
   open() {
-    document.body.appendChild(this.overlayElement);
-    document.body.appendChild(this.modalElement);
+    // Предотвращаем скролл фона
     document.body.style.overflow = "hidden";
 
-    // Запускаем анимацию после добавления в DOM
-    requestAnimationFrame(() => {
-      this.overlayElement.classList.remove("opacity-0");
-      this.modalElement.classList.remove(
-        "opacity-0",
-        "-translate-y-8",
-        "translate-y-full",
-        "scale-95"
-      );
-    });
+    const modalHTML = this.createModalHTML();
+    document.body.insertAdjacentHTML("beforeend", modalHTML);
+
+    this.modalElement = document.querySelector(".modal-container");
+    this.overlayElement = document.querySelector(".modal-overlay");
+
+    this.addEventListeners();
+  }
+
+  addEventListeners() {
+    this.overlayElement.addEventListener("click", this.boundClose);
+    this.modalElement
+      .querySelector(".modal-close-btn")
+      .addEventListener("click", this.boundClose);
+
+    const confirmBtn = this.modalElement.querySelector(".modal-confirm");
+    if (confirmBtn) {
+      confirmBtn.addEventListener("click", () => {
+        this.options.onConfirm();
+        this.close();
+      });
+    }
+
+    const cancelBtn = this.modalElement.querySelector(".modal-cancel");
+    if (cancelBtn) {
+      cancelBtn.addEventListener("click", this.boundClose);
+    }
+
+    document.addEventListener("keydown", this.boundHandleKey);
   }
 
   close() {
-    this.overlayElement.classList.add("opacity-0");
+    // Возвращаем скролл
+    document.body.style.overflow = "";
 
-    switch (this.options.type) {
-      case "fullscreen":
-        this.modalElement.classList.add("opacity-0", "scale-95");
-        break;
-      case "bottom-sheet":
-        this.modalElement.classList.add("translate-y-full");
-        break;
-      case "dialog":
-      default:
-        this.modalElement.classList.add("opacity-0", "-translate-y-8");
-        break;
+    if (this.modalElement) {
+      const modal = this.modalElement.querySelector(".modal");
+      modal.classList.remove(
+        "animate-fade-in-up",
+        "animate-fade-in",
+        "animate-slide-in-up"
+      );
+      modal.classList.add("animate-fade-out"); // общая анимация исчезновения
+
+      this.modalElement
+        .querySelector(".modal-overlay")
+        .classList.add("animate-fade-out");
+
+      // Удаляем элементы после анимации
+      setTimeout(() => {
+        if (this.modalElement) {
+          this.modalElement.remove();
+          this.modalElement = null;
+        }
+        if (this.overlayElement) {
+          this.overlayElement.remove();
+          this.overlayElement = null;
+        }
+      }, 300); // Длительность анимации
     }
 
-    // Удаляем элементы из DOM после завершения анимации
-    setTimeout(() => {
-      if (this.overlayElement.parentNode) {
-        this.overlayElement.parentNode.removeChild(this.overlayElement);
-      }
-      if (this.modalElement.parentNode) {
-        this.modalElement.parentNode.removeChild(this.modalElement);
-      }
-      document.body.style.overflow = "";
-    }, 300); // Соответствует duration-300 в Tailwind
+    document.removeEventListener("keydown", this.boundHandleKey);
+    this.options.onClose();
   }
 
-  confirm() {
-    return new Promise((resolve, reject) => {
-      this.options.onConfirm = resolve;
-      this.options.onCancel = reject;
-      this.open();
-    });
+  handleKey(e) {
+    if (e.key === "Escape") {
+      this.close();
+    }
   }
 }
-
-export default Modal;

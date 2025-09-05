@@ -29,7 +29,7 @@ function createResultsHTML(generation) {
       return `
             <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded-md shadow-sm">
                 <div class="text-left">
-                    <p class="font-semibold text-gray-800 dark:text-gray-100">${hero.name}</p>
+                    <p class="font-semibold text-lg text-gray-800 dark:text-gray-100">${hero.name}</p>
                     <p class="text-sm text-gray-500 dark:text-gray-400">Игрок ${playerNum} <span class="text-xs font-medium px-2 py-0.5 rounded-full ${teamColor}">Команда ${teamNum}</span></p>
                 </div>
                 <div class="flex items-center space-x-1">
@@ -77,7 +77,7 @@ function updateResults(generation) {
  * Назначает обработчики событий на кнопки внутри модального окна.
  */
 function addEventListeners() {
-  const modalElement = document.querySelector(".fullscreen");
+  const modalElement = document.querySelector(".modal-container"); // Ищем по modal-container, он стабильнее
   if (!modalElement) return;
 
   // Используем делегирование событий
@@ -102,7 +102,7 @@ function addEventListeners() {
           ...currentGeneration,
           shuffledPlayers: newPlayers,
         };
-        // Пересобираем назначение: герои остаются в том же порядке, меняются номера игроков
+        // Пересобираем назначение: герои остаются, меняются номера игроков
         newTeamGen.assignment = {};
         newPlayers.forEach((playerNum, index) => {
           newTeamGen.assignment[playerNum] =
@@ -112,27 +112,21 @@ function addEventListeners() {
         break;
 
       case "reshuffle-heroes":
-        // Получаем новый набор из 4 случайных героев из доступного пула
-        const newHeroes = Generator.shuffleHeroes(
-          allHeroesData,
-          excludedHeroes,
-          4
-        );
+        // --- ИСПРАВЛЕНИЕ: Перемешиваем текущих героев, а не выбираем новых ---
+        const shuffledCurrentHeroes = Generator.shuffle([
+          ...currentGeneration.shuffledHeroes,
+        ]);
+        const newHeroGen = {
+          ...currentGeneration,
+          shuffledHeroes: shuffledCurrentHeroes,
+        };
 
-        if (newHeroes) {
-          const newHeroGen = {
-            ...currentGeneration,
-            shuffledHeroes: newHeroes,
-          };
-          // Пересобираем назначение: номера игроков остаются, меняются герои
-          newHeroGen.assignment = {};
-          currentGeneration.shuffledPlayers.forEach((playerNum, index) => {
-            newHeroGen.assignment[playerNum] = newHeroes[index];
-          });
-          updateResults(newHeroGen);
-        } else {
-          Toast.error("Недостаточно героев для замены.");
-        }
+        // Переназначаем перемешанных героев текущим игрокам
+        newHeroGen.assignment = {};
+        currentGeneration.shuffledPlayers.forEach((playerNum, index) => {
+          newHeroGen.assignment[playerNum] = shuffledCurrentHeroes[index];
+        });
+        updateResults(newHeroGen);
         break;
 
       case "reshuffle-hero":
