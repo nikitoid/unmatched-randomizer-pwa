@@ -1,13 +1,40 @@
 <!DOCTYPE html>
-<html lang="ru" class="light">
+<html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Randomatched</title>
-    <meta name="description" content="Генератор случайных команд" />
-    <meta name="theme-color" content="#3b82f6" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta
+      name="description"
+      content="Randomatched - генератор случайных героев для игры Unmatched"
+    />
+    <meta name="theme-color" content="#1a1a2e" />
+
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="apple-mobile-web-app-title" content="Randomatched" />
+
+    <title>Randomatched - Random Unmatched Heroes</title>
+
+    <!-- Icons -->
+    <link
+      rel="icon"
+      type="image/png"
+      sizes="192x192"
+      href="icons/icon-192.png"
+    />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+
+    <!-- Manifest -->
     <link rel="manifest" href="manifest.json" />
 
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -15,305 +42,157 @@
         theme: {
           extend: {
             colors: {
-              "light-bg": "#f3f4f6",
-              "light-primary": "#ffffff",
-              "light-secondary": "#e5e7eb",
-              "light-text": "#1f2937",
-              "light-accent": "#d1d5db",
-              "dark-bg": "#1f2937",
-              "dark-primary": "#374151",
-              "dark-secondary": "#4b5563",
-              "dark-text": "#f9fafb",
-              "dark-accent": "#4b5563",
+              primary: "#1a1a2e",
+              secondary: "#16213e",
+              accent: "#e94560",
+              light: "#f5f5f5",
             },
           },
         },
       };
     </script>
 
-    <link rel="stylesheet" href="style.css" />
+    <!-- Alpine.js -->
+    <script
+      defer
+      src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"
+    ></script>
+
+    <!-- Custom Styles -->
+    <link rel="stylesheet" href="css/style.css" />
   </head>
-  <body
-    class="bg-light-bg text-light-text dark:bg-dark-bg dark:text-dark-text transition-colors duration-300 overflow-hidden"
-  >
-    <div
-      id="app"
-      class="h-screen w-screen flex flex-col items-center justify-center p-4"
-    >
-      <div class="absolute top-5 left-5 flex items-center space-x-4">
-        <button
-          id="theme-toggle"
-          class="p-2 rounded-full bg-light-accent dark:bg-dark-accent hover:opacity-80 transition-opacity"
+  <body class="bg-primary text-light min-h-screen">
+    <div x-data="heroGenerator()" class="container mx-auto px-4 py-6 max-w-lg">
+      <!-- Header -->
+      <header class="text-center mb-8">
+        <h1 class="text-3xl font-bold mb-2 text-accent">Randomatched</h1>
+        <p class="text-gray-300 text-sm">
+          Генератор случайных героев Unmatched
+        </p>
+      </header>
+
+      <!-- Main Content -->
+      <main class="space-y-6">
+        <!-- Hero Display Card -->
+        <div
+          class="bg-secondary rounded-lg p-6 shadow-xl transition-all duration-300"
+          :class="{ 'animate-pulse': isLoading }"
         >
-          <svg
-            id="theme-icon-moon"
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6 hidden"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-            />
-          </svg>
-          <svg
-            id="theme-icon-sun"
-            xmlns="http://www.w3.org/2000/svg"
-            class="h-6 w-6 hidden"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-            />
-          </svg>
-        </button>
-      </div>
-
-      <div
-        id="update-indicator"
-        class="hidden absolute top-5 right-5 items-center space-x-2 bg-blue-500 text-white text-sm font-bold px-4 py-2 rounded-lg shadow-md"
-      >
-        <div class="update-spinner"></div>
-        <span>Обновление...</span>
-      </div>
-
-      <main class="text-center w-full max-w-sm">
-        <h1 class="text-4xl md:text-5xl font-bold mb-8">Randomatched</h1>
-
-        <div class="relative w-full mb-6">
-          <select
-            id="hero-list-select"
-            class="w-full p-3 rounded-lg border-2 bg-light-primary dark:bg-dark-primary border-light-accent dark:border-dark-accent focus:outline-none focus:ring-2 focus:ring-blue-500 transition appearance-none pr-12"
-          >
-            <option value="">Загрузка списков...</option>
-          </select>
-          <button
-            id="settings-btn"
-            class="absolute top-1/2 right-2 -translate-y-1/2 p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-light-secondary dark:hover:bg-dark-secondary transition-colors"
-            title="Настроить списки"
-          >
+          <div x-show="!selectedHero && !isLoading" class="text-center py-8">
             <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-6 w-6"
+              class="w-24 h-24 mx-auto mb-4 text-gray-500"
               fill="none"
-              viewBox="0 0 24 24"
               stroke="currentColor"
+              viewBox="0 0 24 24"
             >
               <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
-                d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-              />
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
+                d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+              ></path>
             </svg>
-          </button>
+            <p class="text-gray-400">Нажмите кнопку для выбора героя</p>
+          </div>
+
+          <div x-show="selectedHero" x-transition>
+            <h2
+              class="text-2xl font-bold mb-3 text-accent"
+              x-text="selectedHero?.name"
+            ></h2>
+            <div class="space-y-2">
+              <p class="text-gray-300">
+                <span class="font-semibold">Набор:</span>
+                <span x-text="selectedHero?.set"></span>
+              </p>
+              <p class="text-gray-300">
+                <span class="font-semibold">Тип:</span>
+                <span x-text="selectedHero?.type"></span>
+              </p>
+            </div>
+          </div>
         </div>
 
-        <button
-          id="generate-btn"
-          class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-4 rounded-lg text-lg transition-transform transform hover:scale-105 opacity-50 cursor-not-allowed"
-          disabled
-        >
-          Сгенерировать
-        </button>
-
-        <div class="mt-4 flex justify-center space-x-4">
+        <!-- Controls -->
+        <div class="space-y-4">
+          <!-- Generate Button -->
           <button
-            id="prev-gen-btn"
-            class="px-4 py-2 text-sm rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80 transition opacity-50 cursor-not-allowed"
-            disabled
+            @click="generateHero()"
+            :disabled="isLoading"
+            class="w-full bg-accent hover:bg-red-600 text-white font-bold py-4 px-6 rounded-lg transition-all duration-200 transform hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Предыдущая генерация
+            <span x-show="!isLoading">🎲 Выбрать случайного героя</span>
+            <span x-show="isLoading">⏳ Выбираем...</span>
           </button>
+
+          <!-- Filter Options -->
+          <div class="bg-secondary rounded-lg p-4">
+            <h3 class="font-semibold mb-3 text-gray-300">Фильтры</h3>
+            <div class="space-y-2">
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  x-model="filters.includeAllSets"
+                  class="w-4 h-4 text-accent rounded focus:ring-accent"
+                />
+                <span class="text-sm text-gray-300">Включить все наборы</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- History -->
+        <div x-show="history.length > 0" class="bg-secondary rounded-lg p-4">
+          <h3 class="font-semibold mb-3 text-gray-300">История выбора</h3>
+          <div class="space-y-2 max-h-40 overflow-y-auto">
+            <template x-for="hero in history" :key="hero.id">
+              <div
+                class="text-sm text-gray-400 pb-2 border-b border-gray-700 last:border-0"
+              >
+                <span x-text="hero.name"></span> -
+                <span class="text-xs" x-text="hero.set"></span>
+              </div>
+            </template>
+          </div>
           <button
-            id="reset-session-btn"
-            class="px-4 py-2 text-sm rounded-lg bg-red-200 dark:bg-red-800 text-red-700 dark:text-red-200 hover:opacity-80 transition opacity-50 cursor-not-allowed"
-            disabled
+            @click="clearHistory()"
+            class="mt-3 text-xs text-gray-500 hover:text-accent transition-colors"
           >
-            Сбросить сессию
+            Очистить историю
           </button>
         </div>
       </main>
+
+      <!-- Footer -->
+      <footer class="mt-12 text-center text-xs text-gray-500">
+        <p>PWA версия • Работает офлайн</p>
+        <p class="mt-1">© 2024 Randomatched</p>
+      </footer>
     </div>
 
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
-
-    <script>
-      window.__firebase_config = JSON.stringify({
-        apiKey: "AIzaSyBSvSbR_NJj7riu0HZPz3nile1X4tuxfsI",
-        authDomain: "unmatched-randomizer.firebaseapp.com",
-        projectId: "unmatched-randomizer",
-        storageBucket: "unmatched-randomizer.firebasestorage.app",
-        messagingSenderId: "168086799887",
-        appId: "1:168086799887:web:3c8af51f935999b7d6c57a",
-        measurementId: "G-GEQPMK68B0",
-      });
-      window.__app_id = "randomatched-app";
-    </script>
-
-    <script src="app.js" type="module"></script>
-
-    <!-- Модальное окно результатов -->
+    <!-- Install Prompt -->
     <div
-      id="results-modal-container"
-      class="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center p-4 opacity-0 pointer-events-none z-40 transition-opacity"
+      id="installPrompt"
+      class="hidden fixed bottom-4 left-4 right-4 bg-secondary p-4 rounded-lg shadow-xl"
     >
-      <div
-        id="results-modal-panel"
-        class="w-full max-w-lg bg-light-primary dark:bg-dark-primary rounded-t-2xl shadow-lg p-6 transform translate-y-full transition-transform duration-300 ease-in-out"
-      >
-        <div class="flex justify-between items-center mb-4">
-          <h2 class="text-2xl font-bold">Результаты</h2>
-          <button
-            id="close-modal-btn"
-            class="p-2 -mr-2 rounded-full hover:bg-light-secondary dark:hover:bg-dark-secondary"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-6 w-6"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M6 18L18 6M6 6l12 12"
-              />
-            </svg>
-          </button>
-        </div>
-        <ul id="results-list" class="space-y-2 mb-6"></ul>
-        <div class="mb-4">
-          <button
-            id="exclude-all-btn"
-            class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded-lg transition"
-          >
-            Исключить текущих героев
-          </button>
-        </div>
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <button
-            id="shuffle-teams-btn"
-            class="w-full bg-gray-200 dark:bg-gray-600 hover:opacity-80 font-semibold py-2 px-4 rounded-lg transition"
-          >
-            Перемешать команды
-          </button>
-          <button
-            id="shuffle-heroes-btn"
-            class="w-full bg-gray-200 dark:bg-gray-600 hover:opacity-80 font-semibold py-2 px-4 rounded-lg transition"
-          >
-            Перемешать героев
-          </button>
-          <button
-            id="shuffle-all-btn"
-            class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition"
-          >
-            Перемешать всё
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Полноэкранное модальное окно настроек -->
-    <div
-      id="settings-modal-container"
-      class="fixed inset-0 bg-light-bg dark:bg-dark-bg flex flex-col p-4 pt-6 opacity-0 pointer-events-none z-50 transform translate-y-full transition-transform duration-300 ease-in-out"
-    >
-      <div id="settings-modal-panel" class="w-full h-full flex flex-col">
-        <!-- Содержимое генерируется в app.js -->
-      </div>
-    </div>
-
-    <!-- Модальное окно подтверждения -->
-    <div
-      id="confirmation-modal-container"
-      class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 opacity-0 pointer-events-none z-[60] transition-opacity duration-300"
-    >
-      <div
-        id="confirmation-modal-panel"
-        class="w-full max-w-sm bg-light-primary dark:bg-dark-primary rounded-2xl shadow-lg p-6 transform scale-95 opacity-0 transition-all duration-300 ease-in-out"
-      >
-        <h2 id="confirmation-title" class="text-xl font-bold mb-2">
-          Подтвердите действие
-        </h2>
-        <p
-          id="confirmation-message"
-          class="mb-6 text-gray-600 dark:text-gray-300"
+      <p class="text-sm mb-3">Установите приложение для быстрого доступа</p>
+      <div class="flex space-x-2">
+        <button
+          onclick="installPWA()"
+          class="flex-1 bg-accent text-white py-2 px-4 rounded text-sm"
         >
-          Вы уверены?
-        </p>
-        <div class="flex justify-end space-x-3">
-          <button
-            id="confirmation-cancel-btn"
-            class="px-5 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80"
-          >
-            Отмена
-          </button>
-          <button
-            id="confirmation-confirm-btn"
-            class="px-5 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
-          >
-            Да
-          </button>
-        </div>
+          Установить
+        </button>
+        <button
+          onclick="dismissInstall()"
+          class="flex-1 bg-gray-600 text-white py-2 px-4 rounded text-sm"
+        >
+          Позже
+        </button>
       </div>
     </div>
 
-    <!-- Модальное окно ввода пароля -->
-    <div
-      id="password-modal-container"
-      class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 opacity-0 pointer-events-none z-[70] transition-opacity duration-300"
-    >
-      <div
-        id="password-modal-panel"
-        class="w-full max-w-sm bg-light-primary dark:bg-dark-primary rounded-2xl shadow-lg p-6 transform scale-95 opacity-0 transition-all duration-300 ease-in-out"
-      >
-        <h2 class="text-2xl font-bold mb-4">Доступ к настройкам</h2>
-        <p class="mb-4 text-sm text-gray-600 dark:text-gray-300">
-          Для редактирования этого списка введите пароль.
-        </p>
-        <input
-          type="password"
-          id="password-input"
-          class="w-full p-2 mb-2 rounded-lg border-2 bg-light-primary dark:bg-dark-primary border-light-accent dark:border-dark-accent focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-          placeholder="Пароль"
-        />
-        <p id="password-error" class="text-red-500 text-sm hidden mb-4">
-          Неверный пароль.
-        </p>
-        <div class="flex justify-end space-x-3">
-          <button
-            id="cancel-password-btn"
-            class="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-600 hover:opacity-80"
-          >
-            Отмена
-          </button>
-          <button
-            id="submit-password-btn"
-            class="px-4 py-2 rounded-lg bg-blue-500 text-white hover:bg-blue-600"
-          >
-            Войти
-          </button>
-        </div>
-      </div>
-    </div>
+    <!-- Scripts -->
+    <script src="js/app.js"></script>
   </body>
 </html>

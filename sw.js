@@ -1,34 +1,31 @@
-// --- Service Worker ---
-
-const CACHE_NAME = "randomatched-v7"; // Увеличена версия для финального исправления
-// Кэшируем только основные локальные файлы ("app shell").
-// Все остальное (CDN скрипты) будет закэшировано при первом обращении.
-const URLS_TO_PRECACHE = [
+const CACHE_NAME = "randomatched-v1.0.0";
+const urlsToCache = [
   "/",
   "/index.html",
-  "/style.css",
-  "/app.js",
+  "/css/style.css",
+  "/js/app.js",
   "/manifest.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
+  "https://cdn.tailwindcss.com",
+  "https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js",
 ];
 
-// Установка: кэшируем только "app shell". Этот шаг должен быть максимально надежным.
+// Install Event - кэшируем файлы
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then((cache) => {
-        console.log("[SW] Кэширование App Shell.");
-        return cache.addAll(URLS_TO_PRECACHE);
+        console.log("Opened cache");
+        return cache.addAll(urlsToCache);
       })
       .then(() => self.skipWaiting())
-      .catch((err) => console.error("[SW] Ошибка кэширования App Shell: ", err))
   );
 });
 
-// Активация: удаляем старые кэши и захватываем контроль.
+// Activate Event - очищаем старый кэш
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -37,7 +34,7 @@ self.addEventListener("activate", (event) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME) {
-              console.log("[SW] Удаление старого кэша:", cacheName);
+              console.log("Deleting old cache:", cacheName);
               return caches.delete(cacheName);
             }
           })
@@ -47,43 +44,76 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch: Стратегия "Cache first, falling back to network".
-// Динамически кэшируем ресурсы при первом успешном запросе.
+// Fetch Event - стратегия Cache First с фоновым обновлением
 self.addEventListener("fetch", (event) => {
-  const requestUrl = new URL(event.request.url);
-
-  // Игнорируем все запросы к API Google, чтобы не мешать работе Firebase SDK.
-  if (requestUrl.hostname.includes("googleapis.com")) {
-    return;
-  }
-
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      // Если ресурс есть в кэше, немедленно отдаем его.
-      if (cachedResponse) {
-        return cachedResponse;
+    caches.match(event.request).then((response) => {
+      // Возвращаем кэшированную версию если есть
+      if (response) {
+        // Фоновое обновление кэша
+        fetchAndCache(event.request);
+        return response;
       }
 
-      // Если в кэше нет, идем в сеть.
+      // Если нет в кэше, загружаем из сети
       return fetch(event.request)
-        .then((networkResponse) => {
-          // Клонируем ответ, так как его можно прочитать только один раз.
-          const responseToCache = networkResponse.clone();
+        .then((response) => {
+          // Проверяем валидность ответа
+          if (
+            !response ||
+            response.status !== 200 ||
+            response.type !== "basic"
+          ) {
+            return response;
+          }
+
+          // Клонируем ответ для кэша
+          const responseToCache = response.clone();
 
           caches.open(CACHE_NAME).then((cache) => {
-            // Сохраняем свежий ответ в кэш для будущих оффлайн-запусков.
-            console.log("[SW] Динамическое кэширование:", event.request.url);
             cache.put(event.request, responseToCache);
           });
 
-          // Возвращаем ответ браузеру.
-          return networkResponse;
+          return response;
         })
-        .catch((err) => {
-          // Этот catch сработает, если мы оффлайн и ресурса нет в кэше.
-          // Для JS/CSS это нормально, что будет ошибка.
-          // Главное, что app shell загрузится.
+        .catch(() => {
+          // Офлайн fallback
+          if (event.request.destination === "document") {
+            return caches.match("/index.html");
+          }
         });
     })
   );
+});
+
+// Функция для фонового обновления кэша
+function fetchAndCache(request) {
+  return fetch(request)
+    .then((response) => {
+      if (response && response.status === 200) {
+        const responseToCache = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, responseToCache);
+        });
+      }
+    })
+    .catch(() => {
+      console.log("Background update failed for:", request.url);
+    });
+}
+
+// Обработка push-уведомлений (для будущего использования)
+self.addEventListener("push", (event) => {
+  const options = {
+    body: event.data ? event.data.text() : "Новое обновление!",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    vibrate: [100, 50, 100],
+    data: {
+      dateOfArrival: Date.now(),
+      primaryKey: 1,
+    },
+  };
+
+  event.waitUntil(self.registration.showNotification("Randomatched", options));
 });

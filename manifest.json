@@ -1,29 +1,41 @@
 {
-  "name": "Randomatched",
+  "name": "Randomatched - Генератор героев Unmatched",
   "short_name": "Randomatched",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#1f2937",
-  "theme_color": "#3b82f6",
-  "orientation": "portrait-primary",
+  "description": "PWA приложение для генерации случайных героев игры Unmatched",
   "icons": [
     {
       "src": "icons/icon-192.png",
-      "type": "image/png",
       "sizes": "192x192",
-      "purpose": "any"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/icon-512.png",
-      "type": "image/png",
       "sizes": "512x512",
-      "purpose": "any"
+      "type": "image/png",
+      "purpose": "any maskable"
     },
     {
       "src": "icons/apple-touch-icon.png",
-      "type": "image/png",
       "sizes": "180x180",
-      "purpose": "any"
+      "type": "image/png"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#1a1a2e",
+  "background_color": "#1a1a2e",
+  "orientation": "portrait",
+  "scope": "/",
+  "lang": "ru",
+  "categories": ["games", "entertainment"],
+  "shortcuts": [
+    {
+      "name": "Новый герой",
+      "short_name": "Герой",
+      "description": "Сгенерировать нового героя",
+      "url": "/?action=generate",
+      "icons": [{ "src": "icons/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }
