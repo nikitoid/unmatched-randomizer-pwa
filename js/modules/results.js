@@ -9,6 +9,9 @@ let resultsModal = null;
 
 /**
  * Создает HTML-разметку для отображения результатов.
+ * Игроки отображаются в случайном порядке их генерации.
+ * @param {object} generation - Объект с данными генерации.
+ * @returns {string} - HTML-строка.
  */
 function createResultsHTML(generation) {
   const { assignment, shuffledPlayers } = generation;
@@ -16,7 +19,7 @@ function createResultsHTML(generation) {
   const playersHTML = shuffledPlayers
     .map((playerNum) => {
       const hero = assignment[playerNum];
-      if (!hero) return "";
+      if (!hero) return ""; // Защита на случай неполных данных
       const teamNum = playerNum % 2 === 0 ? 1 : 2;
       const teamColor =
         teamNum === 1
@@ -56,7 +59,8 @@ function createResultsHTML(generation) {
 }
 
 /**
- * Обновляет содержимое модального окна.
+ * Обновляет содержимое модального окна новыми данными.
+ * @param {object} generation - Новый объект генерации.
  */
 function updateResults(generation) {
   currentGeneration = generation;
@@ -71,7 +75,7 @@ function updateResults(generation) {
 }
 
 /**
- * Назначает обработчики событий.
+ * Назначает обработчики событий на кнопки внутри модального окна.
  */
 function addEventListeners() {
   const modalElement = document.querySelector(".modal-container");
@@ -208,6 +212,8 @@ function addEventListeners() {
 
 /**
  * Открывает модальное окно с результатами.
+ * @param {object} generation - Объект с данными генерации.
+ * @param {object[]} allHeroes - Полный список героев.
  */
 function show(generation, allHeroes) {
   currentGeneration = generation;
