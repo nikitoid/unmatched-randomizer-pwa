@@ -6,10 +6,12 @@ import Storage from "./modules/storage.js";
 import Generator from "./modules/generator.js";
 import Results from "./modules/results.js";
 import ListManager from "./modules/listManager.js";
-import Firebase from "./modules/firebase.js"; // --- Новый импорт ---
+import Firebase from "./modules/firebase.js";
 
 // --- Инициализация темы ---
 Theme.init();
+
+let isSWUpdateComplete = false;
 
 // --- Логика обновления Service Worker ---
 function registerServiceWorker() {
@@ -36,17 +38,42 @@ function registerServiceWorker() {
         console.log(
           "Контроллер Service Worker изменился, обновление завершено."
         );
+        isSWUpdateComplete = true; // --- Флаг завершения обновления
         const spinner = document.getElementById("update-spinner");
         if (spinner) spinner.classList.add("invisible");
         Toast.success("Приложение обновлено!");
+        startFirebaseSync(); // --- Запускаем синхронизацию ПОСЛЕ обновления
       }
     });
+  } else {
+    isSWUpdateComplete = true; // Если SW не поддерживается, считаем "обновление" завершенным
   }
 }
 
 // --- Глобальное состояние и данные ---
 let heroLists = {};
 let isInitialSyncDone = false;
+
+// --- Иконки для статуса БД ---
+const dbStatusIcons = {
+  connecting: `<svg class="animate-spin h-6 w-6 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`,
+  connected: `<svg class="h-6 w-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`,
+  error: `<svg class="h-6 w-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`,
+};
+
+/**
+ * Обновляет иконку статуса подключения к БД
+ * @param {'connecting' | 'connected' | 'error' | 'hidden'} status
+ */
+function updateDbStatusIndicator(status) {
+  const dbStatusEl = document.getElementById("db-status");
+  if (!dbStatusEl) return;
+  if (status === "hidden") {
+    dbStatusEl.innerHTML = "";
+  } else {
+    dbStatusEl.innerHTML = dbStatusIcons[status] || "";
+  }
+}
 
 /**
  * Обновляет выпадающий список героев на главном экране.
@@ -67,7 +94,6 @@ function updateHeroSelect() {
   }
 
   heroSelect.innerHTML = "";
-
   if (Object.keys(heroLists).length === 0) {
     const option = document.createElement("option");
     option.textContent = "Списки не найдены";
@@ -76,7 +102,6 @@ function updateHeroSelect() {
     document.getElementById("generate-teams-btn").disabled = true;
     return;
   }
-
   document.getElementById("generate-teams-btn").disabled = false;
 
   for (const listName in heroLists) {
@@ -97,7 +122,6 @@ function initializeAppState() {
   heroLists = Storage.loadHeroLists();
   let defaultList = Storage.loadDefaultList();
 
-  // Создаем стартовый набор, только если списков нет СОВСЕМ
   if (!heroLists || Object.keys(heroLists).length === 0) {
     const starterHeroes = [
       "Король Артур",
@@ -115,7 +139,6 @@ function initializeAppState() {
     ];
     heroLists = { "Стартовый набор": starterHeroes };
     defaultList = "Стартовый набор";
-
     Storage.saveHeroLists(heroLists);
     Storage.saveDefaultList(defaultList);
     Storage.saveActiveList(defaultList);
@@ -126,26 +149,33 @@ function initializeAppState() {
 
 // --- Логика синхронизации с Firebase ---
 function startFirebaseSync() {
+  if (!isSWUpdateComplete) return; // Ждем завершения обновления PWA
+
   if (navigator.onLine) {
-    if (!isInitialSyncDone) Toast.info("Синхронизация с облаком...");
+    if (!isInitialSyncDone) {
+      Toast.info("Синхронизация с облаком...");
+      updateDbStatusIndicator("connecting");
+    }
 
     Firebase.syncLists((isSuccess) => {
       if (isSuccess) {
+        updateDbStatusIndicator("connected");
         if (isInitialSyncDone) {
           Toast.success("Данные обновлены из облака.");
         } else {
           Toast.success("Данные синхронизированы.");
           isInitialSyncDone = true;
         }
-        // Перезагружаем состояние из обновленного localStorage
         initializeAppState();
-      } else if (!isInitialSyncDone) {
-        Toast.warning(
-          "Не удалось получить данные из облака. Используются локальные данные."
-        );
+      } else {
+        updateDbStatusIndicator("error");
+        if (!isInitialSyncDone) {
+          Toast.warning("Не удалось получить данные из облака.");
+        }
       }
     });
   } else {
+    updateDbStatusIndicator("error");
     Toast.warning("Нет сети. Работа в офлайн-режиме.");
   }
 }
@@ -154,33 +184,33 @@ function startFirebaseSync() {
 document.addEventListener("DOMContentLoaded", () => {
   registerServiceWorker();
 
-  // --- Инициализация темы ---
+  // Инициализация темы
   Theme.init();
   const themeToggle = document.getElementById("theme-toggle");
-  const themeIconLight = document.getElementById("theme-icon-light");
-  const themeIconDark = document.getElementById("theme-icon-dark");
-
   const updateThemeIcons = () => {
-    if (document.documentElement.classList.contains("dark")) {
-      themeIconLight.classList.add("hidden");
-      themeIconDark.classList.remove("hidden");
-    } else {
-      themeIconLight.classList.remove("hidden");
-      themeIconDark.classList.add("hidden");
-    }
+    const isDark = document.documentElement.classList.contains("dark");
+    document
+      .getElementById("theme-icon-light")
+      .classList.toggle("hidden", isDark);
+    document
+      .getElementById("theme-icon-dark")
+      .classList.toggle("hidden", !isDark);
   };
-  if (themeToggle) {
-    themeToggle.addEventListener("click", () => {
-      Theme.toggleTheme();
-    });
-  }
-  updateThemeIcons();
+  if (themeToggle) themeToggle.addEventListener("click", Theme.toggleTheme);
   window.addEventListener("theme-changed", updateThemeIcons);
+  updateThemeIcons();
 
-  // --- Инициализация приложения ---
-  initializeAppState(); // Сначала загружаем локальные данные для быстрого старта
-  startFirebaseSync(); // Затем запускаем синхронизацию
-  window.addEventListener("online", startFirebaseSync); // Слушаем восстановление соединения
+  // Инициализация приложения
+  initializeAppState();
+
+  // Если SW не поддерживается или уже активен, запускаем синхронизацию сразу
+  if (navigator.serviceWorker.controller || !("serviceWorker" in navigator)) {
+    isSWUpdateComplete = true;
+  }
+  startFirebaseSync();
+
+  window.addEventListener("online", startFirebaseSync);
+  window.addEventListener("offline", () => updateDbStatusIndicator("error"));
 
   const settingsBtn = document.getElementById("settings-btn");
   if (settingsBtn) {
@@ -192,25 +222,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const generateBtn = document.getElementById("generate-teams-btn");
   if (generateBtn) {
     generateBtn.addEventListener("click", () => {
-      const heroSelect = document.getElementById("hero-select");
-      const selectedListName = heroSelect.value;
+      const selectedListName = document.getElementById("hero-select").value;
       const heroNamesInList = heroLists[selectedListName];
-
       if (!heroNamesInList) {
-        Toast.error("Пожалуйста, выберите корректный список.");
+        Toast.error("Выберите корректный список.");
         return;
       }
-      const heroesForGeneration = heroNamesInList.map((name) => ({ name }));
 
+      const heroesForGeneration = heroNamesInList.map((name) => ({ name }));
       if (heroesForGeneration.length < 4) {
         Toast.error(
-          `В списке "${selectedListName}" недостаточно героев (нужно минимум 4, доступно ${heroesForGeneration.length}).`
+          `В списке "${selectedListName}" мало героев (нужно 4, есть ${heroesForGeneration.length}).`
         );
         return;
       }
-
       const generation = Generator.generateAll(heroesForGeneration, []);
-
       if (generation) {
         Storage.saveLastGeneration(generation);
         Toast.success("Команды сгенерированы!");
@@ -225,38 +251,34 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  const heroSelect = document.getElementById("hero-select");
-  if (heroSelect) {
-    heroSelect.addEventListener("change", (e) => {
-      Storage.saveActiveList(e.target.value);
-    });
-  }
+  document.getElementById("hero-select")?.addEventListener("change", (e) => {
+    Storage.saveActiveList(e.target.value);
+  });
 
-  const lastGenBtn = document.getElementById("last-gen-btn");
-  if (lastGenBtn) {
-    lastGenBtn.addEventListener("click", () => {
-      const lastGen = Storage.loadLastGeneration();
-      if (lastGen) {
-        const currentHeroLists = Storage.loadHeroLists() || {};
-        const allUniqueHeroNames = [
-          ...new Set(Object.values(currentHeroLists).flat()),
-        ];
-        const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
-        Results.show(lastGen, allUniqueHeroes, initializeAppState);
-      } else {
-        Toast.info("Нет данных о последней генерации.");
-      }
-    });
-  }
+  document.getElementById("last-gen-btn")?.addEventListener("click", () => {
+    const lastGen = Storage.loadLastGeneration();
+    if (lastGen) {
+      const allUniqueHeroNames = [
+        ...new Set(Object.values(Storage.loadHeroLists() || {}).flat()),
+      ];
+      Results.show(
+        lastGen,
+        allUniqueHeroNames.map((name) => ({ name })),
+        initializeAppState
+      );
+    } else {
+      Toast.info("Нет данных о последней генерации.");
+    }
+  });
 
-  const resetBtn = document.getElementById("reset-session-btn");
-  if (resetBtn) {
-    resetBtn.addEventListener("click", () => {
+  document
+    .getElementById("reset-session-btn")
+    ?.addEventListener("click", () => {
       new Modal({
         type: "dialog",
         title: "Подтверждение",
         content:
-          "Вы уверены, что хотите сбросить сессию? Все временные списки (с пометкой 'искл.') и последняя генерация будут удалены.",
+          "Сбросить сессию? Все временные списки (с пометкой 'искл.') будут удалены.",
         onConfirm: () => {
           Storage.clearSession();
           initializeAppState();
@@ -264,5 +286,4 @@ document.addEventListener("DOMContentLoaded", () => {
         },
       }).open();
     });
-  }
 });

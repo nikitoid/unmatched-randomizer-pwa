@@ -39,15 +39,17 @@ let unsubscribe; // Для отписки от onSnapshot
  */
 async function initialize() {
   if (isInitialized || isInitializing) return;
+  console.log("Firebase: Начало инициализации...");
   isInitializing = true;
   try {
     const app = initializeApp(firebaseConfig);
     db = getFirestore(app);
     auth = getAuth(app);
     listsRef = doc(db, "lists", "main");
+    console.log("Firebase: Конфигурация применена, doc ref создан.");
 
     await new Promise((resolve, reject) => {
-      onAuthStateChanged(
+      const unsubscribeAuth = onAuthStateChanged(
         auth,
         (user) => {
           if (user) {
@@ -57,25 +59,33 @@ async function initialize() {
             );
             isInitialized = true;
             isInitializing = false;
+            unsubscribeAuth(); // Отписываемся после успешной авторизации
             resolve(user);
           }
         },
         (error) => {
           isInitializing = false;
+          console.error("Firebase: Ошибка слушателя авторизации.", error);
+          unsubscribeAuth();
           reject(error);
         }
       );
 
       if (!auth.currentUser) {
+        console.log(
+          "Firebase: Текущего пользователя нет, попытка анонимного входа..."
+        );
         signInAnonymously(auth).catch((error) => {
           isInitializing = false;
+          console.error("Firebase: Ошибка анонимного входа.", error);
           reject(error);
         });
       }
     });
+    console.log("Firebase: Инициализация успешно завершена.");
   } catch (error) {
     isInitializing = false;
-    console.error("Firebase: Ошибка инициализации", error);
+    console.error("Firebase: Критическая ошибка инициализации.", error);
     Toast.error("Не удалось подключиться к облаку.");
     throw error;
   }
@@ -88,41 +98,46 @@ async function initialize() {
 async function syncLists(onUpdateCallback) {
   try {
     await initialize();
-    if (unsubscribe) unsubscribe(); // Отписываемся от старого слушателя, если он есть
+    if (unsubscribe) {
+      console.log("Firebase: Отписка от предыдущего слушателя.");
+      unsubscribe();
+    }
 
+    console.log("Firebase: Установка нового слушателя onSnapshot...");
     unsubscribe = onSnapshot(
       listsRef,
       (docSnap) => {
         if (docSnap.exists()) {
+          console.log(
+            "Firebase: Получены данные из Firestore:",
+            docSnap.data()
+          );
           const remoteData = docSnap.data();
 
-          // Синхронизация списков героев
           if (remoteData.lists) {
             Storage.saveHeroLists(remoteData.lists);
           }
-          // Синхронизация выбранных списков (по умолчанию и активного)
+          // --- ИЗМЕНЕНО: 'selected' теперь строка ---
           if (remoteData.selected) {
-            if (remoteData.selected.default) {
-              Storage.saveDefaultList(remoteData.selected.default);
-            }
-            if (remoteData.selected.active) {
-              Storage.saveActiveList(remoteData.selected.active);
-            }
+            Storage.saveDefaultList(remoteData.selected);
           }
-          onUpdateCallback(true); // Сигнал об успешном обновлении
+          onUpdateCallback(true);
         } else {
-          console.warn("Firebase: Документ 'lists/main' не найден.");
+          console.warn(
+            "Firebase: Документ 'lists/main' не найден в Firestore."
+          );
           onUpdateCallback(false);
         }
       },
       (error) => {
-        console.error("Firebase: Ошибка при прослушивании обновлений", error);
+        console.error("Firebase: Ошибка в слушателе onSnapshot", error);
         Toast.error("Ошибка синхронизации.");
         onUpdateCallback(false);
       }
     );
   } catch (error) {
-    // Ошибка уже обработана в initialize
+    // Ошибка уже залогирована в initialize
+    onUpdateCallback(false);
   }
 }
 
@@ -138,17 +153,21 @@ async function verifyPassword(password) {
     const docSnap = await getDoc(listsRef);
     if (docSnap.exists()) {
       const remoteHash = docSnap.data().passwordHash;
+      console.log("Firebase: Сравнение хэшей.", {
+        local: passwordHash,
+        remote: remoteHash,
+      });
       return passwordHash === remoteHash;
     }
     return false;
   } catch (error) {
-    console.error("Firebase: Ошибка при проверке пароля", error);
+    console.error("Firebase: Ошибка при проверке пароля.", error);
     return false;
   }
 }
 
 /**
- * Обновляет данные в Firestore, сохраняя существующий хэш пароля.
+ * Обновляет данные в Firestore.
  * @param {object} newData - Объект с новыми данными ({lists, selected}).
  * @returns {Promise<boolean>} - true, если обновление прошло успешно.
  */
@@ -157,21 +176,28 @@ async function updateRemoteData(newData) {
   try {
     const docSnap = await getDoc(listsRef);
     const currentData = docSnap.exists() ? docSnap.data() : {};
+    console.log(
+      "Firebase: Подготовка к обновлению. Текущие данные:",
+      currentData
+    );
 
     const dataToSet = {
       lists:
         newData.lists !== undefined ? newData.lists : currentData.lists || {},
+      // --- ИЗМЕНЕНО: 'selected' теперь строка ---
       selected:
         newData.selected !== undefined
           ? newData.selected
-          : currentData.selected || {},
-      passwordHash: currentData.passwordHash || "", // Сохраняем существующий хэш
+          : currentData.selected || "",
+      passwordHash: currentData.passwordHash || "",
     };
 
+    console.log("Firebase: Отправка новых данных:", dataToSet);
     await setDoc(listsRef, dataToSet);
+    console.log("Firebase: Данные успешно обновлены.");
     return true;
   } catch (error) {
-    console.error("Firebase: Ошибка при обновлении данных", error);
+    console.error("Firebase: Ошибка при обновлении данных.", error);
     return false;
   }
 }
