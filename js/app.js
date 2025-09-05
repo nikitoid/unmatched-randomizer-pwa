@@ -1,17 +1,3 @@
-// Регистрация Service Worker
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((registration) => {
-        console.log("Service Worker зарегистрирован успешно:", registration);
-      })
-      .catch((error) => {
-        console.log("Ошибка регистрации Service Worker:", error);
-      });
-  });
-}
-
 // --- Импорт и использование модулей ---
 import Modal from "./modules/modal.js";
 import Toast from "./modules/toast.js";
@@ -23,6 +9,42 @@ import ListManager from "./modules/listManager.js";
 
 // --- Инициализация темы ---
 Theme.init();
+
+// --- Логика обновления Service Worker ---
+function registerServiceWorker() {
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => {
+          console.log("Service Worker зарегистрирован:", registration);
+
+          // Показываем спиннер при обнаружении нового SW
+          registration.addEventListener("updatefound", () => {
+            console.log("Найден новый Service Worker, начинается установка...");
+            const spinner = document.getElementById("update-spinner");
+            if (spinner) spinner.classList.remove("hidden");
+          });
+        })
+        .catch((error) => {
+          console.log("Ошибка регистрации Service Worker:", error);
+        });
+    });
+
+    // Слушаем сообщения от SW
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      // Когда получаем сообщение об обновлении кэша
+      if (event.data && event.data.type === "CACHE_UPDATED") {
+        console.log("Получено сообщение от SW: кэш обновлен.");
+        const spinner = document.getElementById("update-spinner");
+        if (spinner) spinner.classList.add("hidden");
+
+        // Показываем кастомное уведомление
+        Toast.success("Приложение обновлено!");
+      }
+    });
+  }
+}
 
 // --- Глобальное состояние и данные ---
 let heroLists = {};
@@ -104,6 +126,8 @@ function initializeAppState() {
 
 // --- Обработчики событий ---
 document.addEventListener("DOMContentLoaded", () => {
+  registerServiceWorker(); // Запускаем логику SW
+
   const themeToggle = document.getElementById("theme-toggle");
   const themeIconLight = document.getElementById("theme-icon-light");
   const themeIconDark = document.getElementById("theme-icon-dark");

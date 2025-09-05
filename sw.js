@@ -1,11 +1,12 @@
-const CACHE_NAME = "randomatched-cache-v3";
+// Меняем версию кэша, чтобы спровоцировать обновление
+const CACHE_NAME = "randomatched-cache-v4";
 const urlsToCache = [
   "/",
   "/index.html",
   "/css/style.css",
   "/js/app.js",
   "/manifest.json",
-  "/icons/icon-192.png", // Убедитесь, что у вас есть эти файлы
+  "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
 ];
@@ -23,19 +24,30 @@ self.addEventListener("install", (event) => {
 
 // Активация Service Worker и удаление старых кэшей
 self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log("Service Worker: удаление старого кэша", cacheName);
-            return caches.delete(cacheName);
-          }
-        })
-      );
-    })
-  );
   console.log("Service Worker: активирован");
+  event.waitUntil(
+    caches
+      .keys()
+      .then((cacheNames) => {
+        return Promise.all(
+          cacheNames.map((cacheName) => {
+            if (cacheName !== CACHE_NAME) {
+              console.log("Service Worker: удаление старого кэша", cacheName);
+              return caches.delete(cacheName);
+            }
+          })
+        );
+      })
+      .then(() => {
+        // Уведомляем все открытые клиенты (вкладки) о том, что SW обновился
+        return self.clients.matchAll().then((clients) => {
+          clients.forEach((client) =>
+            client.postMessage({ type: "CACHE_UPDATED" })
+          );
+        });
+      })
+  );
+  // Принудительно делаем новый SW активным для всех клиентов
   return self.clients.claim();
 });
 
