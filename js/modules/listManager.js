@@ -8,11 +8,13 @@ import Toast from "./toast.js";
 const ListManager = {
   // --- Состояние модуля ---
   modal: null,
+  container: null, // Ссылка на контейнер контента
   heroLists: {},
   defaultList: "",
   onUpdateCallback: () => {},
   currentView: "manager", // 'manager' или 'editor'
   listToEdit: null,
+  isListenerAttached: false, // Флаг для предотвращения дублирования слушателей
 
   // --- Иконки для кнопок ---
   icons: {
@@ -28,103 +30,58 @@ const ListManager = {
    * Инициализация и отображение модуля.
    */
   show(heroLists, onUpdate) {
-    this.heroLists = heroLists;
+    this.heroLists = { ...heroLists }; // Работаем с копией, чтобы избежать мутаций
     this.defaultList = Storage.loadDefaultList();
     this.onUpdateCallback = onUpdate;
     this.currentView = "manager";
+    this.isListenerAttached = false;
 
     this.modal = new Modal({
       type: "fullscreen",
       title: "Управление списками",
-      content: this.createManagerHTML(),
+      // Используем вложенный div, чтобы безопасно обновлять его innerHTML
+      content: '<div class="modal-content-wrapper h-full"></div>',
       confirmText: null,
       onClose: () => {
-        this.onUpdateCallback(); // Обновить главный экран при закрытии
+        this.onUpdateCallback();
+        this.isListenerAttached = false; // Сбрасываем флаг при закрытии
       },
     });
 
     this.modal.open();
-    this.addManagerListeners();
+    this.container = document.querySelector(".modal-content-wrapper");
+    this.attachPersistentListener(); // Прикрепляем слушатель один раз
+    this.render(); // Рендерим начальное состояние
   },
 
   /**
-   * Обновляет содержимое модального окна.
+   * Прикрепляет единственный обработчик событий к модальному окну.
    */
-  render() {
-    const contentElement = document.querySelector(
-      ".modal-container .modal-content"
-    );
-    const titleElement = document.getElementById("modal-title");
-    if (!contentElement || !titleElement) return;
+  attachPersistentListener() {
+    if (this.isListenerAttached) return;
+
+    const modalElement = document.querySelector(".modal-container");
+    if (!modalElement) return;
+
+    // Используем .bind(this) чтобы сохранить контекст ListManager
+    modalElement.addEventListener("click", this.handleClicks.bind(this));
+    this.isListenerAttached = true;
+  },
+
+  /**
+   * Единый обработчик кликов (делегирование событий).
+   */
+  handleClicks(e) {
+    const target = e.target;
+    const actionButton = target.closest("button[data-action]");
 
     if (this.currentView === "manager") {
-      titleElement.textContent = "Управление списками";
-      contentElement.innerHTML = this.createManagerHTML();
-      this.addManagerListeners();
-    } else if (this.currentView === "editor") {
-      titleElement.textContent = `Редактор: ${this.listToEdit}`;
-      contentElement.innerHTML = this.createEditorHTML();
-      this.addEditorListeners();
-    }
-  },
-
-  // --- Рендеринг и обработчики для основного экрана менеджера ---
-
-  createManagerHTML() {
-    const listItems = Object.keys(this.heroLists)
-      .map((listName) => {
-        const isDefault = listName === this.defaultList;
-        const heroCount = this.heroLists[listName].length;
-
-        return `
-                <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
-                    <div class="flex-grow cursor-pointer" data-action="edit">
-                        <p class="font-semibold text-lg text-gray-800 dark:text-gray-100">${listName}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-400">${heroCount} героев</p>
-                    </div>
-                    <div class="flex items-center space-x-1">
-                        <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
-                            ${
-                              isDefault
-                                ? this.icons.starFilled
-                                : this.icons.star
-                            }
-                        </button>
-                        <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать">
-                            ${this.icons.rename}
-                        </button>
-                        <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
-                            ${this.icons.delete}
-                        </button>
-                    </div>
-                </div>
-            `;
-      })
-      .join("");
-
-    return `
-            <div class="space-y-3">
-                ${listItems}
-            </div>
-            <button data-action="create" class="mt-6 flex items-center justify-center gap-2 w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">
-                ${this.icons.add}
-                <span>Создать новый список</span>
-            </button>
-        `;
-  },
-
-  addManagerListeners() {
-    const container = document.querySelector(".modal-container .modal-content");
-    container.addEventListener("click", (e) => {
-      const target = e.target;
-      const actionButton = target.closest("button[data-action]");
       const listContainer = target.closest("div[data-list-name]");
-
       if (actionButton) {
         const action = actionButton.dataset.action;
         const listName = listContainer ? listContainer.dataset.listName : null;
         if (action === "create") this.handleCreateList();
-        if (listName) {
+        else if (listName) {
           if (action === "set-default") this.handleSetDefault(listName);
           if (action === "rename") this.handleRenameList(listName);
           if (action === "delete") this.handleDeleteList(listName);
@@ -134,55 +91,99 @@ const ListManager = {
         this.currentView = "editor";
         this.render();
       }
-    });
+    } else if (this.currentView === "editor") {
+      if (actionButton) {
+        const action = actionButton.dataset.action;
+        if (action === "back") {
+          this.currentView = "manager";
+          this.render();
+        } else if (action === "save") {
+          this.handleSaveList();
+        }
+      }
+    }
   },
 
-  // --- Рендеринг и обработчики для экрана редактора списка ---
+  /**
+   * Обновляет HTML внутри модального окна без перепривязки событий.
+   */
+  render() {
+    if (!this.container) return;
+
+    let html = "";
+    const titleElement = document.getElementById("modal-title");
+
+    if (this.currentView === "manager") {
+      if (titleElement) titleElement.textContent = "Управление списками";
+      html = this.createManagerHTML();
+    } else if (this.currentView === "editor") {
+      if (titleElement)
+        titleElement.textContent = `Редактор: ${this.listToEdit}`;
+      html = this.createEditorHTML();
+    }
+    this.container.innerHTML = html;
+  },
+
+  createManagerHTML() {
+    const listItems = Object.keys(this.heroLists)
+      .map((listName) => {
+        const isDefault = listName === this.defaultList;
+        const heroCount = this.heroLists[listName].length;
+
+        return `
+            <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
+                <div class="flex-grow cursor-pointer" data-action="edit">
+                    <p class="font-semibold text-lg text-gray-800 dark:text-gray-100">${listName}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${heroCount} героев</p>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
+                        ${isDefault ? this.icons.starFilled : this.icons.star}
+                    </button>
+                    <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать">
+                        ${this.icons.rename}
+                    </button>
+                    <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
+                        ${this.icons.delete}
+                    </button>
+                </div>
+            </div>`;
+      })
+      .join("");
+
+    return `
+        <div class="space-y-3">${listItems}</div>
+        <button data-action="create" class="mt-6 flex items-center justify-center gap-2 w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">
+            ${this.icons.add} <span>Создать новый список</span>
+        </button>`;
+  },
 
   createEditorHTML() {
     const heroNames = this.heroLists[this.listToEdit] || [];
     const heroText = heroNames.join("\n");
 
     return `
-            <div class="flex flex-col h-full">
-                <div class="flex-shrink-0 flex justify-between items-center mb-4">
-                     <button data-action="back" class="flex items-center gap-2 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-teal-500 transition-colors py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
-                        ${this.icons.back} Назад
-                    </button>
-                    <button data-action="save" class="text-sm font-bold text-white bg-teal-500 active:bg-teal-600 py-2 px-5 rounded-lg transition-transform transform active:scale-95">
-                        Сохранить
-                    </button>
-                </div>
-                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Добавьте или измените героев. Каждый герой должен быть на новой строке.</p>
-                <textarea id="list-hero-editor" class="w-full flex-grow bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-base">${heroText}</textarea>
+        <div class="flex flex-col h-full">
+            <div class="flex-shrink-0 flex justify-between items-center mb-4">
+                 <button data-action="back" class="flex items-center gap-2 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-teal-500 transition-colors py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
+                    ${this.icons.back} Назад
+                </button>
+                <button data-action="save" class="text-sm font-bold text-white bg-teal-500 active:bg-teal-600 py-2 px-5 rounded-lg transition-transform transform active:scale-95">
+                    Сохранить
+                </button>
             </div>
-        `;
+             <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Добавьте или измените героев. Каждый герой должен быть на новой строке.</p>
+            <textarea id="list-hero-editor" class="w-full flex-grow bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-base">${heroText}</textarea>
+        </div>`;
   },
-
-  addEditorListeners() {
-    const container = document.querySelector(".modal-container .modal-content");
-    container.addEventListener("click", (e) => {
-      const actionButton = e.target.closest("button[data-action]");
-      if (!actionButton) return;
-      const action = actionButton.dataset.action;
-      if (action === "back") {
-        this.currentView = "manager";
-        this.render();
-      }
-      if (action === "save") {
-        this.handleSaveList();
-      }
-    });
-  },
-
-  // --- Логика обработки действий ---
 
   handleSaveList() {
     const textarea = document.getElementById("list-hero-editor");
+    if (!textarea) return;
     const newHeroNames = textarea.value
       .split("\n")
       .map((name) => name.trim())
-      .filter((name) => name); // Убрать пустые строки
+      .filter((name) => name);
 
     this.heroLists[this.listToEdit] = newHeroNames;
     Storage.saveHeroLists(this.heroLists);
@@ -201,21 +202,22 @@ const ListManager = {
 
   handleCreateList() {
     const content = `
-            <p class="text-sm mb-2 text-gray-600 dark:text-gray-400">Введите название для нового списка героев.</p>
-            <input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Например, 'Только маги'">
-        `;
+        <p class="text-sm mb-2 text-gray-600 dark:text-gray-400">Введите название для нового списка героев.</p>
+        <input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Например, 'Только маги'">`;
     new Modal({
       title: "Создать новый список",
       content: content,
       onConfirm: () => {
         const input = document.getElementById("new-list-name-input");
+        if (!input) return; // Защита, если модальное окно уже закрыто
+
         const newName = input.value.trim();
         if (newName && !this.heroLists[newName]) {
-          this.heroLists[newName] = []; // Создаем пустой список
+          this.heroLists[newName] = [];
           Storage.saveHeroLists(this.heroLists);
           Toast.success(`Список "${newName}" создан.`);
           this.listToEdit = newName;
-          this.currentView = "editor"; // Сразу переходим к редактированию
+          this.currentView = "editor";
           this.render();
         } else if (this.heroLists[newName]) {
           Toast.error("Список с таким именем уже существует.");
@@ -232,28 +234,26 @@ const ListManager = {
       title: "Переименовать список",
       content: content,
       onConfirm: () => {
-        const newName = document
-          .getElementById("rename-list-input")
-          .value.trim();
+        const input = document.getElementById("rename-list-input");
+        if (!input) return;
+
+        const newName = input.value.trim();
         if (newName && oldName !== newName && !this.heroLists[newName]) {
-          // Object.defineProperty/assign не сработает, нужен новый объект
           const updatedLists = {};
-          for (const key in this.heroLists) {
+          Object.keys(this.heroLists).forEach((key) => {
             if (key === oldName) {
               updatedLists[newName] = this.heroLists[oldName];
             } else {
               updatedLists[key] = this.heroLists[key];
             }
-          }
+          });
           this.heroLists = updatedLists;
 
           if (this.defaultList === oldName) {
             this.defaultList = newName;
             Storage.saveDefaultList(newName);
           }
-
-          const activeList = Storage.loadActiveList();
-          if (activeList === oldName) {
+          if (Storage.loadActiveList() === oldName) {
             Storage.saveActiveList(newName);
           }
 
@@ -271,9 +271,7 @@ const ListManager = {
 
   handleDeleteList(listName) {
     if (listName === this.defaultList) {
-      Toast.warning(
-        "Нельзя удалить список, установленный по умолчанию. Сначала выберите другой."
-      );
+      Toast.warning("Нельзя удалить список, который установлен по умолчанию.");
       return;
     }
     if (Object.keys(this.heroLists).length <= 1) {
@@ -283,14 +281,12 @@ const ListManager = {
 
     new Modal({
       title: "Подтверждение",
-      content: `Вы уверены, что хотите удалить список "${listName}"? Это действие необратимо.`,
+      content: `Вы уверены, что хотите удалить список "${listName}"?`,
       confirmText: "Удалить",
       onConfirm: () => {
-        const activeList = Storage.loadActiveList();
-        if (activeList === listName) {
+        if (Storage.loadActiveList() === listName) {
           Storage.remove("active-list-name");
         }
-
         delete this.heroLists[listName];
         Storage.saveHeroLists(this.heroLists);
         Toast.success(`Список "${listName}" удален.`);
