@@ -80,7 +80,6 @@ export default class Modal {
     const modalHTML = this.createModalHTML();
     document.body.insertAdjacentHTML("beforeend", modalHTML);
 
-    // --- ИСПРАВЛЕНИЕ: Выбираем последние добавленные элементы, чтобы вложенные модалки работали корректно ---
     const containers = document.querySelectorAll(".modal-container");
     this.modalElement = containers[containers.length - 1];
     const overlays = document.querySelectorAll(".modal-overlay");
@@ -112,33 +111,42 @@ export default class Modal {
   }
 
   close() {
-    // --- ИСПРАВЛЕНИЕ: Возвращаем анимацию при закрытии ---
-    document.body.style.overflow = "";
-
-    if (this.modalElement && this.overlayElement) {
-      const modal = this.modalElement.querySelector(".modal");
-
-      modal.classList.remove(
-        "animate-fade-in-up",
-        "animate-fade-in",
-        "animate-slide-in-up"
-      );
-      this.overlayElement.classList.remove("animate-fade-in");
-
-      modal.classList.add("animate-fade-out");
-      this.overlayElement.classList.add("animate-fade-out");
-
-      setTimeout(() => {
-        if (this.modalElement) {
-          this.modalElement.remove();
-          this.modalElement = null;
-        }
-        if (this.overlayElement) {
-          this.overlayElement.remove();
-          this.overlayElement = null;
-        }
-      }, 300);
+    if (!this.modalElement || !this.overlayElement) {
+      return; // Already closing or closed
     }
+
+    // --- ИСПРАВЛЕНИЕ: Анимация закрытия и поддержка вложенных окон ---
+
+    // Возвращаем скролл, только если это последнее открытое окно
+    if (document.querySelectorAll(".modal-container").length <= 1) {
+      document.body.style.overflow = "";
+    }
+
+    const modal = this.modalElement.querySelector(".modal");
+
+    modal.classList.remove(
+      "animate-fade-in-up",
+      "animate-fade-in",
+      "animate-slide-in-up"
+    );
+    this.overlayElement.classList.remove("animate-fade-in");
+
+    // Трюк для форсирования перерисовки браузером, чтобы анимация началась мгновенно
+    void modal.offsetWidth;
+
+    modal.classList.add("animate-fade-out");
+    this.overlayElement.classList.add("animate-fade-out");
+
+    const modalToRemove = this.modalElement;
+    const overlayToRemove = this.overlayElement;
+
+    this.modalElement = null;
+    this.overlayElement = null;
+
+    setTimeout(() => {
+      modalToRemove.remove();
+      overlayToRemove.remove();
+    }, 300); // Должно совпадать с длительностью анимации в CSS
 
     document.removeEventListener("keydown", this.boundHandleKey);
     this.options.onClose();
