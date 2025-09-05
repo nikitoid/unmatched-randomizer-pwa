@@ -211,7 +211,7 @@ function addEventListeners() {
         const currentHeroNames = Object.values(
           currentGeneration.assignment
         ).map((h) => h.name);
-        const heroesForReshuffle = allHeroesData.filter(
+        const heroesForReshuffle = heroesInActiveList.filter(
           (h) => !currentHeroNames.includes(h.name)
         );
 
@@ -271,7 +271,7 @@ function addEventListeners() {
                 .map((h) => h.name)
                 .filter((name) => name !== heroNameToExclude);
 
-              const heroesForReplacement = allHeroesData.filter(
+              const heroesForReplacement = heroesInActiveList.filter(
                 (h) =>
                   !otherThreeHeroes.includes(h.name) &&
                   h.name !== heroNameToExclude
