@@ -1,6 +1,6 @@
 // --- Service Worker ---
 
-const CACHE_NAME = "randomatched-v6"; // Увеличиваем версию для форсирования обновления
+const CACHE_NAME = "randomatched-v7"; // Увеличена версия для финального исправления
 const URLS_TO_CACHE = [
   // Локальные ассеты
   "/",
@@ -11,39 +11,28 @@ const URLS_TO_CACHE = [
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
-  // Внешние CDN ассеты, необходимые для оффлайн-работы
+  // Внешние CDN ассеты, необходимые для оффлайн-работы (кроме Tailwind)
   "https://code.jquery.com/jquery-3.7.1.min.js",
-  "https://cdn.tailwindcss.com",
   "https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js",
   "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
   "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
   "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
 ];
 
-// Установка: кэшируем все необходимые ресурсы для оффлайн-работы
+// Установка: кэшируем все основные ассеты, кроме проблемного CDN
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then((cache) => {
-        console.log(
-          "[SW] Открыт кэш. Кэширование всех ресурсов для оффлайн-режима."
-        );
+        console.log("[SW] Кэширование основных ресурсов.");
         return cache.addAll(URLS_TO_CACHE);
       })
-      .then(() => {
-        console.log(
-          "[SW] Все ресурсы успешно закэшированы. Активация немедленно."
-        );
-        return self.skipWaiting(); // Принудительно активируем новый SW
-      })
-      .catch((err) => {
-        console.error("[SW] Ошибка кэширования при установке: ", err);
-      })
+      .then(() => self.skipWaiting())
   );
 });
 
-// Активация: удаляем старые кэши и захватываем контроль
+// Активация: удаляем старые кэши
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -58,24 +47,33 @@ self.addEventListener("activate", (event) => {
           })
         );
       })
-      .then(() => {
-        console.log(
-          "[SW] Новый Service Worker активирован и контролирует страницу."
-        );
-        return self.clients.claim(); // Захватываем контроль над открытыми страницами
-      })
+      .then(() => self.clients.claim())
   );
 });
 
-// Fetch: Стратегия "Cache falling back to network"
+// Fetch: обрабатываем запросы
 self.addEventListener("fetch", (event) => {
-  if (event.request.url.includes("firestore.googleapis.com")) {
-    return;
-  }
-
+  // Используем стратегию "Cache first, then network"
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      return cachedResponse || fetch(event.request);
+      // Если ответ есть в кэше, возвращаем его
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+
+      // Если в кэше нет, идем в сеть
+      return fetch(event.request).then((networkResponse) => {
+        // Для Tailwind CDN (и других ресурсов, не кэшированных при установке),
+        // мы сохраняем ответ в кэш "на лету" для будущих оффлайн-запросов.
+        if (event.request.url.includes("cdn.tailwindcss.com")) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            console.log("[SW] Кэширование Tailwind CSS для оффлайн-доступа.");
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      });
     })
   );
 });
