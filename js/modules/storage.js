@@ -60,7 +60,7 @@ const Storage = {
     return this.get(EXCLUDED_HEROES_KEY) || [];
   },
 
-  // --- Новые методы для управления списками ---
+  // --- Методы для управления списками ---
   saveHeroLists(lists) {
     this.set(HERO_LISTS_KEY, lists);
   },

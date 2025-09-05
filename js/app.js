@@ -25,20 +25,6 @@ import ListManager from "./modules/listManager.js";
 Theme.init();
 
 // --- Глобальное состояние и данные ---
-const allHeroes = [
-  { name: "Король Артур", set: "BoL: Vol 1" },
-  { name: "Алиса", set: "BoL: Vol 1" },
-  { name: "Медуза", set: "BoL: Vol 1" },
-  { name: "Синдбад", set: "BoL: Vol 1" },
-  { name: "Красная Шапочка", set: "Cobble & Fog" },
-  { name: "Беовульф", set: "Cobble & Fog" },
-  { name: "Дракула", set: "Cobble & Fog" },
-  { name: "Человек-невидимка", set: "Cobble & Fog" },
-  { name: "Ахиллес", set: "BoL: Vol 2" },
-  { name: "Кровавая Мэри", set: "BoL: Vol 2" },
-  { name: "Сунь Укун", set: "BoL: Vol 2" },
-  { name: "Енанга", set: "BoL: Vol 2" },
-];
 let heroLists = {};
 
 /**
@@ -46,12 +32,32 @@ let heroLists = {};
  */
 function updateHeroSelect() {
   const heroSelect = document.getElementById("hero-select");
-  heroLists = Storage.loadHeroLists();
+  heroLists = Storage.loadHeroLists() || {};
   const activeList = Storage.loadActiveList();
   const defaultList = Storage.loadDefaultList();
-  const targetSelection = activeList || defaultList;
+
+  // Проверяем, существует ли активный/дефолтный список. Если нет, сбрасываем на первый доступный.
+  let targetSelection = activeList;
+  if (!heroLists[targetSelection]) {
+    targetSelection = defaultList;
+    if (!heroLists[targetSelection]) {
+      targetSelection = Object.keys(heroLists)[0];
+    }
+    Storage.saveActiveList(targetSelection);
+  }
 
   heroSelect.innerHTML = ""; // Очищаем старые опции
+
+  if (Object.keys(heroLists).length === 0) {
+    const option = document.createElement("option");
+    option.textContent = "Списки не найдены";
+    option.disabled = true;
+    heroSelect.appendChild(option);
+    document.getElementById("generate-teams-btn").disabled = true;
+    return;
+  }
+
+  document.getElementById("generate-teams-btn").disabled = false;
 
   for (const listName in heroLists) {
     const option = document.createElement("option");
@@ -65,25 +71,36 @@ function updateHeroSelect() {
 }
 
 /**
- * Инициализирует состояние приложения при первой загрузке.
- * Создает список по умолчанию, если он не существует.
+ * Инициализирует состояние приложения при загрузке.
  */
 function initializeAppState() {
-  let lists = Storage.loadHeroLists();
+  heroLists = Storage.loadHeroLists();
   let defaultList = Storage.loadDefaultList();
 
-  if (!lists || Object.keys(lists).length === 0) {
-    const allHeroNames = allHeroes.map((h) => h.name);
-    lists = { "Все герои": allHeroNames };
-    defaultList = "Все герои";
+  // Если списков нет, создаем один стартовый
+  if (!heroLists || Object.keys(heroLists).length === 0) {
+    const starterHeroes = [
+      "Король Артур",
+      "Алиса",
+      "Медуза",
+      "Синдбад",
+      "Красная Шапочка",
+      "Беовульф",
+      "Дракула",
+      "Человек-невидимка",
+      "Ахиллес",
+      "Кровавая Мэри",
+      "Сунь Укун",
+      "Енанга",
+    ];
+    heroLists = { "Стартовый набор": starterHeroes };
+    defaultList = "Стартовый набор";
 
-    Storage.saveHeroLists(lists);
+    Storage.saveHeroLists(heroLists);
     Storage.saveDefaultList(defaultList);
     Storage.saveActiveList(defaultList);
-    Toast.info("Создан стандартный список 'Все герои'");
+    Toast.info("Создан стартовый набор героев.");
   }
-
-  heroLists = lists;
   updateHeroSelect();
 }
 
@@ -120,7 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const settingsBtn = document.getElementById("settings-btn");
   if (settingsBtn) {
     settingsBtn.addEventListener("click", () => {
-      ListManager.show(allHeroes, Storage.loadHeroLists(), updateHeroSelect);
+      ListManager.show(Storage.loadHeroLists(), initializeAppState);
     });
   }
 
@@ -137,10 +154,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const heroesForGeneration = allHeroes.filter((hero) =>
-        heroNamesInList.includes(hero.name)
-      );
       const excludedHeroes = Storage.loadExcludedHeroes();
+      const heroesForGeneration = heroNamesInList.map((name) => ({ name }));
 
       const availableForGen = heroesForGeneration.filter(
         (h) => !excludedHeroes.includes(h.name)
@@ -160,7 +175,14 @@ document.addEventListener("DOMContentLoaded", () => {
       if (generation) {
         Storage.saveLastGeneration(generation);
         Toast.success("Команды сгенерированы!");
-        Results.show(generation, allHeroes);
+
+        // Для смены одного героя нужен пул всех уникальных героев из всех списков
+        const allUniqueHeroNames = [
+          ...new Set(Object.values(heroLists).flat()),
+        ];
+        const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
+
+        Results.show(generation, allUniqueHeroes);
       } else {
         Toast.error("Не удалось сгенерировать команды!");
       }
@@ -181,7 +203,12 @@ document.addEventListener("DOMContentLoaded", () => {
     lastGenBtn.addEventListener("click", () => {
       const lastGen = Storage.loadLastGeneration();
       if (lastGen) {
-        Results.show(lastGen, allHeroes);
+        const currentHeroLists = Storage.loadHeroLists() || {};
+        const allUniqueHeroNames = [
+          ...new Set(Object.values(currentHeroLists).flat()),
+        ];
+        const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
+        Results.show(lastGen, allUniqueHeroes);
       } else {
         Toast.info("Нет данных о последней генерации.");
       }

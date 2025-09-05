@@ -4,12 +4,10 @@ import Toast from "./toast.js";
 
 /**
  * Модуль для управления списками героев.
- * Открывается в полноэкранном модальном окне.
  */
 const ListManager = {
   // --- Состояние модуля ---
   modal: null,
-  allHeroes: [],
   heroLists: {},
   defaultList: "",
   onUpdateCallback: () => {},
@@ -29,8 +27,7 @@ const ListManager = {
   /**
    * Инициализация и отображение модуля.
    */
-  show(allHeroes, heroLists, onUpdate) {
-    this.allHeroes = allHeroes;
+  show(heroLists, onUpdate) {
     this.heroLists = heroLists;
     this.defaultList = Storage.loadDefaultList();
     this.onUpdateCallback = onUpdate;
@@ -77,7 +74,6 @@ const ListManager = {
     const listItems = Object.keys(this.heroLists)
       .map((listName) => {
         const isDefault = listName === this.defaultList;
-        const isProtected = listName === "Все герои";
         const heroCount = this.heroLists[listName].length;
 
         return `
@@ -94,18 +90,12 @@ const ListManager = {
                                 : this.icons.star
                             }
                         </button>
-                        ${
-                          !isProtected
-                            ? `
                         <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать">
                             ${this.icons.rename}
                         </button>
                         <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
                             ${this.icons.delete}
                         </button>
-                        `
-                            : `<div class="w-10 h-10"></div>`
-                        }
                     </div>
                 </div>
             `;
@@ -140,7 +130,6 @@ const ListManager = {
           if (action === "delete") this.handleDeleteList(listName);
         }
       } else if (listContainer && target.closest('[data-action="edit"]')) {
-        // Клик на имя списка для редактирования
         this.listToEdit = listContainer.dataset.listName;
         this.currentView = "editor";
         this.render();
@@ -151,49 +140,21 @@ const ListManager = {
   // --- Рендеринг и обработчики для экрана редактора списка ---
 
   createEditorHTML() {
-    const heroNamesInList = this.heroLists[this.listToEdit] || [];
-    const isProtected = this.listToEdit === "Все герои";
-
-    const heroCheckboxes = this.allHeroes
-      .map((hero) => {
-        const isChecked = heroNamesInList.includes(hero.name);
-        return `
-                <label class="flex items-center p-3 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                    <input type="checkbox" class="h-5 w-5 rounded border-gray-300 text-teal-600 focus:ring-teal-500 dark:bg-gray-700 dark:border-gray-600" value="${
-                      hero.name
-                    }" ${isChecked ? "checked" : ""} ${
-          isProtected ? "disabled" : ""
-        }>
-                    <span class="ml-3 text-gray-700 dark:text-gray-300">${
-                      hero.name
-                    }</span>
-                </label>
-            `;
-      })
-      .join("");
+    const heroNames = this.heroLists[this.listToEdit] || [];
+    const heroText = heroNames.join("\n");
 
     return `
             <div class="flex flex-col h-full">
                 <div class="flex-shrink-0 flex justify-between items-center mb-4">
-                    <button data-action="back" class="flex items-center gap-2 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-teal-500 transition-colors py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
+                     <button data-action="back" class="flex items-center gap-2 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-teal-500 transition-colors py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
                         ${this.icons.back} Назад
                     </button>
-                    ${
-                      !isProtected
-                        ? `<button data-action="save" class="text-sm font-bold text-white bg-teal-500 active:bg-teal-600 py-2 px-5 rounded-lg transition-transform transform active:scale-95">
+                    <button data-action="save" class="text-sm font-bold text-white bg-teal-500 active:bg-teal-600 py-2 px-5 rounded-lg transition-transform transform active:scale-95">
                         Сохранить
-                       </button>`
-                        : ""
-                    }
+                    </button>
                 </div>
-                ${
-                  isProtected
-                    ? '<p class="text-center text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900/50 p-3 rounded-lg mb-4">Этот список нельзя редактировать, так как он содержит всех доступных героев.</p>'
-                    : ""
-                }
-                <div class="flex-grow overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg">
-                    ${heroCheckboxes}
-                </div>
+                 <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Добавьте или измените героев. Каждый герой должен быть на новой строке.</p>
+                <textarea id="list-hero-editor" class="w-full flex-grow bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-base">${heroText}</textarea>
             </div>
         `;
   },
@@ -216,6 +177,21 @@ const ListManager = {
 
   // --- Логика обработки действий ---
 
+  handleSaveList() {
+    const textarea = document.getElementById("list-hero-editor");
+    const newHeroNames = textarea.value
+      .split("\n")
+      .map((name) => name.trim())
+      .filter((name) => name); // Убрать пустые строки
+
+    this.heroLists[this.listToEdit] = newHeroNames;
+    Storage.saveHeroLists(this.heroLists);
+    Toast.success(`Список "${this.listToEdit}" сохранен.`);
+
+    this.currentView = "manager";
+    this.render();
+  },
+
   handleSetDefault(listName) {
     this.defaultList = listName;
     Storage.saveDefaultList(listName);
@@ -235,11 +211,11 @@ const ListManager = {
         const input = document.getElementById("new-list-name-input");
         const newName = input.value.trim();
         if (newName && !this.heroLists[newName]) {
-          this.heroLists[newName] = [];
+          this.heroLists[newName] = []; // Создаем пустой список
           Storage.saveHeroLists(this.heroLists);
           Toast.success(`Список "${newName}" создан.`);
           this.listToEdit = newName;
-          this.currentView = "editor";
+          this.currentView = "editor"; // Сразу переходим к редактированию
           this.render();
         } else if (this.heroLists[newName]) {
           Toast.error("Список с таким именем уже существует.");
@@ -260,8 +236,16 @@ const ListManager = {
           .getElementById("rename-list-input")
           .value.trim();
         if (newName && oldName !== newName && !this.heroLists[newName]) {
-          this.heroLists[newName] = this.heroLists[oldName];
-          delete this.heroLists[oldName];
+          // Object.defineProperty/assign не сработает, нужен новый объект
+          const updatedLists = {};
+          for (const key in this.heroLists) {
+            if (key === oldName) {
+              updatedLists[newName] = this.heroLists[oldName];
+            } else {
+              updatedLists[key] = this.heroLists[key];
+            }
+          }
+          this.heroLists = updatedLists;
 
           if (this.defaultList === oldName) {
             this.defaultList = newName;
@@ -292,6 +276,10 @@ const ListManager = {
       );
       return;
     }
+    if (Object.keys(this.heroLists).length <= 1) {
+      Toast.error("Нельзя удалить последний список.");
+      return;
+    }
 
     new Modal({
       title: "Подтверждение",
@@ -309,21 +297,6 @@ const ListManager = {
         this.render();
       },
     }).open();
-  },
-
-  handleSaveList() {
-    const container = document.querySelector(".modal-container .modal-content");
-    const checkboxes = container.querySelectorAll('input[type="checkbox"]');
-    const selectedHeroes = Array.from(checkboxes)
-      .filter((cb) => cb.checked)
-      .map((cb) => cb.value);
-
-    this.heroLists[this.listToEdit] = selectedHeroes;
-    Storage.saveHeroLists(this.heroLists);
-    Toast.success(`Список "${this.listToEdit}" сохранен.`);
-
-    this.currentView = "manager";
-    this.render();
   },
 };
 
