@@ -1,19 +1,23 @@
 import Modal from "./modal.js";
 import Storage from "./storage.js";
 import Toast from "./toast.js";
-import Firebase from "./firebase.js";
-import Auth from "./auth.js";
 
+/**
+ * Модуль для управления списками героев.
+ */
 const ListManager = {
   // --- Состояние модуля ---
   modal: null,
   container: null,
+  heroLists: {},
+  defaultList: "",
   onUpdateCallback: () => {},
   currentView: "manager",
   listToEdit: null,
   isListenerAttached: false,
-  isCopyRegex: /\(искл\.( \d+)?\)$/,
+  isCopyRegex: /\(искл\.( \d+)?\)$/, // Регулярное выражение для обнаружения копий
 
+  // ... (иконки остаются без изменений)
   icons: {
     rename: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg>`,
     delete: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`,
@@ -23,7 +27,9 @@ const ListManager = {
     add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
   },
 
-  show(onUpdate) {
+  show(heroLists, onUpdate) {
+    this.heroLists = { ...heroLists };
+    this.defaultList = Storage.loadDefaultList();
     this.onUpdateCallback = onUpdate;
     this.currentView = "manager";
     this.isListenerAttached = false;
@@ -34,7 +40,7 @@ const ListManager = {
       content: '<div class="modal-content-wrapper h-full"></div>',
       confirmText: null,
       onClose: () => {
-        this.onUpdateCallback(); // Обновляем главный экран при закрытии
+        this.onUpdateCallback();
         this.isListenerAttached = false;
       },
     });
@@ -53,39 +59,35 @@ const ListManager = {
     this.isListenerAttached = true;
   },
 
-  async handleClicks(e) {
+  handleClicks(e) {
     const target = e.target;
     const actionButton = target.closest("button[data-action]");
 
-    if (!actionButton && this.currentView === "manager") {
+    if (this.currentView === "manager") {
       const listContainer = target.closest("div[data-list-name]");
-      if (listContainer && listContainer.dataset.listName) {
+      if (actionButton) {
+        const action = actionButton.dataset.action;
+        const listName = listContainer ? listContainer.dataset.listName : null;
+        if (action === "create") this.handleCreateList();
+        else if (listName) {
+          if (action === "set-default") this.handleSetDefault(listName);
+          if (action === "rename") this.handleRenameList(listName);
+          if (action === "delete") this.handleDeleteList(listName);
+        }
+      } else if (listContainer && target.closest('[data-action="edit"]')) {
         this.listToEdit = listContainer.dataset.listName;
         this.currentView = "editor";
         this.render();
       }
-      return;
-    }
-
-    if (!actionButton) return;
-
-    const listContainer = target.closest("div[data-list-name]");
-    const listName = listContainer ? listContainer.dataset.listName : null;
-    const action = actionButton.dataset.action;
-
-    if (this.currentView === "manager") {
-      if (action === "create") await this.handleCreateList();
-      else if (listName) {
-        if (action === "set-default") await this.handleSetDefault(listName);
-        if (action === "rename") await this.handleRenameList(listName);
-        if (action === "delete") await this.handleDeleteList(listName);
-      }
     } else if (this.currentView === "editor") {
-      if (action === "back") {
-        this.currentView = "manager";
-        this.render();
-      } else if (action === "save") {
-        await this.handleSaveList();
+      if (actionButton) {
+        const action = actionButton.dataset.action;
+        if (action === "back") {
+          this.currentView = "manager";
+          this.render();
+        } else if (action === "save") {
+          this.handleSaveList();
+        }
       }
     }
   },
@@ -107,19 +109,14 @@ const ListManager = {
   },
 
   createManagerHTML() {
-    const appData = Storage.getFullData();
-    const heroLists = appData.lists || {};
-    const defaultList = appData.defaultList;
-
-    const listItems = Object.keys(heroLists)
-      .sort((a, b) => a.localeCompare(b))
+    const listItems = Object.keys(this.heroLists)
       .map((listName) => {
-        const isDefault = listName === defaultList;
-        const heroCount = heroLists[listName] ? heroLists[listName].length : 0;
+        const isDefault = listName === this.defaultList;
+        const heroCount = this.heroLists[listName].length;
         const isCopy = this.isCopyRegex.test(listName);
 
         const buttonsHTML = isCopy
-          ? `<div class="w-28 flex-shrink-0"></div>`
+          ? `<div class="w-28 flex-shrink-0"></div>` // Заглушка для выравнивания
           : `
             <div class="flex items-center space-x-1 flex-shrink-0">
                 <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
@@ -133,14 +130,16 @@ const ListManager = {
                 </button>
             </div>`;
 
-        const titleClass = isCopy ? "text-gray-500" : "";
+        const titleClass = isCopy
+          ? "text-gray-500 dark:text-gray-400"
+          : "text-gray-800 dark:text-gray-100";
         const subtitle = isCopy
           ? `${heroCount} героев (временный)`
           : `${heroCount} героев`;
 
         return `
             <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
-                <div class="flex-grow cursor-pointer">
+                <div class="flex-grow cursor-pointer" data-action="edit">
                     <p class="font-semibold text-lg ${titleClass}">${listName}</p>
                     <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
                 </div>
@@ -150,18 +149,14 @@ const ListManager = {
       .join("");
 
     return `
-        <div class="space-y-3">${
-          listItems ||
-          '<p class="text-center text-gray-500">Списки не найдены.</p>'
-        }</div>
+        <div class="space-y-3">${listItems}</div>
         <button data-action="create" class="mt-6 flex items-center justify-center gap-2 w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">
             ${this.icons.add} <span>Создать новый список</span>
         </button>`;
   },
 
   createEditorHTML() {
-    const appData = Storage.getFullData();
-    const heroNames = (appData.lists || {})[this.listToEdit] || [];
+    const heroNames = this.heroLists[this.listToEdit] || [];
     const heroText = heroNames.join("\n");
     const isCopy = this.isCopyRegex.test(this.listToEdit);
     const backButtonText = isCopy ? "Закрыть редактор" : "Назад к спискам";
@@ -176,12 +171,12 @@ const ListManager = {
                     Сохранить
                 </button>
             </div>
-             <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Каждый герой должен быть на новой строке.</p>
+             <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Добавьте или измените героев. Каждый герой должен быть на новой строке.</p>
             <textarea id="list-hero-editor" class="w-full flex-grow bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-base">${heroText}</textarea>
         </div>`;
   },
 
-  async handleSaveList() {
+  handleSaveList() {
     const textarea = document.getElementById("list-hero-editor");
     if (!textarea) return;
     const newHeroNames = textarea.value
@@ -189,71 +184,50 @@ const ListManager = {
       .map((name) => name.trim())
       .filter((name) => name);
 
-    const appData = Storage.getFullData();
-    appData.lists[this.listToEdit] = newHeroNames;
-    Storage.setFullData(appData);
-    Toast.success(`Список "${this.listToEdit}" сохранен локально.`);
-
-    if (navigator.onLine) {
-      try {
-        const password = await Auth.requestPassword();
-        await Firebase.updateAllData(Storage.getFullData(), password);
-      } catch (error) {
-        Toast.error("Аутентификация отменена. Список не синхронизирован.");
-      }
-    }
+    this.heroLists[this.listToEdit] = newHeroNames;
+    Storage.saveHeroLists(this.heroLists);
+    Toast.success(`Список "${this.listToEdit}" сохранен.`);
 
     this.currentView = "manager";
     this.render();
   },
 
-  async handleSetDefault(listName) {
-    if (this.isCopyRegex.test(listName)) return;
-
-    const appData = Storage.getFullData();
-    appData.defaultList = listName;
-    Storage.setFullData(appData);
-    Toast.success(`Список "${listName}" установлен по умолчанию.`);
-
-    if (navigator.onLine) {
-      try {
-        const password = await Auth.requestPassword();
-        await Firebase.updateAllData(Storage.getFullData(), password);
-      } catch (e) {
-        Toast.error("Аутентификация отменена. Изменение не синхронизировано.");
-      }
+  handleSetDefault(listName) {
+    if (this.isCopyRegex.test(listName)) {
+      Toast.error("Временный список не может быть установлен по умолчанию.");
+      return;
     }
+    this.defaultList = listName;
+    Storage.saveDefaultList(listName);
+    Toast.success(`Список "${listName}" установлен по умолчанию.`);
     this.render();
   },
 
-  async handleCreateList() {
+  handleCreateList() {
+    const content = `
+        <p class="text-sm mb-2 text-gray-600 dark:text-gray-400">Введите название для нового списка героев.</p>
+        <input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Например, 'Только маги'">`;
     new Modal({
       title: "Создать новый список",
-      content: `<input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg" placeholder="Название списка">`,
-      onConfirm: async () => {
+      content: content,
+      onConfirm: () => {
         const input = document.getElementById("new-list-name-input");
-        const newName = input.value.trim();
-        const appData = Storage.getFullData();
+        if (!input) return;
 
+        const newName = input.value.trim();
         if (this.isCopyRegex.test(newName)) {
-          Toast.error("Название не может содержать '(искл.)'.");
+          Toast.error("Название списка не может содержать '(искл.)'.");
           return;
         }
-        if (newName && !appData.lists[newName]) {
-          appData.lists[newName] = [];
-          Storage.setFullData(appData);
-          Toast.success(`Список "${newName}" создан локально.`);
 
-          if (navigator.onLine) {
-            try {
-              const password = await Auth.requestPassword();
-              await Firebase.updateAllData(Storage.getFullData(), password);
-            } catch (e) {
-              Toast.error("Аутентификация отменена.");
-            }
-          }
-          setTimeout(() => this.render(), 50); // Use setTimeout to ensure the modal closes before re-rendering
-        } else if (appData.lists[newName]) {
+        if (newName && !this.heroLists[newName]) {
+          this.heroLists[newName] = [];
+          Storage.saveHeroLists(this.heroLists);
+          Toast.success(`Список "${newName}" создан.`);
+          this.listToEdit = newName;
+          this.currentView = "editor";
+          this.render();
+        } else if (this.heroLists[newName]) {
           Toast.error("Список с таким именем уже существует.");
         } else {
           Toast.error("Название не может быть пустым.");
@@ -262,60 +236,68 @@ const ListManager = {
     }).open();
   },
 
-  async handleRenameList(oldName) {
-    if (this.isCopyRegex.test(oldName)) return;
+  handleRenameList(oldName) {
+    if (this.isCopyRegex.test(oldName)) {
+      Toast.error("Временные списки не могут быть переименованы.");
+      return;
+    }
+    const content = `<input type="text" id="rename-list-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" value="${oldName}">`;
     new Modal({
       title: "Переименовать список",
-      content: `<input type="text" id="rename-list-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg" value="${oldName}">`,
-      onConfirm: async () => {
-        const newName = document
-          .getElementById("rename-list-input")
-          .value.trim();
+      content: content,
+      onConfirm: () => {
+        const input = document.getElementById("rename-list-input");
+        if (!input) return;
+
+        const newName = input.value.trim();
+
         if (this.isCopyRegex.test(newName)) {
-          Toast.error("Название не может содержать '(искл.)'.");
+          Toast.error("Название списка не может содержать '(искл.)'.");
           return;
         }
-        const appData = Storage.getFullData();
-        if (newName && oldName !== newName && !appData.lists[newName]) {
-          appData.lists[newName] = appData.lists[oldName];
-          delete appData.lists[oldName];
 
-          if (appData.defaultList === oldName) appData.defaultList = newName;
-          if (appData.activeList === oldName) appData.activeList = newName;
-
-          Storage.setFullData(appData);
-          Toast.success("Список переименован локально.");
-
-          if (navigator.onLine) {
-            try {
-              const password = await Auth.requestPassword();
-              await Firebase.updateAllData(Storage.getFullData(), password);
-            } catch (e) {
-              Toast.error("Аутентификация отменена.");
+        if (newName && oldName !== newName && !this.heroLists[newName]) {
+          const updatedLists = {};
+          Object.keys(this.heroLists).forEach((key) => {
+            if (key === oldName) {
+              updatedLists[newName] = this.heroLists[oldName];
+            } else {
+              updatedLists[key] = this.heroLists[key];
             }
+          });
+          this.heroLists = updatedLists;
+
+          if (this.defaultList === oldName) {
+            this.defaultList = newName;
+            Storage.saveDefaultList(newName);
           }
-          setTimeout(() => this.render(), 50);
-        } else {
-          if (!newName) Toast.error("Имя не может быть пустым.");
-          else if (oldName === newName) return; // Ничего не делаем
-          else Toast.error("Список с таким именем уже существует.");
+          if (Storage.loadActiveList() === oldName) {
+            Storage.saveActiveList(newName);
+          }
+
+          Storage.saveHeroLists(this.heroLists);
+          Toast.success("Список переименован.");
+          this.render();
+        } else if (this.heroLists[newName]) {
+          Toast.error("Список с таким именем уже существует.");
+        } else if (!newName) {
+          Toast.error("Название не может быть пустым.");
         }
       },
     }).open();
   },
 
-  async handleDeleteList(listName) {
-    const appData = Storage.getFullData();
-    if (this.isCopyRegex.test(listName)) return;
-    if (listName === appData.defaultList) {
-      Toast.warning("Нельзя удалить список по умолчанию.");
+  handleDeleteList(listName) {
+    if (this.isCopyRegex.test(listName)) {
+      Toast.error("Временные списки не могут быть удалены отсюда.");
       return;
     }
-    if (
-      Object.keys(appData.lists).filter((name) => !this.isCopyRegex.test(name))
-        .length <= 1
-    ) {
-      Toast.error("Нельзя удалить последний основной список.");
+    if (listName === this.defaultList) {
+      Toast.warning("Нельзя удалить список, который установлен по умолчанию.");
+      return;
+    }
+    if (Object.keys(this.heroLists).length <= 1) {
+      Toast.error("Нельзя удалить последний список.");
       return;
     }
 
@@ -323,24 +305,14 @@ const ListManager = {
       title: "Подтверждение",
       content: `Вы уверены, что хотите удалить список "${listName}"?`,
       confirmText: "Удалить",
-      onConfirm: async () => {
-        const fullData = Storage.getFullData();
-        delete fullData.lists[listName];
-        if (fullData.activeList === listName) {
-          fullData.activeList = fullData.defaultList;
+      onConfirm: () => {
+        if (Storage.loadActiveList() === listName) {
+          Storage.remove("active-list-name");
         }
-        Storage.setFullData(fullData);
-        Toast.success(`Список "${listName}" удален локально.`);
-
-        if (navigator.onLine) {
-          try {
-            const password = await Auth.requestPassword();
-            await Firebase.updateAllData(Storage.getFullData(), password);
-          } catch (e) {
-            Toast.error("Аутентификация отменена.");
-          }
-        }
-        setTimeout(() => this.render(), 50);
+        delete this.heroLists[listName];
+        Storage.saveHeroLists(this.heroLists);
+        Toast.success(`Список "${listName}" удален.`);
+        this.render();
       },
     }).open();
   },

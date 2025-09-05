@@ -1,142 +1,126 @@
 /**
- * Модуль-обертка для работы с localStorage с единым объектом данных.
+ * Модуль-обертка для работы с localStorage.
  */
-const APP_DATA_KEY = "randomatched-data";
-const DEFAULT_STRUCTURE = {
-  lists: {},
-  originalMap: {},
-  defaultList: null,
-  activeList: null,
-};
 
-function loadAppData() {
-  try {
-    const value = localStorage.getItem(APP_DATA_KEY);
-    if (!value) {
-      return { ...DEFAULT_STRUCTURE };
-    }
-    const parsed = JSON.parse(value);
-    // Проверка на корректность структуры
-    if (typeof parsed === "object" && parsed !== null && "lists" in parsed) {
-      return { ...DEFAULT_STRUCTURE, ...parsed };
-    }
-    return { ...DEFAULT_STRUCTURE };
-  } catch (error) {
-    console.error(
-      "Ошибка при получении данных из localStorage, возврат к defaults.",
-      error
-    );
-    return { ...DEFAULT_STRUCTURE };
-  }
-}
-
-function saveAppData(data) {
-  try {
-    if (typeof data !== "object" || data === null) {
-      throw new Error("Попытка сохранить некорректные данные.");
-    }
-    localStorage.setItem(APP_DATA_KEY, JSON.stringify(data));
-  } catch (error) {
-    console.error("Ошибка при сохранении данных в localStorage", error);
-  }
-}
+const LAST_GEN_KEY = "last-generation";
+const HERO_LISTS_KEY = "hero-lists";
+const DEFAULT_LIST_KEY = "default-list-name";
+const ACTIVE_LIST_KEY = "active-list-name";
+const ORIGINAL_LIST_MAP_KEY = "original-list-map"; // Карта для отслеживания оригиналов
 
 const Storage = {
-  // --- Комплексные методы ---
-  getFullData() {
-    return loadAppData();
+  get(key) {
+    try {
+      const value = localStorage.getItem(key);
+      return value ? JSON.parse(value) : null;
+    } catch (error) {
+      console.error(
+        `Ошибка при получении данных '${key}' из localStorage`,
+        error
+      );
+      return null;
+    }
   },
 
-  setFullData(data) {
-    saveAppData(data);
+  set(key, value) {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.error(
+        `Ошибка при сохранении данных '${key}' в localStorage`,
+        error
+      );
+    }
+  },
+
+  remove(key) {
+    try {
+      localStorage.removeItem(key);
+    } catch (error) {
+      console.error(
+        `Ошибка при удалении данных '${key}' из localStorage`,
+        error
+      );
+    }
+  },
+
+  saveLastGeneration(teams) {
+    this.set(LAST_GEN_KEY, teams);
+  },
+
+  loadLastGeneration() {
+    return this.get(LAST_GEN_KEY);
   },
 
   // --- Методы для управления списками ---
   saveHeroLists(lists) {
-    const data = loadAppData();
-    data.lists = lists;
-    saveAppData(data);
+    this.set(HERO_LISTS_KEY, lists);
   },
 
   loadHeroLists() {
-    return loadAppData().lists || {};
+    return this.get(HERO_LISTS_KEY);
   },
 
-  // --- Методы для управления избранным и активным списками ---
   saveDefaultList(listName) {
-    const data = loadAppData();
-    data.defaultList = listName;
-    saveAppData(data);
+    this.set(DEFAULT_LIST_KEY, listName);
   },
 
   loadDefaultList() {
-    return loadAppData().defaultList;
+    return this.get(DEFAULT_LIST_KEY);
   },
 
   saveActiveList(listName) {
-    const data = loadAppData();
-    data.activeList = listName;
-    saveAppData(data);
+    this.set(ACTIVE_LIST_KEY, listName);
   },
 
   loadActiveList() {
-    return loadAppData().activeList;
+    return this.get(ACTIVE_LIST_KEY);
   },
 
   // --- Методы для карт оригинальных списков ---
   saveOriginalListMap(map) {
-    const data = loadAppData();
-    data.originalMap = map;
-    saveAppData(data);
+    this.set(ORIGINAL_LIST_MAP_KEY, map);
   },
 
   loadOriginalListMap() {
-    return loadAppData().originalMap || {};
-  },
-
-  // --- Управление сессией ---
-  saveLastGeneration(teams) {
-    const data = loadAppData();
-    data.lastGeneration = teams;
-    saveAppData(data);
-  },
-
-  loadLastGeneration() {
-    return loadAppData().lastGeneration;
+    return this.get(ORIGINAL_LIST_MAP_KEY) || {};
   },
 
   clearSession() {
-    const data = loadAppData();
-    const heroLists = data.lists || {};
-    const originalMap = data.originalMap || {};
-    const activeList = data.activeList;
+    const heroLists = this.loadHeroLists() || {};
+    const originalMap = this.loadOriginalListMap();
+    const activeList = this.loadActiveList();
 
     let newActiveList = activeList;
 
+    // Если активный список - копия, найти его оригинал
     if (originalMap[activeList]) {
       newActiveList = originalMap[activeList];
     }
 
+    // Удаляем все списки, которые являются копиями
     const newHeroLists = {};
     for (const listName in heroLists) {
       if (!originalMap.hasOwnProperty(listName)) {
         newHeroLists[listName] = heroLists[listName];
       }
     }
-    data.lists = newHeroLists;
 
+    this.saveHeroLists(newHeroLists);
+
+    // Если новый активный список не существует (был удален), сбросить на дефолтный или первый
     if (!newHeroLists[newActiveList]) {
-      const defaultList = data.defaultList;
-      newActiveList = newHeroLists[defaultList]
-        ? defaultList
-        : Object.keys(newHeroLists)[0];
+      const defaultList = this.loadDefaultList();
+      if (newHeroLists[defaultList]) {
+        newActiveList = defaultList;
+      } else {
+        newActiveList = Object.keys(newHeroLists)[0];
+      }
     }
 
-    data.activeList = newActiveList;
-    data.originalMap = {};
-    delete data.lastGeneration;
-
-    saveAppData(data);
+    this.saveActiveList(newActiveList);
+    this.remove(ORIGINAL_LIST_MAP_KEY);
+    this.remove(LAST_GEN_KEY);
     console.log("Сессия очищена, временные списки удалены.");
   },
 };

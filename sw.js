@@ -1,45 +1,27 @@
-const CACHE_NAME = "randomatched-cache-v3"; // Обновляем версию кэша
+const CACHE_NAME = "randomatched-cache-v3";
 const urlsToCache = [
   "/",
   "/index.html",
   "/css/style.css",
   "/js/app.js",
   "/manifest.json",
-  "/icons/icon-192.png",
+  "/icons/icon-192.png", // Убедитесь, что у вас есть эти файлы
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
-  "/js/modules/app.js",
-  "/js/modules/auth.js",
-  "/js/modules/firebase.js",
-  "/js/modules/generator.js",
-  "/js/modules/listManager.js",
-  "/js/modules/modal.js",
-  "/js/modules/results.js",
-  "/js/modules/storage.js",
-  "/js/modules/theme.js",
-  "/js/modules/toast.js",
 ];
 
+// Установка Service Worker и кэширование статических файлов
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => {
-        console.log("Кэш открыт");
-        return cache.addAll(urlsToCache);
-      })
-      .then(() => {
-        // Сообщаем клиентам, что кэширование завершено
-        return self.clients.matchAll().then((clients) => {
-          clients.forEach((client) =>
-            client.postMessage({ type: "CACHE_UPDATED" })
-          );
-        });
-      })
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log("Кэш открыт");
+      return cache.addAll(urlsToCache);
+    })
   );
   console.log("Service Worker: установлен");
 });
 
+// Активация Service Worker и удаление старых кэшей
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -57,13 +39,35 @@ self.addEventListener("activate", (event) => {
   return self.clients.claim();
 });
 
+// Обработка запросов (стратегия "Cache First")
 self.addEventListener("fetch", (event) => {
   event.respondWith(
     caches.match(event.request).then((response) => {
+      // Если ресурс есть в кэше, возвращаем его
       if (response) {
         return response;
       }
-      return fetch(event.request);
+
+      // В противном случае, делаем запрос к сети
+      return fetch(event.request).then((networkResponse) => {
+        // Проверяем, что ответ корректный
+        if (
+          !networkResponse ||
+          networkResponse.status !== 200 ||
+          networkResponse.type !== "basic"
+        ) {
+          return networkResponse;
+        }
+
+        // Клонируем ответ, так как его можно использовать только один раз
+        const responseToCache = networkResponse.clone();
+
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+
+        return networkResponse;
+      });
     })
   );
 });

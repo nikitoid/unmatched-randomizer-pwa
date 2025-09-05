@@ -1,3 +1,17 @@
+// Регистрация Service Worker
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => {
+        console.log("Service Worker зарегистрирован успешно:", registration);
+      })
+      .catch((error) => {
+        console.log("Ошибка регистрации Service Worker:", error);
+      });
+  });
+}
+
 // --- Импорт и использование модулей ---
 import Modal from "./modules/modal.js";
 import Toast from "./modules/toast.js";
@@ -6,101 +20,63 @@ import Storage from "./modules/storage.js";
 import Generator from "./modules/generator.js";
 import Results from "./modules/results.js";
 import ListManager from "./modules/listManager.js";
-import Firebase from "./modules/firebase.js";
-
-// Регистрация Service Worker
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .catch((error) =>
-        console.log("Ошибка регистрации Service Worker:", error)
-      );
-
-    navigator.serviceWorker.addEventListener("message", (event) => {
-      if (event.data && event.data.type === "CACHE_UPDATED") {
-        Toast.info("Приложение обновлено и готово к работе офлайн.");
-      }
-    });
-  });
-}
 
 // --- Инициализация темы ---
 Theme.init();
 
-/**
- * Обновляет UI индикатора статуса сети.
- */
-function updateOnlineStatus() {
-  const indicator = document.getElementById("sync-status-indicator");
-  if (!indicator) return;
-
-  if (navigator.onLine) {
-    indicator.innerHTML = `<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`;
-    indicator.title = "Онлайн. Изменения будут синхронизированы.";
-  } else {
-    indicator.innerHTML = `<svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>`;
-    indicator.title = "Офлайн. Изменения сохраняются локально.";
-  }
-}
-
-/**
- * Перезагружает данные из Storage и обновляет UI.
- */
-function refreshUI() {
-  updateHeroSelect();
-}
+// --- Глобальное состояние и данные ---
+let heroLists = {};
 
 /**
  * Обновляет выпадающий список героев на главном экране.
  */
 function updateHeroSelect() {
   const heroSelect = document.getElementById("hero-select");
-  const appData = Storage.getFullData();
-  const currentHeroLists = appData.lists || {};
-  const activeList = appData.activeList;
-  const defaultList = appData.defaultList;
+  heroLists = Storage.loadHeroLists() || {};
+  const activeList = Storage.loadActiveList();
+  const defaultList = Storage.loadDefaultList();
 
   let targetSelection = activeList;
-  if (!currentHeroLists[targetSelection]) {
+  if (!heroLists[targetSelection]) {
     targetSelection = defaultList;
-    if (!currentHeroLists[targetSelection]) {
-      targetSelection = Object.keys(currentHeroLists)[0];
+    if (!heroLists[targetSelection]) {
+      targetSelection = Object.keys(heroLists)[0];
     }
-    if (targetSelection) Storage.saveActiveList(targetSelection);
+    Storage.saveActiveList(targetSelection);
   }
 
   heroSelect.innerHTML = "";
 
-  const listNames = Object.keys(currentHeroLists);
-  if (listNames.length === 0) {
-    heroSelect.innerHTML = `<option disabled>Списки не найдены</option>`;
+  if (Object.keys(heroLists).length === 0) {
+    const option = document.createElement("option");
+    option.textContent = "Списки не найдены";
+    option.disabled = true;
+    heroSelect.appendChild(option);
     document.getElementById("generate-teams-btn").disabled = true;
     return;
   }
 
   document.getElementById("generate-teams-btn").disabled = false;
 
-  listNames
-    .sort((a, b) => a.localeCompare(b))
-    .forEach((listName) => {
-      const option = document.createElement("option");
-      option.value = listName;
-      option.textContent = listName;
-      if (listName === targetSelection) {
-        option.selected = true;
-      }
-      heroSelect.appendChild(option);
-    });
+  for (const listName in heroLists) {
+    const option = document.createElement("option");
+    option.value = listName;
+    option.textContent = listName;
+    if (listName === targetSelection) {
+      option.selected = true;
+    }
+    heroSelect.appendChild(option);
+  }
 }
 
 /**
- * Инициализирует состояние приложения.
+ * Инициализирует состояние приложения при загрузке.
  */
 function initializeAppState() {
-  let appData = Storage.getFullData();
+  heroLists = Storage.loadHeroLists();
+  let defaultList = Storage.loadDefaultList();
 
-  if (!appData || !appData.lists || Object.keys(appData.lists).length === 0) {
+  if (!heroLists || Object.keys(heroLists).length === 0) {
     const starterHeroes = [
       "Король Артур",
       "Алиса",
@@ -115,30 +91,15 @@ function initializeAppState() {
       "Сунь Укун",
       "Енанга",
     ];
-    const starterListName = "Стартовый набор";
-    appData = {
-      lists: { [starterListName]: starterHeroes },
-      defaultList: starterListName,
-      activeList: starterListName,
-      originalMap: {},
-    };
-    Storage.setFullData(appData);
+    heroLists = { "Стартовый набор": starterHeroes };
+    defaultList = "Стартовый набор";
+
+    Storage.saveHeroLists(heroLists);
+    Storage.saveDefaultList(defaultList);
+    Storage.saveActiveList(defaultList);
     Toast.info("Создан стартовый набор героев.");
   }
-
-  refreshUI();
-  updateOnlineStatus();
-
-  // Фоновая синхронизация после инициализации
-  setTimeout(() => {
-    if (navigator.onLine) {
-      Firebase.syncLists().then((wasUpdated) => {
-        if (wasUpdated) {
-          refreshUI();
-        }
-      });
-    }
-  }, 1500); // Небольшая задержка для полной инициализации Firebase
+  updateHeroSelect();
 }
 
 // --- Обработчики событий ---
@@ -168,39 +129,46 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initializeAppState();
 
-  window.addEventListener("online", updateOnlineStatus);
-  window.addEventListener("offline", updateOnlineStatus);
-
   const settingsBtn = document.getElementById("settings-btn");
   if (settingsBtn) {
     settingsBtn.addEventListener("click", () => {
-      ListManager.show(refreshUI);
+      ListManager.show(Storage.loadHeroLists(), initializeAppState);
     });
   }
 
   const generateBtn = document.getElementById("generate-teams-btn");
   if (generateBtn) {
     generateBtn.addEventListener("click", () => {
-      const selectedListName = document.getElementById("hero-select").value;
-      const currentHeroLists = Storage.loadHeroLists();
-      const heroNamesInList = currentHeroLists[selectedListName];
+      const heroSelect = document.getElementById("hero-select");
+      const selectedListName = heroSelect.value;
+      const heroNamesInList = heroLists[selectedListName];
 
       if (!heroNamesInList) {
         Toast.error("Пожалуйста, выберите корректный список.");
         return;
       }
-      if (heroNamesInList.length < 4) {
-        Toast.error(`В списке "${selectedListName}" нужно минимум 4 героя.`);
+
+      const heroesForGeneration = heroNamesInList.map((name) => ({ name }));
+
+      if (heroesForGeneration.length < 4) {
+        Toast.error(
+          `В списке "${selectedListName}" недостаточно героев для генерации (нужно минимум 4, доступно ${heroesForGeneration.length}).`
+        );
         return;
       }
 
-      const heroesForGeneration = heroNamesInList.map((name) => ({ name }));
       const generation = Generator.generateAll(heroesForGeneration, []);
 
       if (generation) {
         Storage.saveLastGeneration(generation);
         Toast.success("Команды сгенерированы!");
-        Results.show(generation, heroesForGeneration, refreshUI);
+
+        const allUniqueHeroNames = [
+          ...new Set(Object.values(heroLists).flat()),
+        ];
+        const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
+
+        Results.show(generation, allUniqueHeroes, initializeAppState);
       } else {
         Toast.error("Не удалось сгенерировать команды!");
       }
@@ -209,9 +177,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const heroSelect = document.getElementById("hero-select");
   if (heroSelect) {
-    heroSelect.addEventListener("change", (e) =>
-      Storage.saveActiveList(e.target.value)
-    );
+    heroSelect.addEventListener("change", (e) => {
+      Storage.saveActiveList(e.target.value);
+    });
   }
 
   const lastGenBtn = document.getElementById("last-gen-btn");
@@ -219,10 +187,12 @@ document.addEventListener("DOMContentLoaded", () => {
     lastGenBtn.addEventListener("click", () => {
       const lastGen = Storage.loadLastGeneration();
       if (lastGen) {
-        const activeListHeroesRaw =
-          Storage.loadHeroLists()[Storage.loadActiveList()] || [];
-        const heroesForDisplay = activeListHeroesRaw.map((name) => ({ name }));
-        Results.show(lastGen, heroesForDisplay, refreshUI);
+        const currentHeroLists = Storage.loadHeroLists() || {};
+        const allUniqueHeroNames = [
+          ...new Set(Object.values(currentHeroLists).flat()),
+        ];
+        const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
+        Results.show(lastGen, allUniqueHeroes, initializeAppState);
       } else {
         Toast.info("Нет данных о последней генерации.");
       }
@@ -236,10 +206,10 @@ document.addEventListener("DOMContentLoaded", () => {
         type: "dialog",
         title: "Подтверждение",
         content:
-          "Вы уверены, что хотите сбросить сессию? Все временные списки будут удалены.",
+          "Вы уверены, что хотите сбросить сессию? Все временные списки (с пометкой 'искл.') и последняя генерация будут удалены.",
         onConfirm: () => {
-          Storage.clearSession();
-          refreshUI();
+          Storage.clearSession(); // Новая логика теперь здесь
+          initializeAppState(); // Обновляем UI
           Toast.success("Сессия сброшена.");
         },
       }).open();
