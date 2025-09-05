@@ -23,7 +23,7 @@ export default class Modal {
     this.boundHandleKey = this.handleKey.bind(this);
   }
 
-  createModalHTML() {
+  createModalHTML(baseZIndex) {
     const typeClasses = {
       dialog: "max-w-md w-full m-auto rounded-xl shadow-lg relative",
       fullscreen: "w-full h-full rounded-none",
@@ -50,8 +50,10 @@ export default class Modal {
         : "";
 
     return `
-            <div class="modal-overlay fixed inset-0 bg-black bg-opacity-60 z-40 animate-fade-in"></div>
-            <div class="modal-container fixed inset-0 z-50 flex items-center justify-center ${containerPadding}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+            <div class="modal-overlay fixed inset-0 bg-black bg-opacity-60 animate-fade-in" style="z-index: ${baseZIndex};"></div>
+            <div class="modal-container fixed inset-0 flex items-center justify-center ${containerPadding}" role="dialog" aria-modal="true" aria-labelledby="modal-title" style="z-index: ${
+      baseZIndex + 10
+    };">
                 <div class="modal ${
                   typeClasses[this.options.type]
                 } bg-white dark:bg-gray-900 flex flex-col max-h-full overflow-hidden ${
@@ -75,9 +77,18 @@ export default class Modal {
   }
 
   open() {
-    document.body.style.overflow = "hidden";
+    // --- ИСПРАВЛЕНИЕ: Динамический z-index для корректной работы вложенных окон ---
+    const existingModalsCount =
+      document.querySelectorAll(".modal-container").length;
+    const baseZIndex = 40;
+    const zIndexStep = 20;
+    const currentZIndex = baseZIndex + existingModalsCount * zIndexStep;
 
-    const modalHTML = this.createModalHTML();
+    if (existingModalsCount === 0) {
+      document.body.style.overflow = "hidden";
+    }
+
+    const modalHTML = this.createModalHTML(currentZIndex);
     document.body.insertAdjacentHTML("beforeend", modalHTML);
 
     const containers = document.querySelectorAll(".modal-container");
@@ -115,8 +126,6 @@ export default class Modal {
       return; // Already closing or closed
     }
 
-    // --- ИСПРАВЛЕНИЕ: Анимация закрытия и поддержка вложенных окон ---
-
     // Возвращаем скролл, только если это последнее открытое окно
     if (document.querySelectorAll(".modal-container").length <= 1) {
       document.body.style.overflow = "";
@@ -131,11 +140,11 @@ export default class Modal {
     );
     this.overlayElement.classList.remove("animate-fade-in");
 
-    // Трюк для форсирования перерисовки браузером, чтобы анимация началась мгновенно
-    void modal.offsetWidth;
-
-    modal.classList.add("animate-fade-out");
-    this.overlayElement.classList.add("animate-fade-out");
+    // --- ИСПРАВЛЕНИЕ: Используем requestAnimationFrame для мгновенного старта анимации закрытия ---
+    requestAnimationFrame(() => {
+      modal.classList.add("animate-fade-out");
+      this.overlayElement.classList.add("animate-fade-out");
+    });
 
     const modalToRemove = this.modalElement;
     const overlayToRemove = this.overlayElement;
