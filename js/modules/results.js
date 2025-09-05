@@ -1,11 +1,11 @@
 import Modal from "./modal.js";
+import Storage from "./storage.js";
 import Generator from "./generator.js";
 import Toast from "./toast.js";
 
 let currentGeneration = null;
 let allHeroesData = [];
 let resultsModal = null;
-let onExcludeConfirm = () => {};
 
 /**
  * Создает HTML-разметку для отображения результатов.
@@ -37,7 +37,8 @@ function createResultsHTML(generation) {
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
                     </button>
                 </div>
-            </div>`;
+            </div>
+        `;
     })
     .join("");
 
@@ -50,21 +51,30 @@ function createResultsHTML(generation) {
             <button data-action="reshuffle-heroes" class="w-full bg-gray-600 active:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать героев</button>
             <button data-action="exclude-these-heroes" class="w-full bg-red-600 active:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Исключить этих героев</button>
             <button data-action="reshuffle-all" class="w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать всё</button>
-        </div>`;
+        </div>
+    `;
 }
 
-function updateResultsUI(generation) {
+/**
+ * Обновляет содержимое модального окна.
+ */
+function updateResults(generation) {
   currentGeneration = generation;
+  Storage.saveLastGeneration(generation);
+  const newHTML = createResultsHTML(generation);
   const contentElement = document.querySelector(
-    ".modal-container:last-of-type .modal-content"
+    ".modal-container .modal-content"
   );
   if (contentElement) {
-    contentElement.innerHTML = createResultsHTML(generation);
+    contentElement.innerHTML = newHTML;
   }
 }
 
+/**
+ * Назначает обработчики событий.
+ */
 function addEventListeners() {
-  const modalElement = document.querySelector(".modal-container:last-of-type");
+  const modalElement = document.querySelector(".modal-container");
   if (!modalElement) return;
 
   modalElement.addEventListener("click", (e) => {
@@ -73,11 +83,12 @@ function addEventListeners() {
 
     e.stopPropagation();
     const action = button.dataset.action;
+    const excludedHeroes = Storage.loadExcludedHeroes();
 
     switch (action) {
       case "reshuffle-all":
-        const newFullGen = Generator.generateAll(allHeroesData);
-        if (newFullGen) updateResultsUI(newFullGen);
+        const newFullGen = Generator.generateAll(allHeroesData, excludedHeroes);
+        if (newFullGen) updateResults(newFullGen);
         else Toast.error("Недостаточно героев");
         break;
 
@@ -92,11 +103,16 @@ function addEventListeners() {
           newTeamGen.assignment[playerNum] =
             currentGeneration.shuffledHeroes[index];
         });
-        updateResultsUI(newTeamGen);
+        updateResults(newTeamGen);
         break;
 
       case "reshuffle-heroes":
-        const newHeroes = Generator.shuffleHeroes(allHeroesData, [], 4);
+        const newHeroes = Generator.shuffleHeroes(
+          allHeroesData,
+          excludedHeroes,
+          4
+        );
+
         if (newHeroes && newHeroes.length === 4) {
           const newHeroGen = {
             ...currentGeneration,
@@ -106,9 +122,42 @@ function addEventListeners() {
           currentGeneration.shuffledPlayers.forEach((playerNum, index) => {
             newHeroGen.assignment[playerNum] = newHeroes[index];
           });
-          updateResultsUI(newHeroGen);
+          updateResults(newHeroGen);
         } else {
           Toast.error("Недостаточно героев для замены.");
+        }
+        break;
+
+      case "reshuffle-hero":
+        const playerToReshuffle = button.dataset.player;
+        const currentHeroNames = Object.values(
+          currentGeneration.assignment
+        ).map((h) => h.name);
+        const heroesForReshuffle = allHeroesData.filter(
+          (h) =>
+            !currentHeroNames.includes(h.name) &&
+            !excludedHeroes.includes(h.name)
+        );
+
+        if (heroesForReshuffle.length > 0) {
+          const newHero = Generator.shuffle(heroesForReshuffle)[0];
+          const newAssignment = { ...currentGeneration.assignment };
+          newAssignment[playerToReshuffle] = newHero;
+
+          const heroIndex = currentGeneration.shuffledHeroes.findIndex(
+            (h) =>
+              h.name === currentGeneration.assignment[playerToReshuffle].name
+          );
+          const newShuffledHeroes = [...currentGeneration.shuffledHeroes];
+          if (heroIndex !== -1) newShuffledHeroes[heroIndex] = newHero;
+
+          updateResults({
+            ...currentGeneration,
+            assignment: newAssignment,
+            shuffledHeroes: newShuffledHeroes,
+          });
+        } else {
+          Toast.warning("Нет свободных героев для замены");
         }
         break;
 
@@ -116,13 +165,18 @@ function addEventListeners() {
         new Modal({
           type: "dialog",
           title: "Исключить 4 героев?",
-          content: `Создать временный список, исключив этих героев?`,
-          confirmText: "Да, создать",
+          content: `Герои из текущей генерации не будут появляться в следующих. Это действие нельзя отменить до сброса сессии.`,
+          confirmText: "Да, исключить",
           onConfirm: () => {
             const heroesToExclude = currentGeneration.shuffledHeroes.map(
               (h) => h.name
             );
-            onExcludeConfirm(heroesToExclude);
+            const currentExcluded = Storage.loadExcludedHeroes();
+            const newExcluded = [
+              ...new Set([...currentExcluded, ...heroesToExclude]),
+            ];
+            Storage.saveExcludedHeroes(newExcluded);
+            Toast.success("Герои исключены до сброса сессии.");
             resultsModal.close();
           },
         }).open();
@@ -133,11 +187,18 @@ function addEventListeners() {
         new Modal({
           type: "dialog",
           title: "Исключить героя?",
-          content: `Создать временный список, исключив героя "${heroNameToExclude}"?`,
-          confirmText: "Да, создать",
+          content: `Герой "${heroNameToExclude}" не будет появляться в следующих генерациях до сброса сессии.`,
+          confirmText: "Да, исключить",
           onConfirm: () => {
-            onExcludeConfirm([heroNameToExclude]);
-            resultsModal.close();
+            const currentExcluded = Storage.loadExcludedHeroes();
+            const newExcluded = [
+              ...new Set([...currentExcluded, heroNameToExclude]),
+            ];
+            Storage.saveExcludedHeroes(newExcluded);
+            Toast.success(`Герой "${heroNameToExclude}" исключен.`);
+            button.closest(".flex.items-center.justify-between").style.opacity =
+              "0.5";
+            button.disabled = true;
           },
         }).open();
         break;
@@ -145,10 +206,12 @@ function addEventListeners() {
   });
 }
 
-function show(generation, allHeroes, excludeCallback) {
+/**
+ * Открывает модальное окно с результатами.
+ */
+function show(generation, allHeroes) {
   currentGeneration = generation;
   allHeroesData = allHeroes;
-  onExcludeConfirm = excludeCallback;
 
   resultsModal = new Modal({
     type: "fullscreen",

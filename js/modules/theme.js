@@ -1,6 +1,5 @@
 /**
  * Модуль для управления темой (светлая/темная).
- * Сохраняет выбор пользователя в localStorage.
  */
 const themeKey = "randomatched-theme";
 
@@ -10,7 +9,6 @@ const applyTheme = (theme) => {
   } else {
     document.documentElement.classList.remove("dark");
   }
-  // Отправляем событие для обновления UI в других компонентах
   window.dispatchEvent(new CustomEvent("theme-changed", { detail: { theme } }));
 };
 
@@ -37,7 +35,6 @@ const init = () => {
     "(prefers-color-scheme: dark)"
   ).matches;
 
-  // Применяем тему: сохраненная > системная > светлая по умолчанию
   if (savedTheme) {
     applyTheme(savedTheme);
   } else if (systemPrefersDark) {
@@ -46,7 +43,6 @@ const init = () => {
     applyTheme("light");
   }
 
-  // Слушаем изменения системной темы, если пользователь не выбрал свою
   window
     .matchMedia("(prefers-color-scheme: dark)")
     .addEventListener("change", (e) => {

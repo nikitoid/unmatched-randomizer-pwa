@@ -24,7 +24,7 @@ export default class Modal {
   }
 
   createModalHTML(baseZIndex) {
-    // --- Классы для анимации (взяты из вашей первоначальной версии) ---
+    // --- Классы для анимации ---
     const typeClasses = {
       dialog: "max-w-md w-full m-auto rounded-xl shadow-lg",
       fullscreen: "w-full h-full rounded-none",
@@ -149,7 +149,6 @@ export default class Modal {
     const modalToRemove = this.modalElement;
     const overlayToRemove = this.overlayElement;
 
-    // Очищаем ссылки, чтобы избежать повторного вызова
     this.modalElement = null;
     this.overlayElement = null;
 

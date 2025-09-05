@@ -20,9 +20,9 @@ function shuffleNumbers() {
 /**
  * Выбирает случайных героев из предоставленного списка.
  */
-function shuffleHeroes(allHeroes, excludedHeroNames = [], count = 4) {
+function shuffleHeroes(allHeroes, excludedHeroes = [], count = 4) {
   const availableHeroes = allHeroes.filter(
-    (hero) => !excludedHeroNames.includes(hero.name)
+    (hero) => !excludedHeroes.includes(hero.name)
   );
 
   if (availableHeroes.length < count) {
@@ -36,9 +36,9 @@ function shuffleHeroes(allHeroes, excludedHeroNames = [], count = 4) {
 /**
  * Выполняет полный цикл генерации.
  */
-function generateAll(allHeroes, excludedHeroNames = []) {
+function generateAll(allHeroes, excludedHeroes = []) {
   const shuffledPlayers = shuffleNumbers();
-  const shuffledHeroes = shuffleHeroes(allHeroes, excludedHeroNames, 4);
+  const shuffledHeroes = shuffleHeroes(allHeroes, excludedHeroes, 4);
 
   if (!shuffledHeroes) {
     return null;

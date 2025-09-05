@@ -1,138 +1,180 @@
-// --- Импорт модулей ---
+// Регистрация Service Worker
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker
+      .register("/sw.js")
+      .then((registration) => {
+        console.log("Service Worker зарегистрирован успешно:", registration);
+      })
+      .catch((error) => {
+        console.log("Ошибка регистрации Service Worker:", error);
+      });
+  });
+}
+
+// --- Импорт и использование модулей ---
 import Modal from "./modules/modal.js";
 import Toast from "./modules/toast.js";
 import Theme from "./modules/theme.js";
-import AppStorage from "./modules/storage.js";
+import Storage from "./modules/storage.js";
 import Generator from "./modules/generator.js";
 import Results from "./modules/results.js";
 import ListManager from "./modules/lists.js";
 
-// --- Регистрация Service Worker ---
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch((err) => {
-      console.error("Service Worker registration failed:", err);
-    });
+// --- Инициализация ---
+Theme.init();
+const listManager = new ListManager();
+
+// --- UI Elements ---
+const heroSelect = document.getElementById("hero-select");
+const themeToggle = document.getElementById("theme-toggle");
+const themeIconLight = document.getElementById("theme-icon-light");
+const themeIconDark = document.getElementById("theme-icon-dark");
+const settingsBtn = document.getElementById("settings-btn");
+const generateBtn = document.getElementById("generate-teams-btn");
+const lastGenBtn = document.getElementById("last-gen-btn");
+const resetBtn = document.getElementById("reset-session-btn");
+
+// --- UI Update Functions ---
+function updateThemeIcons() {
+  if (document.documentElement.classList.contains("dark")) {
+    themeIconLight.classList.add("hidden");
+    themeIconDark.classList.remove("hidden");
+  } else {
+    themeIconLight.classList.remove("hidden");
+    themeIconDark.classList.add("hidden");
+  }
+}
+
+function updateHeroSelect() {
+  const lists = listManager.getLists().filter((l) => !l.isTemp);
+  const activeList = listManager.getActiveList();
+
+  heroSelect.innerHTML = ""; // Clear existing options
+
+  if (lists.length === 0) {
+    const option = document.createElement("option");
+    option.textContent = "Нет списков";
+    option.disabled = true;
+    heroSelect.appendChild(option);
+    return;
+  }
+
+  lists.forEach((list) => {
+    const option = document.createElement("option");
+    option.value = list.id;
+    option.textContent = list.name;
+    // An active list can be temporary, its parent is the one selected in the dropdown
+    if (activeList?.isTemp) {
+      if (list.id === activeList.parentList) {
+        option.selected = true;
+      }
+    } else {
+      if (list.id === activeList?.id) {
+        option.selected = true;
+      }
+    }
+    heroSelect.appendChild(option);
   });
 }
 
-// --- Инициализация приложения ---
+// --- Обработчики событий ---
 document.addEventListener("DOMContentLoaded", () => {
-  const storage = new AppStorage();
-  const listManager = new ListManager(storage);
-  Theme.init();
-
-  let lastGeneration = storage.get("lastGeneration");
-
-  // --- Функции обновления UI ---
-  const updateThemeIcons = () => {
-    const themeIconLight = document.getElementById("theme-icon-light");
-    const themeIconDark = document.getElementById("theme-icon-dark");
-    if (!themeIconLight || !themeIconDark) return;
-    if (document.documentElement.classList.contains("dark")) {
-      themeIconLight.classList.add("hidden");
-      themeIconDark.classList.remove("hidden");
-    } else {
-      themeIconLight.classList.remove("hidden");
-      themeIconDark.classList.add("hidden");
-    }
-  };
-
-  const updateActiveListDisplay = () => {
-    const select = document.getElementById("hero-select");
-    if (!select) return;
-
-    const allLists = listManager.getLists();
-    const activeListId = listManager.getActiveListId();
-
-    select.innerHTML = allLists
-      .map(
-        (list) =>
-          `<option value="${list.id}" ${
-            list.id === activeListId ? "selected" : ""
-          }>${list.name}</option>`
-      )
-      .join("");
-  };
-
-  // --- Первичная отрисовка ---
+  // Initial UI setup
   updateThemeIcons();
-  updateActiveListDisplay();
+  updateHeroSelect();
 
-  // --- Обработчики событий ---
-  window.addEventListener("listChanged", updateActiveListDisplay);
+  // Переключение темы
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      Theme.toggleTheme();
+    });
+  }
+  window.addEventListener("theme-changed", updateThemeIcons);
 
-  document.getElementById("theme-toggle")?.addEventListener("click", () => {
-    Theme.toggleTheme();
-    updateThemeIcons();
+  // Обновление селектора списков после закрытия модального окна
+  window.addEventListener("lists-changed", updateHeroSelect);
+
+  // Установка списка по умолчанию при выборе
+  heroSelect.addEventListener("change", (e) => {
+    const selectedListId = e.target.value;
+    listManager.setDefaultList(selectedListId);
+    // We clear temp lists when user manually changes the main list
+    listManager.clearTempLists();
   });
 
-  document.getElementById("hero-select")?.addEventListener("change", (e) => {
-    const selectedId = e.target.value;
-    const list = listManager.getListById(selectedId);
-    if (list && !list.isTemp) {
-      listManager.setDefaultList(selectedId);
-    }
-    updateActiveListDisplay();
-  });
+  // Кнопка настроек
+  if (settingsBtn) {
+    settingsBtn.addEventListener("click", () => {
+      listManager.showManagementModal();
+    });
+  }
 
-  document.getElementById("settings-btn")?.addEventListener("click", () => {
-    listManager.showManagementModal();
-  });
-
-  document
-    .getElementById("generate-teams-btn")
-    ?.addEventListener("click", () => {
+  // Кнопка генерации
+  if (generateBtn) {
+    generateBtn.addEventListener("click", () => {
+      const excludedHeroes = Storage.loadExcludedHeroes();
       const activeList = listManager.getActiveList();
+
       if (!activeList || activeList.heroes.length < 4) {
-        Toast.error("В активном списке должно быть не менее 4 героев.");
+        Toast.error(
+          "В активном списке недостаточно героев для генерации (нужно 4)."
+        );
         return;
       }
 
-      const generation = Generator.generateAll(activeList.heroes, []); // Исключения теперь обрабатываются через временные списки
+      // The generator module expects an array of objects
+      const heroData = activeList.heroes.map((name) => ({
+        name,
+        set: activeList.name,
+      }));
+
+      const generation = Generator.generateAll(heroData, excludedHeroes);
 
       if (generation) {
-        lastGeneration = generation;
-        storage.set("lastGeneration", generation);
+        Storage.saveLastGeneration(generation);
         Toast.success("Команды сгенерированы!");
-        Results.show(generation, activeList.heroes, (excludedNames) => {
-          listManager.createTempList(excludedNames);
-          updateActiveListDisplay();
-        });
+        Results.show(generation, heroData);
       } else {
-        Toast.error(
-          "Недостаточно героев для генерации (с учетом исключенных)!"
-        );
+        Toast.error("Недостаточно героев для генерации!");
       }
     });
+  }
 
-  document.getElementById("last-gen-btn")?.addEventListener("click", () => {
-    if (lastGeneration) {
-      const activeList = listManager.getActiveList();
-      Results.show(lastGeneration, activeList.heroes, (excludedNames) => {
-        listManager.createTempList(excludedNames);
-        updateActiveListDisplay();
-      });
-    } else {
-      Toast.info("Нет данных о последней генерации.");
-    }
-  });
+  // Кнопка последней генерации
+  if (lastGenBtn) {
+    lastGenBtn.addEventListener("click", () => {
+      const lastGen = Storage.loadLastGeneration();
+      if (lastGen) {
+        // Results.show needs the full hero list for reshuffling purposes.
+        // We'll provide the heroes from the currently active list.
+        const activeList = listManager.getActiveList();
+        const heroData = activeList.heroes.map((name) => ({
+          name,
+          set: activeList.name,
+        }));
+        Results.show(lastGen, heroData);
+      } else {
+        Toast.info("Нет данных о последней генерации.");
+      }
+    });
+  }
 
-  document
-    .getElementById("reset-session-btn")
-    ?.addEventListener("click", () => {
+  // Кнопка сброса сессии
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
       new Modal({
         type: "dialog",
         title: "Подтверждение",
         content:
-          "Сбросить сессию? Временные списки и последняя генерация будут удалены.",
+          "Вы уверены, что хотите сбросить сессию? Данные о последней генерации и список исключенных героев будут удалены.",
         onConfirm: () => {
-          storage.remove("lastGeneration");
-          lastGeneration = null;
-          listManager.clearTempLists();
-          updateActiveListDisplay();
+          Storage.clearSession();
+          listManager.clearTempLists(); // Also clear temporary lists from session
+          updateHeroSelect(); // Update UI
           Toast.success("Сессия сброшена.");
         },
       }).open();
     });
+  }
 });

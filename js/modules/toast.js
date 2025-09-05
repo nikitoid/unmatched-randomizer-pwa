@@ -1,11 +1,7 @@
 /**
  * Модуль для отображения toast-уведомлений.
- * @example
- * Toast.success('Операция прошла успешно!');
- * Toast.error('Произошла ошибка.');
  */
 
-// Убедимся, что контейнер для уведомлений существует
 let toastContainer = document.getElementById("toast-container");
 if (!toastContainer) {
   toastContainer = document.createElement("div");
@@ -33,17 +29,14 @@ function createToast(message, type) {
 
   toastContainer.appendChild(toastElement);
 
-  // Анимация появления
   requestAnimationFrame(() => {
     toastElement.classList.remove("opacity-0", "translate-x-full");
   });
 
-  // Автоскрытие
   setTimeout(() => {
     toastElement.classList.add("opacity-0");
     toastElement.style.transform = "translateX(100%)";
 
-    // Удаление из DOM после завершения анимации
     toastElement.addEventListener("transitionend", () => {
       if (toastElement.parentNode) {
         toastElement.parentNode.removeChild(toastElement);
