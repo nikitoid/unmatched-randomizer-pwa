@@ -9,61 +9,51 @@ let resultsModal = null;
 
 /**
  * Создает HTML-разметку для отображения результатов.
+ * Игроки отображаются в случайном порядке их генерации.
  * @param {object} generation - Объект с данными генерации.
  * @returns {string} - HTML-строка.
  */
 function createResultsHTML(generation) {
-  const { assignment } = generation;
-  const team1 = [],
-    team2 = [];
+  const { assignment, shuffledPlayers } = generation;
 
-  // Распределяем игроков по командам
-  for (const playerNum in assignment) {
-    const data = { playerNum, hero: assignment[playerNum] };
-    if (parseInt(playerNum) % 2 === 0) {
-      team1.push(data);
-    } else {
-      team2.push(data);
-    }
-  }
+  const playersHTML = shuffledPlayers
+    .map((playerNum) => {
+      const hero = assignment[playerNum];
+      if (!hero) return ""; // Защита на случай неполных данных
+      const teamNum = playerNum % 2 === 0 ? 1 : 2;
+      const teamColor =
+        teamNum === 1
+          ? "bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300"
+          : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300";
 
-  const createTeamHTML = (team, teamName) => `
-        <div class="bg-gray-200 dark:bg-gray-700 p-4 rounded-lg mb-4">
-            <h3 class="text-xl font-bold text-teal-500 dark:text-teal-400 mb-3">${teamName}</h3>
-            <div class="space-y-3">
-                ${team
-                  .map(
-                    (p) => `
-                    <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded-md">
-                        <div class="text-left">
-                            <p class="font-semibold">Игрок ${p.playerNum}</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-400">${p.hero.name}</p>
-                        </div>
-                        <div class="flex items-center space-x-2">
-                            <button class="p-2 text-gray-500 hover:text-teal-500 transition-colors focus:outline-none" data-action="reshuffle-hero" data-player="${p.playerNum}" title="Сменить героя">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
-                            </button>
-                            <button class="p-2 text-gray-500 hover:text-red-500 transition-colors focus:outline-none" data-action="exclude-hero" data-hero-name="${p.hero.name}" title="Исключить героя">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
-                            </button>
-                        </div>
-                    </div>
-                `
-                  )
-                  .join("")}
+      return `
+            <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded-md shadow-sm">
+                <div class="text-left">
+                    <p class="font-semibold text-gray-800 dark:text-gray-100">Игрок ${playerNum} <span class="text-xs font-medium px-2 py-0.5 rounded-full ${teamColor}">Команда ${teamNum}</span></p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${hero.name}</p>
+                </div>
+                <div class="flex items-center space-x-1">
+                    <button class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-teal-500 transition-colors focus:outline-none" data-action="reshuffle-hero" data-player="${playerNum}" title="Сменить героя">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
+                    </button>
+                    <button class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-red-500 transition-colors focus:outline-none" data-action="exclude-hero" data-hero-name="${hero.name}" title="Исключить героя">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                    </button>
+                </div>
             </div>
-        </div>
-    `;
+        `;
+    })
+    .join("");
 
   return `
-        <div id="results-content">
-            ${createTeamHTML(team1, "Команда 1 (Четные)")}
-            ${createTeamHTML(team2, "Команда 2 (Нечетные)")}
+        <div id="results-content" class="space-y-3">
+            ${playersHTML}
         </div>
         <div class="grid grid-cols-2 gap-3 mt-6 text-sm">
-            <button data-action="reshuffle-teams" class="w-full bg-gray-600 active:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg">Перемешать команды</button>
-            <button data-action="reshuffle-heroes" class="w-full bg-gray-600 active:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg">Перемешать героев</button>
-            <button data-action="reshuffle-all" class="col-span-2 w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg">Перемешать всё</button>
+            <button data-action="reshuffle-teams" class="w-full bg-gray-600 active:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать команды</button>
+            <button data-action="reshuffle-heroes" class="w-full bg-gray-600 active:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать героев</button>
+            <button data-action="exclude-these-heroes" class="w-full bg-red-600 active:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Исключить этих героев</button>
+            <button data-action="reshuffle-all" class="w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать всё</button>
         </div>
     `;
 }
@@ -79,7 +69,7 @@ function updateResults(generation) {
   const contentElement = document.querySelector(".modal-content");
   if (contentElement) {
     contentElement.innerHTML = newHTML;
-    addEventListeners(); // Переназначаем слушатели
+    // Слушатели уже назначены на родительский элемент и продолжат работать.
   }
 }
 
@@ -90,10 +80,12 @@ function addEventListeners() {
   const modalElement = document.querySelector(".fullscreen");
   if (!modalElement) return;
 
+  // Используем делегирование событий
   modalElement.addEventListener("click", (e) => {
     const button = e.target.closest("button[data-action]");
     if (!button) return;
 
+    e.stopPropagation(); // Предотвращаем срабатывание других кликов
     const action = button.dataset.action;
     const excludedHeroes = Storage.loadExcludedHeroes();
 
@@ -110,33 +102,41 @@ function addEventListeners() {
           ...currentGeneration,
           shuffledPlayers: newPlayers,
         };
-        // Пересобираем assignment
+        // Пересобираем назначение: герои остаются в том же порядке, меняются номера игроков
         newTeamGen.assignment = {};
         newPlayers.forEach((playerNum, index) => {
-          newTeamGen.assignment[playerNum] = newTeamGen.shuffledHeroes[index];
+          newTeamGen.assignment[playerNum] =
+            currentGeneration.shuffledHeroes[index];
         });
         updateResults(newTeamGen);
         break;
 
       case "reshuffle-heroes":
+        const currentHeroNamesInGen = currentGeneration.shuffledHeroes.map(
+          (h) => h.name
+        );
+        const heroesToFilterOut = [
+          ...new Set([...excludedHeroes, ...currentHeroNamesInGen]),
+        ];
         const newHeroes = Generator.shuffleHeroes(
           allHeroesData,
-          excludedHeroes,
+          heroesToFilterOut,
           4
         );
-        if (newHeroes) {
+
+        if (newHeroes && newHeroes.length === 4) {
           const newHeroGen = {
             ...currentGeneration,
             shuffledHeroes: newHeroes,
           };
-          // Пересобираем assignment
+          // Пересобираем назначение: номера игроков остаются, меняются герои
           newHeroGen.assignment = {};
-          newHeroGen.shuffledPlayers.forEach((playerNum, index) => {
-            newHeroGen.assignment[playerNum] = newHeroGen.shuffledHeroes[index];
+          currentGeneration.shuffledPlayers.forEach((playerNum, index) => {
+            newHeroGen.assignment[playerNum] = newHeroes[index];
           });
           updateResults(newHeroGen);
         } else {
-          Toast.error("Недостаточно героев");
+          Toast.error("Недостаточно героев для замены.");
         }
         break;
 
@@ -150,6 +150,7 @@ function addEventListeners() {
             !currentHeroNames.includes(h.name) &&
             !excludedHeroes.includes(h.name)
         );
+
         if (heroesForReshuffle.length > 0) {
           const newHero = Generator.shuffle(heroesForReshuffle)[0];
           const newAssignment = { ...currentGeneration.assignment };
@@ -172,12 +173,34 @@ function addEventListeners() {
         }
         break;
 
+      case "exclude-these-heroes":
+        const heroesToExclude = currentGeneration.shuffledHeroes.map(
+          (h) => h.name
+        );
+        new Modal({
+          type: "dialog",
+          title: "Исключить 4 героев?",
+          content: `Герои из текущей генерации не будут появляться в следующих. Это действие нельзя отменить до сброса сессии.`,
+          confirmText: "Да, исключить",
+          onConfirm: () => {
+            const currentExcluded = Storage.loadExcludedHeroes();
+            const newExcludedList = [
+              ...new Set([...currentExcluded, ...heroesToExclude]),
+            ];
+            Storage.saveExcludedHeroes(newExcludedList);
+            Toast.success(`4 героя исключены.`);
+            if (resultsModal) resultsModal.close();
+          },
+        }).open();
+        break;
+
       case "exclude-hero":
         const heroNameToExclude = button.dataset.heroName;
         new Modal({
           type: "dialog",
           title: "Исключить героя?",
           content: `Герой "${heroNameToExclude}" не будет появляться в следующих генерациях до сброса сессии.`,
+          confirmText: "Да, исключить",
           onConfirm: () => {
             const currentExcluded = Storage.loadExcludedHeroes();
             if (!currentExcluded.includes(heroNameToExclude)) {
@@ -186,15 +209,16 @@ function addEventListeners() {
                 heroNameToExclude,
               ]);
               Toast.success(`Герой "${heroNameToExclude}" исключен.`);
-              // Запускаем полную перегенерацию, так как один герой стал недоступен
+
               const newGenAfterExclude = Generator.generateAll(
                 allHeroesData,
                 Storage.loadExcludedHeroes()
               );
-              if (newGenAfterExclude) updateResults(newGenAfterExclude);
-              else {
+              if (newGenAfterExclude) {
+                updateResults(newGenAfterExclude);
+              } else {
                 Toast.error("Недостаточно героев для новой генерации.");
-                resultsModal.close();
+                if (resultsModal) resultsModal.close();
               }
             }
           },
@@ -213,13 +237,15 @@ function show(generation, allHeroes) {
   currentGeneration = generation;
   allHeroesData = allHeroes;
 
+  // Создаем модальное окно без кнопок "Готово" и "Отмена"
   resultsModal = new Modal({
     type: "fullscreen",
     title: "Результаты генерации",
     content: createResultsHTML(generation),
-    confirmText: "Готово",
   });
+
   resultsModal.open();
+  // Назначаем слушатели один раз при открытии
   addEventListeners();
 }
 
