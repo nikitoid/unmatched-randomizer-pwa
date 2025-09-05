@@ -58,9 +58,7 @@ $(document).ready(function () {
       handleAuthentication();
     } catch (e) {
       console.error("Firebase initialization failed:", e);
-      showNotification("Не удалось инициализировать базу данных.", "error");
-      loadFromLocalStorage();
-      populateHeroListsFromCache();
+      // Не показываем ошибку пользователю, так как приложение работает оффлайн
     }
   }
 
@@ -71,14 +69,7 @@ $(document).ready(function () {
     });
     signInAnonymously(auth).catch((error) => {
       console.error("Anonymous sign-in failed:", error);
-      showNotification(
-        error.code === "auth/operation-not-allowed"
-          ? "Анонимный вход не включен."
-          : "Ошибка аутентификации.",
-        "error"
-      );
-      loadFromLocalStorage();
-      populateHeroListsFromCache();
+      // Не показываем ошибку пользователю при оффлайн-работе
     });
   }
 
@@ -108,8 +99,7 @@ $(document).ready(function () {
   // --- Data Sync & Caching ---
   async function syncWithFirebase() {
     if (!navigator.onLine) {
-      loadFromLocalStorage();
-      populateHeroListsFromCache();
+      console.log("Offline mode: Skipping Firebase sync.");
       return;
     }
     try {
@@ -118,19 +108,23 @@ $(document).ready(function () {
         ? docSnap.data()
         : { lists: {}, selected: "" };
       const localTempLists = getLocalTempLists();
-      localListsCache.lists = { ...firebaseData.lists, ...localTempLists };
-      localListsCache.selected = firebaseData.selected || "";
+
+      // Сохраняем удаленные списки и выбранный по умолчанию
       localStorage.setItem(
         "randomatched_lists",
         JSON.stringify(firebaseData.lists)
       );
       localStorage.setItem("randomatched_selected", firebaseData.selected);
+
+      // Обновляем кэш в памяти, объединяя данные из Firebase и локальные временные списки
+      localListsCache.lists = { ...firebaseData.lists, ...localTempLists };
+      localListsCache.selected = firebaseData.selected || "";
+
+      // Перерисовываем выпадающий список
+      populateHeroListsFromCache();
     } catch (error) {
       console.error("Error syncing with Firebase:", error);
-      showNotification("Не удалось загрузить списки из базы.", "error");
-      loadFromLocalStorage();
-    } finally {
-      populateHeroListsFromCache();
+      // Не показываем ошибку, так как приложение уже работает с локальными данными
     }
   }
 
@@ -181,6 +175,7 @@ $(document).ready(function () {
     const tempListName = listNames.find((name) =>
       name.endsWith(TEMP_LIST_SUFFIX)
     );
+
     let selected =
       tempListName ||
       currentVal ||
@@ -188,6 +183,12 @@ $(document).ready(function () {
       localListsCache.lists[localListsCache.selected]
         ? localListsCache.selected
         : listNames[0]);
+
+    // Убедимся, что выбранный список действительно существует
+    if (!localListsCache.lists[selected]) {
+      selected = listNames[0];
+    }
+
     heroListSelect.val(selected);
     updateCurrentHeroList();
     generateBtn
@@ -278,12 +279,17 @@ $(document).ready(function () {
         }
         localStorage.removeItem("lastGeneration");
         currentGeneration = { teams: [], heroes: [] };
-        populateHeroListsFromCache();
+
         const defaultList =
           localListsCache.selected &&
           localListsCache.lists[localListsCache.selected]
             ? localListsCache.selected
-            : Object.keys(localListsCache.lists)[0];
+            : Object.keys(localListsCache.lists).filter(
+                (name) => !name.endsWith(TEMP_LIST_SUFFIX)
+              )[0];
+
+        populateHeroListsFromCache(); // Перерисовываем список
+
         if (defaultList) {
           heroListSelect.val(defaultList).trigger("change");
         }
@@ -470,10 +476,11 @@ $(document).ready(function () {
       settingsModalPanel.html(
         '<div class="flex-grow flex justify-center items-center"><div class="update-spinner"></div></div>'
       );
-    const docSnap = await getDoc(listsDocRef);
-    const remoteData = docSnap.exists()
-      ? docSnap.data()
-      : { lists: {}, selected: "" };
+
+    // Используем данные из кэша для немедленного отображения
+    const allLists = { ...localListsCache.lists };
+    const remoteSelected = localListsCache.selected;
+
     let ui = `<header class="flex justify-between items-center p-4 border-b border-light-accent dark:border-dark-accent flex-shrink-0">
             <h2 class="text-2xl font-bold">Управление списками</h2>
             <div class="flex items-center space-x-2">
@@ -482,12 +489,11 @@ $(document).ready(function () {
             </div>
         </header>
         <div id="lists-editor" class="flex-grow space-y-3 overflow-y-auto p-4">${
-          !navigator.onLine && !isSettingsAuthenticated
-            ? '<p class="text-center text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900 p-2 rounded-md">Офлайн-режим: редактирование глобальных списков недоступно.</p>'
+          !navigator.onLine
+            ? '<p class="text-center text-sm text-yellow-600 dark:text-yellow-400 bg-yellow-100 dark:bg-yellow-900 p-2 rounded-md">Офлайн-режим: управление глобальными списками недоступно.</p>'
             : ""
         }`;
 
-    const allLists = { ...remoteData.lists, ...getLocalTempLists() };
     Object.keys(allLists)
       .sort()
       .forEach((name) => {
@@ -507,7 +513,7 @@ $(document).ready(function () {
                         ${
                           !isTemp
                             ? `<button class="set-default-btn p-1 ${
-                                remoteData.selected === name
+                                remoteSelected === name
                                   ? "text-yellow-500"
                                   : "text-gray-400 hover:text-yellow-400"
                               }" title="Сделать по умолчанию"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" /></svg></button>`
@@ -535,11 +541,13 @@ $(document).ready(function () {
       });
     ui += `</div>`;
     settingsModalPanel.html(ui);
-    if (!navigator.onLine && !isSettingsAuthenticated)
+    if (!navigator.onLine)
       settingsModalPanel
-        .find("button")
-        .not("#close-settings-btn-inner")
-        .prop("disabled", true);
+        .find(
+          ".set-default-btn, .rename-list-btn, .delete-list-btn, #add-list-btn"
+        )
+        .prop("disabled", true)
+        .addClass("opacity-50");
     $("#close-settings-btn-inner").on("click", closeSettingsModal);
   }
 
@@ -554,7 +562,7 @@ $(document).ready(function () {
   });
   settingsModalPanel.on("click", "#add-list-btn", (e) => {
     e.stopPropagation();
-    if (!isSettingsAuthenticated) {
+    if (!isSettingsAuthenticated && navigator.onLine) {
       openPasswordModal();
       return;
     }
@@ -582,6 +590,13 @@ $(document).ready(function () {
       localListsCache.lists[listName] = heroes;
       showNotification(`Локальный список "${listName}" обновлен.`, "success");
     } else {
+      if (!navigator.onLine) {
+        showNotification(
+          "Невозможно сохранить, нет подключения к сети.",
+          "error"
+        );
+        return;
+      }
       const key = `lists.${listName.replace(/\./g, "_")}`;
       await updateDoc(listsDocRef, { [key]: heroes });
       showNotification(`Список "${listName}" сохранен в Firebase.`, "success");
@@ -617,9 +632,10 @@ $(document).ready(function () {
           `Список "${oldName}" переименован в "${newName}".`,
           "success"
         );
-        await syncWithFirebase();
-        await renderListManagementUI(false);
-        populateHeroListsFromCache();
+        await syncWithFirebase().then(() => {
+          renderListManagementUI(false);
+          populateHeroListsFromCache();
+        });
       } else showNotification(`Список "${oldName}" не найден в базе.`, "error");
     } catch (error) {
       showNotification("Ошибка при переименовании списка.", "error");
@@ -645,9 +661,10 @@ $(document).ready(function () {
               if (data.selected === listName) data.selected = "";
               await setDoc(listsDocRef, data);
               showNotification(`Список "${listName}" удален.`, "success");
-              await syncWithFirebase();
-              await renderListManagementUI(false);
-              populateHeroListsFromCache();
+              await syncWithFirebase().then(() => {
+                renderListManagementUI(false);
+                populateHeroListsFromCache();
+              });
             }
           }
         : async () => {
@@ -656,8 +673,7 @@ $(document).ready(function () {
               `Список "${listName}" установлен по умолчанию.`,
               "success"
             );
-            await syncWithFirebase();
-            renderListManagementUI(false);
+            await syncWithFirebase().then(() => renderListManagementUI(false));
           };
       if (isDelete)
         showConfirmationModal({
@@ -722,28 +738,29 @@ $(document).ready(function () {
       navigator.serviceWorker
         .register("/sw.js")
         .then((reg) => {
-          reg.addEventListener("updatefound", () => {
-            const newWorker = reg.installing;
-            newWorker.addEventListener("statechange", () => {
+          reg.onupdatefound = () => {
+            const installingWorker = reg.installing;
+            installingWorker.onstatechange = () => {
               if (
-                newWorker.state === "installed" &&
+                installingWorker.state === "installed" &&
                 navigator.serviceWorker.controller
               ) {
                 $("#update-indicator").removeClass("hidden");
               }
-            });
-          });
+            };
+          };
         })
-        .catch((err) => console.error("SW registration failed:", err));
-
-      navigator.serviceWorker.addEventListener("controllerchange", () => {
-        window.location.reload();
-      });
+        .catch((error) =>
+          console.log("Service Worker registration failed:", error)
+        );
+    });
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      window.location.reload();
     });
   }
 
-  // --- Initial Load ---
-  initializeFirebase();
+  // --- Initial Load (Offline First) ---
   loadFromLocalStorage();
   populateHeroListsFromCache();
+  initializeFirebase(); // Tries to connect and sync in the background
 });
