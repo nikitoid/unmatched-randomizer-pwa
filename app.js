@@ -51,6 +51,13 @@ $(document).ready(function () {
   // --- Setup Firebase ---
   function initializeFirebase() {
     try {
+      if (!firebaseConfig.apiKey) {
+        // Простая проверка на наличие конфига
+        console.warn(
+          "Firebase config is missing. App will run in offline-only mode."
+        );
+        return;
+      }
       const app = initializeApp(firebaseConfig);
       db = getFirestore(app);
       auth = getAuth(app);
@@ -430,8 +437,8 @@ $(document).ready(function () {
   };
 
   // --- New Settings Modal Logic ---
-  const openSettingsModal = async () => {
-    await renderListManagementUI();
+  const openSettingsModal = () => {
+    renderListManagementUI();
     settingsModalContainer.removeClass(
       "opacity-0 pointer-events-none translate-y-full"
     );
@@ -461,25 +468,24 @@ $(document).ready(function () {
     }
     const hash = CryptoJS.SHA256($("#password-input").val()).toString();
     try {
+      if (!listsDocRef) throw new Error("Firebase not initialized");
       const docSnap = await getDoc(listsDocRef);
       if (docSnap.exists() && docSnap.data().passwordHash === hash) {
         isSettingsAuthenticated = true;
         closePasswordModal();
-        await renderListManagementUI(false);
+        renderListManagementUI(); // Re-render with auth
         showNotification("Доступ предоставлен.", "success");
-      } else $("#password-error").removeClass("hidden");
+      } else {
+        $("#password-error").removeClass("hidden");
+      }
     } catch (error) {
       $("#password-error").text("Ошибка при проверке.").removeClass("hidden");
+      console.error("Password check error:", error);
     }
   });
 
-  async function renderListManagementUI(showSpinner = true) {
-    if (showSpinner)
-      settingsModalPanel.html(
-        '<div class="flex-grow flex justify-center items-center"><div class="update-spinner"></div></div>'
-      );
-
-    // Используем данные из кэша для немедленного отображения
+  function renderListManagementUI() {
+    // Эта функция теперь полностью синхронна и работает только с локальным кэшем
     const allLists = { ...localListsCache.lists };
     const remoteSelected = localListsCache.selected;
 
@@ -573,7 +579,7 @@ $(document).ready(function () {
       const key = `lists.${newListName.replace(/\./g, "_")}`;
       updateDoc(listsDocRef, { [key]: [] }).then(() => {
         showNotification(`Список "${newListName}" создан.`, "success");
-        syncWithFirebase().then(() => renderListManagementUI(false));
+        syncWithFirebase().then(() => renderListManagementUI());
       });
     } else if (newListName)
       showNotification("Список с таким именем уже существует.", "error");
@@ -635,7 +641,7 @@ $(document).ready(function () {
           "success"
         );
         await syncWithFirebase().then(() => {
-          renderListManagementUI(false);
+          renderListManagementUI();
           populateHeroListsFromCache();
         });
       } else showNotification(`Список "${oldName}" не найден в базе.`, "error");
@@ -664,7 +670,7 @@ $(document).ready(function () {
               await setDoc(listsDocRef, data);
               showNotification(`Список "${listName}" удален.`, "success");
               await syncWithFirebase().then(() => {
-                renderListManagementUI(false);
+                renderListManagementUI();
                 populateHeroListsFromCache();
               });
             }
@@ -675,7 +681,7 @@ $(document).ready(function () {
               `Список "${listName}" установлен по умолчанию.`,
               "success"
             );
-            await syncWithFirebase().then(() => renderListManagementUI(false));
+            await syncWithFirebase().then(() => renderListManagementUI());
           };
       if (isDelete)
         showConfirmationModal({
@@ -725,7 +731,7 @@ $(document).ready(function () {
     const color = type === "success" ? "bg-green-500" : "bg-red-500";
     const notificationId = `notification-${Date.now()}`;
     const notificationDiv = $(
-      `<div id="${notificationId}" class="absolute top-20 text-center w-full max-w-sm p-3 ${color} text-white rounded-lg shadow-lg transition-opacity duration-300">${message}</div>`
+      `<div id="${notificationId}" class="absolute top-20 w-full max-w-sm p-3 ${color} text-white rounded-lg shadow-lg transition-opacity duration-300 text-center">${message}</div>`
     );
     $("#app").prepend(notificationDiv);
     setTimeout(
