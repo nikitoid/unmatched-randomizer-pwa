@@ -1,6 +1,6 @@
 // --- Service Worker ---
 
-const CACHE_NAME = "randomatched-v3"; // Увеличиваем версию, чтобы SW обновился
+const CACHE_NAME = "randomatched-v4"; // Увеличиваем версию для чистого обновления
 const URLS_TO_CACHE = [
   // Локальные ассеты
   "/",
@@ -11,30 +11,32 @@ const URLS_TO_CACHE = [
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
-  // Внешние CDN ассеты (будут кэшироваться при первом запросе)
-];
-
-const CDN_ORIGINS = [
-  "https://code.jquery.com",
+  // Внешние CDN ассеты, необходимые для оффлайн-работы
+  "https://code.jquery.com/jquery-3.7.1.min.js",
   "https://cdn.tailwindcss.com",
-  "https://cdnjs.cloudflare.com",
-  "https://www.gstatic.com",
+  "https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js",
+  "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
+  "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
+  "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
 ];
 
-// Установка: кэшируем только локальные файлы приложения
+// Установка: кэшируем все необходимые ресурсы для оффлайн-работы
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then((cache) => {
-        console.log("[SW] Opened cache. Caching app shell.");
+        console.log("[SW] Opened cache. Caching all assets for offline use.");
         return cache.addAll(URLS_TO_CACHE);
       })
-      .then(() => self.skipWaiting()) // Активируем новый SW сразу
+      .then(() => self.skipWaiting()) // Принудительно активируем новый SW
+      .catch((err) => {
+        console.error("[SW] Asset caching failed during install: ", err);
+      })
   );
 });
 
-// Активация: удаляем старые кэши
+// Активация: удаляем старые кэши, чтобы освободить место
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -53,32 +55,19 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch: применяем разные стратегии
+// Fetch: Стратегия "Cache falling back to network" (Кэш, затем сеть)
 self.addEventListener("fetch", (event) => {
-  const requestUrl = new URL(event.request.url);
-
-  // Для CDN используем стратегию Stale-While-Revalidate
-  if (CDN_ORIGINS.includes(requestUrl.origin)) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.match(event.request).then((cachedResponse) => {
-          const fetchPromise = fetch(event.request).then((networkResponse) => {
-            // Клонируем ответ, так как его можно прочитать только один раз
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          });
-          // Возвращаем из кэша немедленно, если есть, или ждем ответа от сети
-          return cachedResponse || fetchPromise;
-        });
-      })
-    );
+  // Игнорируем запросы к Firestore API, так как у него свой оффлайн-механизм
+  if (event.request.url.includes("firestore.googleapis.com")) {
     return;
   }
 
-  // Для всех остальных (локальных) запросов используем Cache First
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+    caches.match(event.request).then((cachedResponse) => {
+      // Если ресурс есть в кэше, возвращаем его.
+      // Иначе — делаем запрос в сеть. Это важно для случаев, когда
+      // пользователь переходит на страницу, которой нет в кэше (хотя в нашем приложении таких нет).
+      return cachedResponse || fetch(event.request);
     })
   );
 });
