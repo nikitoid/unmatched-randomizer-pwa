@@ -23,7 +23,7 @@ function registerServiceWorker() {
           registration.addEventListener("updatefound", () => {
             console.log("Найден новый Service Worker, начинается установка...");
             const spinner = document.getElementById("update-spinner");
-            if (spinner) spinner.classList.remove("hidden");
+            if (spinner) spinner.classList.remove("invisible");
           });
         })
         .catch((error) => {
@@ -37,7 +37,7 @@ function registerServiceWorker() {
       if (event.data && event.data.type === "CACHE_UPDATED") {
         console.log("Получено сообщение от SW: кэш обновлен.");
         const spinner = document.getElementById("update-spinner");
-        if (spinner) spinner.classList.add("hidden");
+        if (spinner) spinner.classList.add("invisible");
 
         // Показываем кастомное уведомление
         Toast.success("Приложение обновлено!");
