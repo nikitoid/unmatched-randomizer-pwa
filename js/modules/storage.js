@@ -5,7 +5,8 @@
 const LAST_GEN_KEY = "last-generation";
 const EXCLUDED_HEROES_KEY = "excluded-heroes";
 const HERO_LISTS_KEY = "hero-lists";
-const DEFAULT_LIST_ID_KEY = "default-list-id";
+const DEFAULT_LIST_KEY = "default-list-name";
+const ACTIVE_LIST_KEY = "active-list-name";
 
 const Storage = {
   get(key) {
@@ -43,7 +44,6 @@ const Storage = {
     }
   },
 
-  // --- Session ---
   saveLastGeneration(teams) {
     this.set(LAST_GEN_KEY, teams);
   },
@@ -60,14 +60,7 @@ const Storage = {
     return this.get(EXCLUDED_HEROES_KEY) || [];
   },
 
-  clearSession() {
-    this.remove(LAST_GEN_KEY);
-    this.remove(EXCLUDED_HEROES_KEY);
-    // Note: We are NOT clearing hero lists on session reset.
-    console.log("Сессия очищена.");
-  },
-
-  // --- List Management ---
+  // --- Новые методы для управления списками ---
   saveHeroLists(lists) {
     this.set(HERO_LISTS_KEY, lists);
   },
@@ -76,12 +69,26 @@ const Storage = {
     return this.get(HERO_LISTS_KEY);
   },
 
-  saveDefaultListId(id) {
-    this.set(DEFAULT_LIST_ID_KEY, id);
+  saveDefaultList(listName) {
+    this.set(DEFAULT_LIST_KEY, listName);
   },
 
-  loadDefaultListId() {
-    return this.get(DEFAULT_LIST_ID_KEY);
+  loadDefaultList() {
+    return this.get(DEFAULT_LIST_KEY);
+  },
+
+  saveActiveList(listName) {
+    this.set(ACTIVE_LIST_KEY, listName);
+  },
+
+  loadActiveList() {
+    return this.get(ACTIVE_LIST_KEY);
+  },
+
+  clearSession() {
+    this.remove(LAST_GEN_KEY);
+    this.remove(EXCLUDED_HEROES_KEY);
+    console.log("Сессия очищена.");
   },
 };
 
