@@ -154,35 +154,27 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const excludedHeroes = Storage.loadExcludedHeroes();
       const heroesForGeneration = heroNamesInList.map((name) => ({ name }));
 
-      const availableForGen = heroesForGeneration.filter(
-        (h) => !excludedHeroes.includes(h.name)
-      );
-      if (availableForGen.length < 4) {
+      if (heroesForGeneration.length < 4) {
         Toast.error(
-          `В списке "${selectedListName}" недостаточно героев для генерации (нужно минимум 4, доступно ${availableForGen.length}).`
+          `В списке "${selectedListName}" недостаточно героев для генерации (нужно минимум 4, доступно ${heroesForGeneration.length}).`
         );
         return;
       }
 
-      const generation = Generator.generateAll(
-        heroesForGeneration,
-        excludedHeroes
-      );
+      const generation = Generator.generateAll(heroesForGeneration, []);
 
       if (generation) {
         Storage.saveLastGeneration(generation);
         Toast.success("Команды сгенерированы!");
 
-        // Для смены одного героя нужен пул всех уникальных героев из всех списков
         const allUniqueHeroNames = [
           ...new Set(Object.values(heroLists).flat()),
         ];
         const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
 
-        Results.show(generation, allUniqueHeroes);
+        Results.show(generation, allUniqueHeroes, initializeAppState);
       } else {
         Toast.error("Не удалось сгенерировать команды!");
       }
@@ -208,7 +200,7 @@ document.addEventListener("DOMContentLoaded", () => {
           ...new Set(Object.values(currentHeroLists).flat()),
         ];
         const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
-        Results.show(lastGen, allUniqueHeroes);
+        Results.show(lastGen, allUniqueHeroes, initializeAppState);
       } else {
         Toast.info("Нет данных о последней генерации.");
       }
@@ -223,7 +215,7 @@ document.addEventListener("DOMContentLoaded", () => {
         type: "dialog",
         title: "Подтверждение",
         content:
-          "Вы уверены, что хотите сбросить сессию? Данные о последней генерации и список исключенных героев будут удалены.",
+          "Вы уверены, что хотите сбросить сессию? Данные о последней генерации будут удалены.",
         onConfirm: () => {
           Storage.clearSession();
           Toast.success("Сессия сброшена.");

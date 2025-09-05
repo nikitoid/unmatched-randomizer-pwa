@@ -3,7 +3,6 @@
  */
 
 const LAST_GEN_KEY = "last-generation";
-const EXCLUDED_HEROES_KEY = "excluded-heroes";
 const HERO_LISTS_KEY = "hero-lists";
 const DEFAULT_LIST_KEY = "default-list-name";
 const ACTIVE_LIST_KEY = "active-list-name";
@@ -52,14 +51,6 @@ const Storage = {
     return this.get(LAST_GEN_KEY);
   },
 
-  saveExcludedHeroes(heroes) {
-    this.set(EXCLUDED_HEROES_KEY, heroes);
-  },
-
-  loadExcludedHeroes() {
-    return this.get(EXCLUDED_HEROES_KEY) || [];
-  },
-
   // --- Методы для управления списками ---
   saveHeroLists(lists) {
     this.set(HERO_LISTS_KEY, lists);
@@ -87,7 +78,6 @@ const Storage = {
 
   clearSession() {
     this.remove(LAST_GEN_KEY);
-    this.remove(EXCLUDED_HEROES_KEY);
     console.log("Сессия очищена.");
   },
 };
