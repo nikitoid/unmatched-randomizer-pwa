@@ -1,5 +1,5 @@
 import Theme from "./modules/theme.js";
-import Storage from "./modules/storage.js";
+import AppStorage from "./modules/storage.js";
 import Modal from "./modules/modal.js";
 import Toast from "./modules/toast.js";
 import Generator from "./modules/generator.js";
@@ -8,7 +8,7 @@ import ListManager from "./modules/lists.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   // --- Инициализация модулей ---
-  const storage = new Storage("randomatched_");
+  const storage = new AppStorage("randomatched_");
   const listManager = new ListManager(storage);
 
   // --- Глобальные переменные ---
