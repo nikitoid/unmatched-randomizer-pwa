@@ -58,7 +58,6 @@ $(document).ready(function () {
   function initializeFirebase() {
     try {
       if (!firebaseConfig.apiKey) {
-        // Простая проверка на наличие конфига
         console.warn(
           "Firebase config is missing. App will run in offline-only mode."
         );
@@ -71,7 +70,6 @@ $(document).ready(function () {
       handleAuthentication();
     } catch (e) {
       console.error("Firebase initialization failed:", e);
-      // Не показываем ошибку пользователю, так как приложение работает оффлайн
     }
   }
 
@@ -82,7 +80,6 @@ $(document).ready(function () {
     });
     signInAnonymously(auth).catch((error) => {
       console.error("Anonymous sign-in failed:", error);
-      // Не показываем ошибку пользователю при оффлайн-работе
     });
   }
 
@@ -124,22 +121,18 @@ $(document).ready(function () {
         : { lists: {}, selected: "" };
       const localTempLists = getLocalTempLists();
 
-      // Сохраняем удаленные списки и выбранный по умолчанию
       localStorage.setItem(
         "randomatched_lists",
         JSON.stringify(firebaseData.lists)
       );
       localStorage.setItem("randomatched_selected", firebaseData.selected);
 
-      // Обновляем кэш в памяти, объединяя данные из Firebase и локальные временные списки
       localListsCache.lists = { ...firebaseData.lists, ...localTempLists };
       localListsCache.selected = firebaseData.selected || "";
 
-      // Перерисовываем выпадающий список
       populateHeroListsFromCache();
     } catch (error) {
       console.error("Error syncing with Firebase:", error);
-      // Не показываем ошибку, так как приложение уже работает с локальными данными
     }
   }
 
@@ -199,7 +192,6 @@ $(document).ready(function () {
         ? localListsCache.selected
         : listNames[0]);
 
-    // Убедимся, что выбранный список действительно существует
     if (!localListsCache.lists[selected]) {
       selected = listNames[0];
     }
@@ -303,7 +295,7 @@ $(document).ready(function () {
                 (name) => !name.endsWith(TEMP_LIST_SUFFIX)
               )[0];
 
-        populateHeroListsFromCache(); // Перерисовываем список
+        populateHeroListsFromCache();
 
         if (defaultList) {
           heroListSelect.val(defaultList).trigger("change");
@@ -469,7 +461,7 @@ $(document).ready(function () {
   $("#cancel-password-btn").on("click", closePasswordModal);
   $("#submit-password-btn").on("click", async () => {
     if (!navigator.onLine) {
-      showNotification("Редактирование доступно только онлайн.", "error");
+      showNotification("Функция недоступна в оффлайн-режиме.", "error");
       return;
     }
     const hash = CryptoJS.SHA256($("#password-input").val()).toString();
@@ -485,7 +477,7 @@ $(document).ready(function () {
       if (docSnap.exists() && docSnap.data().passwordHash === hash) {
         isSettingsAuthenticated = true;
         closePasswordModal();
-        renderListManagementUI(); // Re-render with auth
+        renderListManagementUI();
         showNotification("Доступ предоставлен.", "success");
       } else {
         $("#password-error").removeClass("hidden");
@@ -497,7 +489,6 @@ $(document).ready(function () {
   });
 
   function renderListManagementUI() {
-    // Эта функция теперь полностью синхронна и работает только с локальным кэшем
     const allLists = { ...localListsCache.lists };
     const remoteSelected = localListsCache.selected;
 
