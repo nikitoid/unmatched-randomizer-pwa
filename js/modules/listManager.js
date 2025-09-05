@@ -252,7 +252,7 @@ const ListManager = {
               Toast.error("Аутентификация отменена.");
             }
           }
-          this.render(); // Сразу перерисовываем менеджер
+          setTimeout(() => this.render(), 50); // Use setTimeout to ensure the modal closes before re-rendering
         } else if (appData.lists[newName]) {
           Toast.error("Список с таким именем уже существует.");
         } else {
@@ -294,7 +294,7 @@ const ListManager = {
               Toast.error("Аутентификация отменена.");
             }
           }
-          this.render();
+          setTimeout(() => this.render(), 50);
         } else {
           if (!newName) Toast.error("Имя не может быть пустым.");
           else if (oldName === newName) return; // Ничего не делаем
@@ -340,7 +340,7 @@ const ListManager = {
             Toast.error("Аутентификация отменена.");
           }
         }
-        this.render();
+        setTimeout(() => this.render(), 50);
       },
     }).open();
   },
