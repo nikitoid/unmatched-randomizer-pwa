@@ -1,6 +1,6 @@
 // --- Service Worker ---
 
-const CACHE_NAME = "randomatched-v5"; // Увеличена версия для финального исправления
+const CACHE_NAME = "randomatched-v6"; // Увеличена версия для финального исправления
 // Кэшируем только основные локальные файлы ("app shell").
 // Все остальное (CDN скрипты) будет закэшировано при первом обращении.
 const URLS_TO_PRECACHE = [
