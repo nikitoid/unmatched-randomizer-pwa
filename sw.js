@@ -1,8 +1,9 @@
 // --- Service Worker ---
 
-const CACHE_NAME = "randomatched-v6"; // Увеличена версия для финального исправления
-const URLS_TO_CACHE = [
-  // Локальные ассеты
+const CACHE_NAME = "randomatched-v7"; // Увеличена версия для финального исправления
+// Кэшируем только основные локальные файлы ("app shell").
+// Все остальное (CDN скрипты) будет закэшировано при первом обращении.
+const URLS_TO_PRECACHE = [
   "/",
   "/index.html",
   "/style.css",
@@ -11,35 +12,23 @@ const URLS_TO_CACHE = [
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
-  // Внешние CDN ассеты, необходимые для оффлайн-работы
-  "https://code.jquery.com/jquery-3.7.1.min.js",
-  "https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js",
-  "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js",
-  "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js",
-  "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js",
 ];
 
-// Установка: кэшируем все необходимые ресурсы
+// Установка: кэшируем только "app shell". Этот шаг должен быть максимально надежным.
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then((cache) => {
-        console.log("[SW] Кэширование основных ресурсов.");
-        // Используем no-cors для внешних ресурсов, чтобы избежать ошибок при установке
-        const requests = URLS_TO_CACHE.map(
-          (url) => new Request(url, { mode: "no-cors" })
-        );
-        return cache.addAll(requests);
+        console.log("[SW] Кэширование App Shell.");
+        return cache.addAll(URLS_TO_PRECACHE);
       })
       .then(() => self.skipWaiting())
-      .catch((err) =>
-        console.error("[SW] Ошибка кэширования при установке: ", err)
-      )
+      .catch((err) => console.error("[SW] Ошибка кэширования App Shell: ", err))
   );
 });
 
-// Активация: удаляем старые кэши
+// Активация: удаляем старые кэши и захватываем контроль.
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -58,29 +47,43 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch: обрабатываем запросы
+// Fetch: Стратегия "Cache first, falling back to network".
+// Динамически кэшируем ресурсы при первом успешном запросе.
 self.addEventListener("fetch", (event) => {
   const requestUrl = new URL(event.request.url);
 
-  // Игнорируем все запросы к API Google, чтобы не мешать работе Firebase SDK
+  // Игнорируем все запросы к API Google, чтобы не мешать работе Firebase SDK.
   if (requestUrl.hostname.includes("googleapis.com")) {
     return;
   }
 
-  // Для всех остальных запросов используем стратегию "Cache first, falling back to network"
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      // Если ресурс есть в кэше, отдаем его
+      // Если ресурс есть в кэше, немедленно отдаем его.
       if (cachedResponse) {
         return cachedResponse;
       }
 
-      // Если в кэше нет, идем в сеть
-      return fetch(event.request).catch(() => {
-        // Если сеть недоступна, можем вернуть какой-то запасной вариант,
-        // но для JS/CSS файлов это приведет к ошибке, что мы и видим
-        // Главное, что основные файлы уже должны быть в кэше.
-      });
+      // Если в кэше нет, идем в сеть.
+      return fetch(event.request)
+        .then((networkResponse) => {
+          // Клонируем ответ, так как его можно прочитать только один раз.
+          const responseToCache = networkResponse.clone();
+
+          caches.open(CACHE_NAME).then((cache) => {
+            // Сохраняем свежий ответ в кэш для будущих оффлайн-запусков.
+            console.log("[SW] Динамическое кэширование:", event.request.url);
+            cache.put(event.request, responseToCache);
+          });
+
+          // Возвращаем ответ браузеру.
+          return networkResponse;
+        })
+        .catch((err) => {
+          // Этот catch сработает, если мы оффлайн и ресурса нет в кэше.
+          // Для JS/CSS это нормально, что будет ошибка.
+          // Главное, что app shell загрузится.
+        });
     })
   );
 });
