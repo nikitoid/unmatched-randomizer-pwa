@@ -1,52 +1,37 @@
-// Регистрация Service Worker
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker
-      .register("/sw.js")
-      .then((registration) => {
-        console.log("Service Worker зарегистрирован успешно:", registration);
-      })
-      .catch((error) => {
-        console.log("Ошибка регистрации Service Worker:", error);
-      });
-  });
-}
-
-// --- Импорт и использование модулей ---
+// --- Импорт модулей ---
 import Modal from "./modules/modal.js";
 import Toast from "./modules/toast.js";
 import Theme from "./modules/theme.js";
-import Storage from "./modules/storage.js";
+import AppStorage from "./modules/storage.js";
 import Generator from "./modules/generator.js";
 import Results from "./modules/results.js";
+import ListManager from "./modules/lists.js";
 
-// --- Инициализация темы ---
-Theme.init();
+// --- Регистрация Service Worker ---
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch((err) => {
+      console.error("Service Worker registration failed:", err);
+    });
+  });
+}
 
-// --- Данные о героях (временно) ---
-const HERO_DATA = [
-  { name: "Король Артур", set: "BoL: Vol 1" },
-  { name: "Алиса", set: "BoL: Vol 1" },
-  { name: "Медуза", set: "BoL: Vol 1" },
-  { name: "Синдбад", set: "BoL: Vol 1" },
-  { name: "Красная Шапочка", set: "Cobble & Fog" },
-  { name: "Беовульф", set: "Cobble & Fog" },
-  { name: "Дракула", set: "Cobble & Fog" },
-  { name: "Человек-невидимка", set: "Cobble & Fog" },
-  { name: "Ахиллес", set: "BoL: Vol 2" },
-  { name: "Кровавая Мэри", set: "BoL: Vol 2" },
-  { name: "Сунь Укун", set: "BoL: Vol 2" },
-  { name: "Енанга", set: "BoL: Vol 2" },
-];
-
-// --- Обработчики событий ---
+// --- Инициализация приложения ---
 document.addEventListener("DOMContentLoaded", () => {
-  // Переключение темы
-  const themeToggle = document.getElementById("theme-toggle");
-  const themeIconLight = document.getElementById("theme-icon-light");
-  const themeIconDark = document.getElementById("theme-icon-dark");
+  // --- Инициализация базовых модулей ---
+  const storage = new AppStorage();
+  const listManager = new ListManager(storage);
+  Theme.init();
 
+  // --- Глобальные переменные ---
+  let lastGeneration = storage.get("lastGeneration");
+
+  // --- Обновление UI ---
   const updateThemeIcons = () => {
+    const themeIconLight = document.getElementById("theme-icon-light");
+    const themeIconDark = document.getElementById("theme-icon-dark");
+    if (!themeIconLight || !themeIconDark) return;
+
     if (document.documentElement.classList.contains("dark")) {
       themeIconLight.classList.add("hidden");
       themeIconDark.classList.remove("hidden");
@@ -56,72 +41,94 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  if (themeToggle) {
-    themeToggle.addEventListener("click", () => {
-      Theme.toggleTheme();
-      updateThemeIcons();
-    });
-  }
-  updateThemeIcons(); // Обновляем иконку при загрузке
-  window.addEventListener("theme-changed", updateThemeIcons); // Обновляем при системных изменениях
+  const updateActiveListDisplay = () => {
+    const select = document.getElementById("hero-select");
+    if (!select) return;
 
-  // Кнопка настроек
-  const settingsBtn = document.getElementById("settings-btn");
-  if (settingsBtn) {
-    settingsBtn.addEventListener("click", () => {
-      new Modal({
-        type: "bottom-sheet",
-        title: "Настройки",
-        content: "<p>Здесь будут настройки списков героев.</p>",
-        confirmText: "Сохранить",
-      }).open();
-    });
-  }
+    const lists = listManager.getLists().filter((l) => !l.isTemp);
+    const activeList = listManager.getActiveList();
 
-  // Кнопка генерации
-  const generateBtn = document.getElementById("generate-teams-btn");
-  if (generateBtn) {
-    generateBtn.addEventListener("click", () => {
-      const excludedHeroes = Storage.loadExcludedHeroes();
-      const generation = Generator.generateAll(HERO_DATA, excludedHeroes);
+    select.innerHTML = lists
+      .map(
+        (list) =>
+          `<option value="${list.id}" ${
+            list.id === activeList.id ? "selected" : ""
+          }>${list.name}</option>`
+      )
+      .join("");
+  };
+
+  // --- Первичная отрисовка ---
+  updateThemeIcons();
+  updateActiveListDisplay();
+
+  // --- Обработчики событий ---
+  document.getElementById("theme-toggle")?.addEventListener("click", () => {
+    Theme.toggleTheme();
+    updateThemeIcons();
+  });
+
+  document.getElementById("hero-select")?.addEventListener("change", (e) => {
+    listManager.setDefaultList(e.target.value);
+    updateActiveListDisplay();
+  });
+
+  document.getElementById("settings-btn")?.addEventListener("click", () => {
+    listManager.showManagementModal();
+  });
+
+  document
+    .getElementById("generate-teams-btn")
+    ?.addEventListener("click", () => {
+      const activeList = listManager.getActiveList();
+      if (!activeList || activeList.heroes.length < 4) {
+        Toast.error("В активном списке должно быть не менее 4 героев.");
+        return;
+      }
+
+      const excludedHeroes = storage.get("excludedHeroes") || [];
+      const generation = Generator.generateAll(
+        activeList.heroes,
+        excludedHeroes
+      );
 
       if (generation) {
-        Storage.saveLastGeneration(generation);
+        lastGeneration = generation;
+        storage.set("lastGeneration", generation);
         Toast.success("Команды сгенерированы!");
-        Results.show(generation, HERO_DATA);
+        Results.show(generation, activeList.heroes, (excluded) => {
+          // Callback для обновления исключенных героев
+          storage.set("excludedHeroes", excluded);
+        });
       } else {
         Toast.error("Недостаточно героев для генерации!");
       }
     });
-  }
 
-  // Кнопка последней генерации
-  const lastGenBtn = document.getElementById("last-gen-btn");
-  if (lastGenBtn) {
-    lastGenBtn.addEventListener("click", () => {
-      const lastGen = Storage.loadLastGeneration();
-      if (lastGen) {
-        Results.show(lastGen, HERO_DATA);
-      } else {
-        Toast.info("Нет данных о последней генерации.");
-      }
-    });
-  }
+  document.getElementById("last-gen-btn")?.addEventListener("click", () => {
+    if (lastGeneration) {
+      const activeList = listManager.getActiveList();
+      Results.show(lastGeneration, activeList.heroes, (excluded) => {
+        storage.set("excludedHeroes", excluded);
+      });
+    } else {
+      Toast.info("Нет данных о последней генерации.");
+    }
+  });
 
-  // Кнопка сброса сессии
-  const resetBtn = document.getElementById("reset-session-btn");
-  if (resetBtn) {
-    resetBtn.addEventListener("click", () => {
+  document
+    .getElementById("reset-session-btn")
+    ?.addEventListener("click", () => {
       new Modal({
         type: "dialog",
         title: "Подтверждение",
-        content:
-          "Вы уверены, что хотите сбросить сессию? Данные о последней генерации и список исключенных героев будут удалены.",
+        content: "Сбросить сессию? Список исключенных героев будет очищен.",
         onConfirm: () => {
-          Storage.clearSession();
+          storage.remove("excludedHeroes");
+          listManager.clearTempLists();
+          updateActiveListDisplay();
           Toast.success("Сессия сброшена.");
         },
       }).open();
     });
-  }
 });

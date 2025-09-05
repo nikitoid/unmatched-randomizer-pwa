@@ -8,8 +8,9 @@ import Toast from "./toast.js";
 export default class ListManager {
   constructor(storage) {
     this.storage = storage;
-    this.lists = this.storage.getItem("heroLists", []);
-    this.defaultListId = this.storage.getItem("defaultHeroListId", null);
+    this.lists = this.storage.get("heroLists") || [];
+    this.defaultListId = this.storage.get("defaultHeroListId") || null;
+    this.modalInstance = null; // Для управления модальным окном
 
     if (this.lists.length === 0) {
       this.createDefaultList();
@@ -23,7 +24,7 @@ export default class ListManager {
       "Медуза",
       "Синдбад",
       "Дракула",
-      "Невидимка",
+      "Человек-невидимка",
       "Джекил и Хайд",
       "Шерлок Холмс",
       "Бигфут",
@@ -33,11 +34,15 @@ export default class ListManager {
       "Брюс Ли",
       "Красная Шапочка",
       "Беовульф",
+      "Ахиллес",
+      "Кровавая Мэри",
+      "Сунь Укун",
+      "Енанга",
     ];
     const newList = {
       id: `list_${Date.now()}`,
       name: "Основной список",
-      heroes: defaultHeroes,
+      heroes: defaultHeroes.map((name) => ({ name })), // Сохраняем как объекты
       isTemp: false,
       parentList: null,
     };
@@ -48,11 +53,11 @@ export default class ListManager {
   }
 
   saveLists() {
-    this.storage.setItem("heroLists", this.lists);
+    this.storage.set("heroLists", this.lists);
   }
 
   saveDefaultListId() {
-    this.storage.setItem("defaultHeroListId", this.defaultListId);
+    this.storage.set("defaultHeroListId", this.defaultListId);
   }
 
   getLists() {
@@ -64,12 +69,13 @@ export default class ListManager {
   }
 
   getActiveList() {
-    // Логика для получения активного списка (с учетом временных)
     const tempLists = this.lists.filter((l) => l.isTemp);
     if (tempLists.length > 0) {
-      return tempLists[0]; // В сессии может быть только один временный список
+      return tempLists[0];
     }
-    return this.getListById(this.defaultListId) || this.lists[0];
+    return (
+      this.getListById(this.defaultListId) || this.lists.find((l) => !l.isTemp)
+    );
   }
 
   updateList(listId, data) {
@@ -83,25 +89,33 @@ export default class ListManager {
   }
 
   deleteList(listId) {
-    const list = this.getListById(listId);
-    if (!list || list.isTemp) {
-      new Toast().error("Этот список нельзя удалить.");
-      return;
-    }
+    new Modal({
+      type: "dialog",
+      title: "Подтверждение",
+      content: "Вы уверены, что хотите удалить этот список?",
+      onConfirm: () => {
+        const list = this.getListById(listId);
+        if (!list || list.isTemp) {
+          Toast.error("Этот список нельзя удалить.");
+          return;
+        }
 
-    const nonTempLists = this.lists.filter((l) => !l.isTemp);
-    if (nonTempLists.length <= 1) {
-      new Toast().error("Нельзя удалить единственный список.");
-      return;
-    }
+        const nonTempLists = this.lists.filter((l) => !l.isTemp);
+        if (nonTempLists.length <= 1) {
+          Toast.error("Нельзя удалить единственный список.");
+          return;
+        }
 
-    this.lists = this.lists.filter((l) => l.id !== listId);
-    if (this.defaultListId === listId) {
-      this.defaultListId = this.lists.find((l) => !l.isTemp).id;
-      this.saveDefaultListId();
-    }
-    this.saveLists();
-    new Toast().success(`Список "${list.name}" удален.`);
+        this.lists = this.lists.filter((l) => l.id !== listId);
+        if (this.defaultListId === listId) {
+          this.defaultListId = this.lists.find((l) => !l.isTemp).id;
+          this.saveDefaultListId();
+        }
+        this.saveLists();
+        Toast.success(`Список "${list.name}" удален.`);
+        this.refreshModalUI();
+      },
+    }).open();
   }
 
   setDefaultList(listId) {
@@ -109,19 +123,20 @@ export default class ListManager {
     if (list && !list.isTemp) {
       this.defaultListId = listId;
       this.saveDefaultListId();
-      new Toast().success(`Список "${list.name}" установлен по умолчанию.`);
+      Toast.success(`Список "${list.name}" установлен по умолчанию.`);
+      this.refreshModalUI();
       return true;
     }
     return false;
   }
 
   createTempList(parentId, excludedHeroes) {
-    this.clearTempLists(); // Очищаем старые временные списки
+    this.clearTempLists();
     const parentList = this.getListById(parentId);
     if (!parentList) return null;
 
     const newHeroes = parentList.heroes.filter(
-      (h) => !excludedHeroes.includes(h)
+      (h) => !excludedHeroes.includes(h.name)
     );
     const tempList = {
       id: `temp_${Date.now()}`,
@@ -139,9 +154,9 @@ export default class ListManager {
     const initialCount = this.lists.length;
     this.lists = this.lists.filter((list) => !list.isTemp);
     if (this.lists.length < initialCount) {
-      new Toast().info("Временные списки исключений сброшены.");
+      this.saveLists();
+      Toast.info("Временные списки исключений сброшены.");
     }
-    this.saveLists();
   }
 
   renderManagementUI() {
@@ -151,11 +166,12 @@ export default class ListManager {
         const isTemp = list.isTemp;
         const canDelete =
           !isTemp && this.lists.filter((l) => !l.isTemp).length > 1;
+        const heroNames = list.heroes.map((h) => h.name).join("\n");
 
         return `
-            <div class="accordion-item bg-gray-100 dark:bg-gray-800 rounded-lg mb-3">
+            <div class="accordion-item bg-gray-100 dark:bg-gray-800 rounded-lg mb-3 shadow-sm">
                 <button class="accordion-header flex justify-between items-center w-full p-4 text-left font-semibold text-gray-800 dark:text-gray-200">
-                    <span>
+                    <span class="truncate pr-2">
                         ${list.name}
                         ${
                           isDefault
@@ -168,15 +184,13 @@ export default class ListManager {
                             : ""
                         }
                     </span>
-                    <svg class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                    <svg class="w-5 h-5 transform transition-transform flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
                 </button>
                 <div class="accordion-content hidden p-4 border-t border-gray-200 dark:border-gray-700">
                     <div class="flex flex-col gap-4" data-list-id="${list.id}">
                         <div>
                             <label class="block text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Герои (каждый с новой строки):</label>
-                            <textarea class="heroes-textarea w-full h-48 p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md resize-y">${list.heroes.join(
-                              "\n"
-                            )}</textarea>
+                            <textarea class="heroes-textarea w-full h-48 p-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md resize-y">${heroNames}</textarea>
                         </div>
                         <button class="save-list-btn w-full bg-teal-500 text-white font-bold py-2 px-4 rounded-lg active:bg-teal-600">Сохранить изменения</button>
                         <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
@@ -216,73 +230,39 @@ export default class ListManager {
   }
 
   showManagementModal() {
-    const content = this.renderManagementUI();
-    const modal = new Modal({
+    this.modalInstance = new Modal({
       type: "fullscreen",
       title: "Управление списками",
-      content: content,
-      confirmText: null, // Убираем кнопки
+      content: this.renderManagementUI(),
+      confirmText: null,
     });
-    modal.open();
+    this.modalInstance.open();
     this.addEventListenersToModal();
   }
 
   addEventListenersToModal() {
-    const accordion = document.querySelector(".accordion");
-    if (!accordion) return;
+    const modalContent = document.querySelector(
+      ".modal-container:last-of-type .modal-content"
+    );
+    if (!modalContent) return;
 
-    accordion.addEventListener("click", (e) => {
-      // Accordion toggle logic
+    modalContent.addEventListener("click", (e) => {
       const header = e.target.closest(".accordion-header");
       if (header) {
-        const item = header.parentElement;
-        const content = item.querySelector(".accordion-content");
+        const content = header.nextElementSibling;
         const icon = header.querySelector("svg");
         content.classList.toggle("hidden");
         icon.classList.toggle("rotate-180");
+        return;
       }
 
-      // Button actions logic
-      const container = e.target.closest("[data-list-id]");
-      if (!container) return;
+      const button = e.target.closest("button");
+      if (!button) return;
 
-      const listId = container.dataset.listId;
+      const container = button.closest("[data-list-id]");
+      const listId = container?.dataset.listId;
 
-      if (e.target.classList.contains("save-list-btn")) {
-        const textarea = container.querySelector(".heroes-textarea");
-        const heroes = textarea.value
-          .split("\n")
-          .map((h) => h.trim())
-          .filter(Boolean);
-        this.updateList(listId, { heroes });
-        new Toast().success("Список героев сохранен!");
-        this.refreshModal();
-      } else if (e.target.classList.contains("set-default-btn")) {
-        this.setDefaultList(listId);
-        this.refreshModal();
-      } else if (e.target.classList.contains("rename-list-btn")) {
-        const list = this.getListById(listId);
-        const newName = prompt("Введите новое имя для списка:", list.name);
-        if (newName && newName.trim()) {
-          this.updateList(listId, { name: newName.trim() });
-          new Toast().success("Список переименован.");
-          this.refreshModal();
-        }
-      } else if (e.target.classList.contains("delete-list-btn")) {
-        new Modal({
-          title: "Подтверждение",
-          content: "Вы уверены, что хотите удалить этот список?",
-          onConfirm: () => {
-            this.deleteList(listId);
-            this.refreshModal();
-          },
-        }).open();
-      }
-    });
-
-    document
-      .getElementById("add-new-list-btn")
-      ?.addEventListener("click", () => {
+      if (button.id === "add-new-list-btn") {
         const newName = prompt("Введите имя нового списка:");
         if (newName && newName.trim()) {
           const newList = {
@@ -294,18 +274,41 @@ export default class ListManager {
           };
           this.lists.push(newList);
           this.saveLists();
-          new Toast().success(`Список "${newName.trim()}" создан.`);
-          this.refreshModal();
+          Toast.success(`Список "${newName.trim()}" создан.`);
+          this.refreshModalUI();
         }
-      });
+      } else if (listId) {
+        if (button.classList.contains("save-list-btn")) {
+          const textarea = container.querySelector(".heroes-textarea");
+          const heroes = textarea.value
+            .split("\n")
+            .map((name) => ({ name: name.trim() }))
+            .filter((h) => h.name);
+          this.updateList(listId, { heroes });
+          Toast.success("Список героев сохранен!");
+        } else if (button.classList.contains("set-default-btn")) {
+          this.setDefaultList(listId);
+        } else if (button.classList.contains("rename-list-btn")) {
+          const list = this.getListById(listId);
+          const newName = prompt("Введите новое имя для списка:", list.name);
+          if (newName && newName.trim()) {
+            this.updateList(listId, { name: newName.trim() });
+            Toast.success("Список переименован.");
+            this.refreshModalUI();
+          }
+        } else if (button.classList.contains("delete-list-btn")) {
+          this.deleteList(listId);
+        }
+      }
+    });
   }
 
-  refreshModal() {
-    const currentModal = document.querySelector(".modal-container");
-    if (currentModal) {
-      const modalContent = currentModal.querySelector(".modal-content");
+  refreshModalUI() {
+    const modalContent = document.querySelector(
+      ".modal-container:last-of-type .modal-content"
+    );
+    if (modalContent) {
       modalContent.innerHTML = this.renderManagementUI();
-      this.addEventListenersToModal();
     }
   }
 }
