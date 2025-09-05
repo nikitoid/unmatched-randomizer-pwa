@@ -1,5 +1,5 @@
 // Меняем версию кэша, чтобы спровоцировать обновление
-const CACHE_NAME = "randomatched-cache-v1";
+const CACHE_NAME = "randomatched-cache-v2"; // Версия изменена
 const urlsToCache = [
   "/",
   "/index.html",
@@ -17,6 +17,8 @@ const urlsToCache = [
   "/js/modules/storage.js",
   "/js/modules/theme.js",
   "/js/modules/toast.js",
+  "/js/modules/firebase.js", // --- Новый файл ---
+  "/js/modules/auth.js", // --- Новый файл ---
 ];
 
 // Установка Service Worker и кэширование статических файлов
@@ -29,7 +31,6 @@ self.addEventListener("install", (event) => {
         return cache.addAll(urlsToCache);
       })
       .then(() => {
-        // --- Ключевое изменение: активируем SW немедленно ---
         console.log(
           "Service Worker: пропуск ожидания и немедленная активация."
         );
@@ -54,39 +55,19 @@ self.addEventListener("activate", (event) => {
       );
     })
   );
-  // Принудительно делаем новый SW активным для всех клиентов
   return self.clients.claim();
 });
 
 // Обработка запросов (стратегия "Cache First")
 self.addEventListener("fetch", (event) => {
+  // Игнорируем запросы к Firebase, чтобы они всегда шли в сеть
+  if (event.request.url.includes("firebase")) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((response) => {
-      // Если ресурс есть в кэше, возвращаем его
-      if (response) {
-        return response;
-      }
-
-      // В противном случае, делаем запрос к сети
-      return fetch(event.request).then((networkResponse) => {
-        // Проверяем, что ответ корректный
-        if (
-          !networkResponse ||
-          networkResponse.status !== 200 ||
-          networkResponse.type !== "basic"
-        ) {
-          return networkResponse;
-        }
-
-        // Клонируем ответ, так как его можно использовать только один раз
-        const responseToCache = networkResponse.clone();
-
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseToCache);
-        });
-
-        return networkResponse;
-      });
+      return response || fetch(event.request);
     })
   );
 });

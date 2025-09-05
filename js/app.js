@@ -6,6 +6,7 @@ import Storage from "./modules/storage.js";
 import Generator from "./modules/generator.js";
 import Results from "./modules/results.js";
 import ListManager from "./modules/listManager.js";
+import Firebase from "./modules/firebase.js"; // --- Новый импорт ---
 
 // --- Инициализация темы ---
 Theme.init();
@@ -19,7 +20,6 @@ function registerServiceWorker() {
         .then((registration) => {
           console.log("Service Worker зарегистрирован:", registration);
 
-          // Показываем спиннер при обнаружении нового SW
           registration.addEventListener("updatefound", () => {
             console.log("Найден новый Service Worker, начинается установка...");
             const spinner = document.getElementById("update-spinner");
@@ -31,10 +31,7 @@ function registerServiceWorker() {
         });
     });
 
-    // Слушаем событие, когда новый SW берет управление на себя.
-    // Это надежный способ узнать, что обновление завершено.
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      // Убеждаемся, что это не первоначальная установка, а именно обновление
       if (navigator.serviceWorker.controller) {
         console.log(
           "Контроллер Service Worker изменился, обновление завершено."
@@ -49,6 +46,7 @@ function registerServiceWorker() {
 
 // --- Глобальное состояние и данные ---
 let heroLists = {};
+let isInitialSyncDone = false;
 
 /**
  * Обновляет выпадающий список героев на главном экране.
@@ -99,6 +97,7 @@ function initializeAppState() {
   heroLists = Storage.loadHeroLists();
   let defaultList = Storage.loadDefaultList();
 
+  // Создаем стартовый набор, только если списков нет СОВСЕМ
   if (!heroLists || Object.keys(heroLists).length === 0) {
     const starterHeroes = [
       "Король Артур",
@@ -125,10 +124,38 @@ function initializeAppState() {
   updateHeroSelect();
 }
 
+// --- Логика синхронизации с Firebase ---
+function startFirebaseSync() {
+  if (navigator.onLine) {
+    if (!isInitialSyncDone) Toast.info("Синхронизация с облаком...");
+
+    Firebase.syncLists((isSuccess) => {
+      if (isSuccess) {
+        if (isInitialSyncDone) {
+          Toast.success("Данные обновлены из облака.");
+        } else {
+          Toast.success("Данные синхронизированы.");
+          isInitialSyncDone = true;
+        }
+        // Перезагружаем состояние из обновленного localStorage
+        initializeAppState();
+      } else if (!isInitialSyncDone) {
+        Toast.warning(
+          "Не удалось получить данные из облака. Используются локальные данные."
+        );
+      }
+    });
+  } else {
+    Toast.warning("Нет сети. Работа в офлайн-режиме.");
+  }
+}
+
 // --- Обработчики событий ---
 document.addEventListener("DOMContentLoaded", () => {
-  registerServiceWorker(); // Запускаем логику SW
+  registerServiceWorker();
 
+  // --- Инициализация темы ---
+  Theme.init();
   const themeToggle = document.getElementById("theme-toggle");
   const themeIconLight = document.getElementById("theme-icon-light");
   const themeIconDark = document.getElementById("theme-icon-dark");
@@ -142,17 +169,18 @@ document.addEventListener("DOMContentLoaded", () => {
       themeIconDark.classList.add("hidden");
     }
   };
-
   if (themeToggle) {
     themeToggle.addEventListener("click", () => {
       Theme.toggleTheme();
-      updateThemeIcons();
     });
   }
   updateThemeIcons();
   window.addEventListener("theme-changed", updateThemeIcons);
 
-  initializeAppState();
+  // --- Инициализация приложения ---
+  initializeAppState(); // Сначала загружаем локальные данные для быстрого старта
+  startFirebaseSync(); // Затем запускаем синхронизацию
+  window.addEventListener("online", startFirebaseSync); // Слушаем восстановление соединения
 
   const settingsBtn = document.getElementById("settings-btn");
   if (settingsBtn) {
@@ -172,12 +200,11 @@ document.addEventListener("DOMContentLoaded", () => {
         Toast.error("Пожалуйста, выберите корректный список.");
         return;
       }
-
       const heroesForGeneration = heroNamesInList.map((name) => ({ name }));
 
       if (heroesForGeneration.length < 4) {
         Toast.error(
-          `В списке "${selectedListName}" недостаточно героев для генерации (нужно минимум 4, доступно ${heroesForGeneration.length}).`
+          `В списке "${selectedListName}" недостаточно героев (нужно минимум 4, доступно ${heroesForGeneration.length}).`
         );
         return;
       }
@@ -187,12 +214,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (generation) {
         Storage.saveLastGeneration(generation);
         Toast.success("Команды сгенерированы!");
-
         const allUniqueHeroNames = [
           ...new Set(Object.values(heroLists).flat()),
         ];
         const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
-
         Results.show(generation, allUniqueHeroes, initializeAppState);
       } else {
         Toast.error("Не удалось сгенерировать команды!");
@@ -233,8 +258,8 @@ document.addEventListener("DOMContentLoaded", () => {
         content:
           "Вы уверены, что хотите сбросить сессию? Все временные списки (с пометкой 'искл.') и последняя генерация будут удалены.",
         onConfirm: () => {
-          Storage.clearSession(); // Новая логика теперь здесь
-          initializeAppState(); // Обновляем UI
+          Storage.clearSession();
+          initializeAppState();
           Toast.success("Сессия сброшена.");
         },
       }).open();

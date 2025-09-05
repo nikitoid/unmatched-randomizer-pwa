@@ -1,6 +1,8 @@
 import Modal from "./modal.js";
 import Storage from "./storage.js";
 import Toast from "./toast.js";
+import Firebase from "./firebase.js"; // --- Новый импорт ---
+import Auth from "./auth.js"; // --- Новый импорт ---
 
 /**
  * Модуль для управления списками героев.
@@ -15,9 +17,8 @@ const ListManager = {
   currentView: "manager",
   listToEdit: null,
   isListenerAttached: false,
-  isCopyRegex: /\(искл\.( \d+)?\)$/, // Регулярное выражение для обнаружения копий
+  isCopyRegex: /\(искл\.( \d+)?\)$/,
 
-  // ... (иконки остаются без изменений)
   icons: {
     rename: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg>`,
     delete: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`,
@@ -25,6 +26,68 @@ const ListManager = {
     starFilled: `<svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`,
     back: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>`,
     add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
+  },
+
+  /**
+   * --- НОВЫЙ МЕТОД: Централизованное обновление данных с проверкой пароля ---
+   * @param {object} updatedLists - Новый объект списков.
+   * @param {string|null} updatedDefaultList - Новое имя списка по умолчанию.
+   * @param {string|null} updatedActiveList - Новое имя активного списка.
+   */
+  async updateAndSync(
+    updatedLists,
+    updatedDefaultList = null,
+    updatedActiveList = null
+  ) {
+    if (!navigator.onLine) {
+      Toast.error("Нет сети. Изменения не могут быть сохранены в облако.");
+      return;
+    }
+
+    try {
+      const password = await Auth.requestPassword();
+      const isValid = await Firebase.verifyPassword(password);
+
+      if (!isValid) {
+        Toast.error("Неверный пароль.");
+        Auth.clearCachedPassword(); // Сбрасываем кэш при ошибке
+        return;
+      }
+
+      Toast.info("Сохранение изменений в облаке...");
+      const newDbState = {
+        lists: updatedLists,
+        selected: {
+          default: updatedDefaultList || this.defaultList,
+          // Используем новый активный список, если он передан, иначе текущий
+          active: updatedActiveList || Storage.loadActiveList(),
+        },
+      };
+
+      const success = await Firebase.updateRemoteData(newDbState);
+      if (success) {
+        // Локальное сохранение происходит только после успешной отправки в облако
+        Storage.saveHeroLists(updatedLists);
+        if (updatedDefaultList) Storage.saveDefaultList(updatedDefaultList);
+        if (updatedActiveList) Storage.saveActiveList(updatedActiveList);
+
+        Toast.success("Изменения сохранены.");
+
+        // Обновляем состояние менеджера
+        this.heroLists = { ...updatedLists };
+        if (updatedDefaultList) this.defaultList = updatedDefaultList;
+
+        this.render();
+      } else {
+        Toast.error("Ошибка сохранения в облаке.");
+      }
+    } catch (error) {
+      if (error) {
+        // Если ошибка - не просто отмена пользователем
+        console.error("Ошибка при синхронизации:", error);
+        Toast.error("Произошла ошибка при сохранении.");
+      }
+    }
   },
 
   show(heroLists, onUpdate) {
@@ -116,7 +179,7 @@ const ListManager = {
         const isCopy = this.isCopyRegex.test(listName);
 
         const buttonsHTML = isCopy
-          ? `<div class="w-28 flex-shrink-0"></div>` // Заглушка для выравнивания
+          ? `<div class="w-28 flex-shrink-0"></div>`
           : `
             <div class="flex items-center space-x-1 flex-shrink-0">
                 <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
@@ -176,6 +239,7 @@ const ListManager = {
         </div>`;
   },
 
+  // --- ОБНОВЛЕННЫЕ МЕТОДЫ С ИНТЕГРАЦИЕЙ FIREBASE ---
   handleSaveList() {
     const textarea = document.getElementById("list-hero-editor");
     if (!textarea) return;
@@ -184,12 +248,14 @@ const ListManager = {
       .map((name) => name.trim())
       .filter((name) => name);
 
-    this.heroLists[this.listToEdit] = newHeroNames;
-    Storage.saveHeroLists(this.heroLists);
-    Toast.success(`Список "${this.listToEdit}" сохранен.`);
+    const updatedLists = { ...this.heroLists };
+    updatedLists[this.listToEdit] = newHeroNames;
 
-    this.currentView = "manager";
-    this.render();
+    this.updateAndSync(updatedLists).then(() => {
+      // После успешной синхронизации, возвращаемся к менеджеру
+      this.currentView = "manager";
+      this.render(); // Рендер будет вызван внутри updateAndSync, но на всякий случай
+    });
   },
 
   handleSetDefault(listName) {
@@ -197,36 +263,28 @@ const ListManager = {
       Toast.error("Временный список не может быть установлен по умолчанию.");
       return;
     }
-    this.defaultList = listName;
-    Storage.saveDefaultList(listName);
-    Toast.success(`Список "${listName}" установлен по умолчанию.`);
-    this.render();
+    this.updateAndSync(this.heroLists, listName);
   },
 
   handleCreateList() {
-    const content = `
-        <p class="text-sm mb-2 text-gray-600 dark:text-gray-400">Введите название для нового списка героев.</p>
-        <input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Например, 'Только маги'">`;
+    const content = `<input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Например, 'Только маги'">`;
     new Modal({
       title: "Создать новый список",
       content: content,
       onConfirm: () => {
         const input = document.getElementById("new-list-name-input");
-        if (!input) return;
-
         const newName = input.value.trim();
         if (this.isCopyRegex.test(newName)) {
           Toast.error("Название списка не может содержать '(искл.)'.");
           return;
         }
-
         if (newName && !this.heroLists[newName]) {
-          this.heroLists[newName] = [];
-          Storage.saveHeroLists(this.heroLists);
-          Toast.success(`Список "${newName}" создан.`);
-          this.listToEdit = newName;
-          this.currentView = "editor";
-          this.render();
+          const updatedLists = { ...this.heroLists, [newName]: [] };
+          this.updateAndSync(updatedLists).then(() => {
+            this.listToEdit = newName;
+            this.currentView = "editor";
+            this.render();
+          });
         } else if (this.heroLists[newName]) {
           Toast.error("Список с таким именем уже существует.");
         } else {
@@ -241,43 +299,32 @@ const ListManager = {
       Toast.error("Временные списки не могут быть переименованы.");
       return;
     }
-    const content = `<input type="text" id="rename-list-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" value="${oldName}">`;
+    const content = `<input type="text" id="rename-list-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg" value="${oldName}">`;
     new Modal({
       title: "Переименовать список",
       content: content,
       onConfirm: () => {
         const input = document.getElementById("rename-list-input");
-        if (!input) return;
-
         const newName = input.value.trim();
 
         if (this.isCopyRegex.test(newName)) {
           Toast.error("Название списка не может содержать '(искл.)'.");
           return;
         }
-
         if (newName && oldName !== newName && !this.heroLists[newName]) {
           const updatedLists = {};
           Object.keys(this.heroLists).forEach((key) => {
-            if (key === oldName) {
-              updatedLists[newName] = this.heroLists[oldName];
-            } else {
-              updatedLists[key] = this.heroLists[key];
-            }
+            updatedLists[key === oldName ? newName : key] = this.heroLists[key];
           });
-          this.heroLists = updatedLists;
 
-          if (this.defaultList === oldName) {
-            this.defaultList = newName;
-            Storage.saveDefaultList(newName);
-          }
-          if (Storage.loadActiveList() === oldName) {
-            Storage.saveActiveList(newName);
-          }
+          let newDefault =
+            this.defaultList === oldName ? newName : this.defaultList;
+          let newActive =
+            Storage.loadActiveList() === oldName
+              ? newName
+              : Storage.loadActiveList();
 
-          Storage.saveHeroLists(this.heroLists);
-          Toast.success("Список переименован.");
-          this.render();
+          this.updateAndSync(updatedLists, newDefault, newActive);
         } else if (this.heroLists[newName]) {
           Toast.error("Список с таким именем уже существует.");
         } else if (!newName) {
@@ -306,13 +353,14 @@ const ListManager = {
       content: `Вы уверены, что хотите удалить список "${listName}"?`,
       confirmText: "Удалить",
       onConfirm: () => {
-        if (Storage.loadActiveList() === listName) {
-          Storage.remove("active-list-name");
-        }
-        delete this.heroLists[listName];
-        Storage.saveHeroLists(this.heroLists);
-        Toast.success(`Список "${listName}" удален.`);
-        this.render();
+        const updatedLists = { ...this.heroLists };
+        delete updatedLists[listName];
+        let newActive =
+          Storage.loadActiveList() === listName
+            ? this.defaultList
+            : Storage.loadActiveList();
+
+        this.updateAndSync(updatedLists, this.defaultList, newActive);
       },
     }).open();
   },
