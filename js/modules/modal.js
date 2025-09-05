@@ -47,17 +47,21 @@ class Modal {
         animationClasses = "opacity-0 scale-95";
         break;
       case "bottom-sheet":
-        typeClasses = "w-full fixed bottom-0 rounded-t-2xl";
+        // FIX: Убраны лишние классы позиционирования, так как они задаются ниже
+        typeClasses = "w-full rounded-t-2xl";
         animationClasses = "translate-y-full";
         break;
       case "dialog":
       default:
-        typeClasses = "w-11/12 max-w-md mx-auto my-8 rounded-2xl relative";
+        // FIX: Убран 'my-8' для корректной работы 'm-auto' и добавлен 'h-fit'
+        // чтобы высота контейнера была по содержимому.
+        typeClasses = "w-11/12 max-w-md mx-auto rounded-2xl relative h-fit";
         animationClasses = "opacity-0 -translate-y-8";
         break;
     }
 
     this.modalElement.className = `fixed inset-0 m-auto z-50 bg-gray-800 text-gray-100 shadow-lg p-6 transform transition-all duration-300 ease-out ${typeClasses} ${animationClasses}`;
+
     // Корректировка для bottom-sheet, чтобы он не был по центру
     if (this.options.type === "bottom-sheet") {
       this.modalElement.className = `fixed bottom-0 left-0 right-0 z-50 bg-gray-800 text-gray-100 shadow-lg p-6 transform transition-all duration-300 ease-out ${typeClasses} ${animationClasses}`;
