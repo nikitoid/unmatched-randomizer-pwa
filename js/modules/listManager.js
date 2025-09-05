@@ -36,7 +36,7 @@ const ListManager = {
       content: '<div class="modal-content-wrapper h-full"></div>',
       confirmText: null,
       onClose: () => {
-        this.onUpdateCallback();
+        this.onUpdateCallback(); // Обновляем главный экран при закрытии
         this.isListenerAttached = false;
       },
     });
@@ -92,7 +92,7 @@ const ListManager = {
     if (!this.container) return;
     let html = "";
     const titleElement = document.getElementById("modal-title");
-    this.appData = Storage.getFullData(); // Обновляем данные перед рендером
+    this.appData = Storage.getFullData(); // Всегда получаем свежие данные перед рендером
 
     if (this.currentView === "manager") {
       if (titleElement) titleElement.textContent = "Управление списками";
@@ -103,6 +103,7 @@ const ListManager = {
       html = this.createEditorHTML();
     }
     this.container.innerHTML = html;
+    this.onUpdateCallback(); // Обновляем главный экран после любого рендера
   },
 
   createManagerHTML() {
@@ -110,9 +111,10 @@ const ListManager = {
     const defaultList = this.appData.defaultList;
 
     const listItems = Object.keys(heroLists)
+      .sort((a, b) => a.localeCompare(b)) // Сортируем для порядка
       .map((listName) => {
         const isDefault = listName === defaultList;
-        const heroCount = heroLists[listName].length;
+        const heroCount = heroLists[listName] ? heroLists[listName].length : 0;
         const isCopy = this.isCopyRegex.test(listName);
 
         const buttonsHTML = isCopy
@@ -147,7 +149,10 @@ const ListManager = {
       .join("");
 
     return `
-        <div class="space-y-3">${listItems}</div>
+        <div class="space-y-3">${
+          listItems ||
+          '<p class="text-center text-gray-500">Списки не найдены.</p>'
+        }</div>
         <button data-action="create" class="mt-6 flex items-center justify-center gap-2 w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">
             ${this.icons.add} <span>Создать новый список</span>
         </button>`;
@@ -175,12 +180,6 @@ const ListManager = {
   },
 
   async handleSaveList() {
-    if (!navigator.onLine) {
-      Toast.warning(
-        "Нет подключения к сети. Изменения не будут синхронизированы."
-      );
-    }
-
     const textarea = document.getElementById("list-hero-editor");
     if (!textarea) return;
     const newHeroNames = textarea.value
@@ -210,7 +209,6 @@ const ListManager = {
     this.appData.defaultList = listName;
     Storage.setFullData(this.appData);
     Toast.success(`Список "${listName}" установлен по умолчанию.`);
-    this.render();
 
     if (navigator.onLine) {
       try {
@@ -221,10 +219,10 @@ const ListManager = {
         Toast.error("Аутентификация отменена. Изменение не синхронизировано.");
       }
     }
+    this.render();
   },
 
   async handleCreateList() {
-    // ... модальное окно для ввода имени
     new Modal({
       title: "Создать новый список",
       content: `<input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg" placeholder="Название списка">`,
@@ -262,7 +260,6 @@ const ListManager = {
 
   async handleRenameList(oldName) {
     if (this.isCopyRegex.test(oldName)) return;
-    // ... модальное окно для переименования
     new Modal({
       title: "Переименовать список",
       content: `<input type="text" id="rename-list-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg" value="${oldName}">`,
@@ -275,15 +272,15 @@ const ListManager = {
           return;
         }
         if (newName && oldName !== newName && !this.appData.lists[newName]) {
-          this.appData.lists[newName] = this.appData.lists[oldName];
-          delete this.appData.lists[oldName];
+          const fullData = Storage.getFullData();
+          fullData.lists[newName] = fullData.lists[oldName];
+          delete fullData.lists[oldName];
 
-          if (this.appData.defaultList === oldName)
-            this.appData.defaultList = newName;
-          if (this.appData.activeList === oldName)
-            this.appData.activeList = newName;
+          if (fullData.defaultList === oldName) fullData.defaultList = newName;
+          if (fullData.activeList === oldName) fullData.activeList = newName;
 
-          Storage.setFullData(this.appData);
+          Storage.setFullData(fullData);
+          this.appData = fullData; // Обновляем локальное состояние
           Toast.success("Список переименован локально.");
 
           if (navigator.onLine) {
@@ -318,11 +315,13 @@ const ListManager = {
       content: `Вы уверены, что хотите удалить список "${listName}"?`,
       confirmText: "Удалить",
       onConfirm: async () => {
-        delete this.appData.lists[listName];
-        if (this.appData.activeList === listName) {
-          this.appData.activeList = this.appData.defaultList;
+        const fullData = Storage.getFullData();
+        delete fullData.lists[listName];
+        if (fullData.activeList === listName) {
+          fullData.activeList = fullData.defaultList;
         }
-        Storage.setFullData(this.appData);
+        Storage.setFullData(fullData);
+        this.appData = fullData; // Обновляем локальное состояние
         Toast.success(`Список "${listName}" удален локально.`);
 
         if (navigator.onLine) {

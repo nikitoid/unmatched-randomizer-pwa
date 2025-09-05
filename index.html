@@ -182,13 +182,17 @@
       };
 
       // Initialize Firebase
-      window.firebaseApp = initializeApp(firebaseConfig);
-      window.firebaseDb = getDatabase(window.firebaseApp);
-      window.firebaseAuth = getAuth(window.firebaseApp);
+      try {
+        window.firebaseApp = initializeApp(firebaseConfig);
+        window.firebaseDb = getDatabase(window.firebaseApp);
+        window.firebaseAuth = getAuth(window.firebaseApp);
 
-      signInAnonymously(window.firebaseAuth).catch((error) => {
-        console.error("Anonymous sign-in failed:", error);
-      });
+        signInAnonymously(window.firebaseAuth).catch((error) => {
+          console.error("Anonymous sign-in failed:", error);
+        });
+      } catch (e) {
+        console.error("Firebase initialization failed:", e);
+      }
     </script>
     <script type="module" src="js/app.js"></script>
   </body>

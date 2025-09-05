@@ -7,12 +7,15 @@ import {
 } from "https://www.gstatic.com/firebasejs/9.17.1/firebase-database.js";
 import Auth from "./auth.js";
 import Toast from "./toast.js";
+import Storage from "./storage.js";
 
 const DB_PATH = "lists/main";
 
 let db;
 const getDb = () => {
-  if (!db) db = window.firebaseDb;
+  if (!db && window.firebaseDb) {
+    db = window.firebaseDb;
+  }
   return db;
 };
 
@@ -20,12 +23,13 @@ const getDb = () => {
  * Получает полный объект данных из Firebase.
  */
 async function getDbObject() {
+  if (!getDb()) {
+    console.log("Firebase: DB не инициализирована.");
+    return null;
+  }
   try {
     const snapshot = await get(ref(getDb(), DB_PATH));
-    if (snapshot.exists()) {
-      return snapshot.val();
-    }
-    return null;
+    return snapshot.exists() ? snapshot.val() : null;
   } catch (error) {
     console.error("Firebase: Ошибка получения данных", error);
     Toast.error("Ошибка при получении данных с сервера.");
@@ -40,17 +44,28 @@ async function getDbObject() {
 async function syncLists() {
   console.log("Firebase: Начало синхронизации...");
   const remoteData = await getDbObject();
-  if (remoteData) {
-    // Здесь можно добавить более сложную логику слияния,
-    // но пока просто перезаписываем локальные данные.
-    localStorage.setItem("randomatched-data", JSON.stringify(remoteData));
+
+  // Только если на сервере есть данные, обновляем локальные
+  if (remoteData && remoteData.lists) {
+    Storage.setFullData(remoteData);
     console.log("Firebase: Локальные данные обновлены с сервера.");
     Toast.success("Списки синхронизированы.");
     return true;
   }
-  console.log(
-    "Firebase: Удаленные данные не найдены, синхронизация пропущена."
-  );
+
+  // Если на сервере пусто, а локально есть - загружаем на сервер
+  const localData = Storage.getFullData();
+  if (!remoteData && localData && Object.keys(localData.lists).length > 0) {
+    console.log("Firebase: На сервере пусто, выгружаем локальные данные.");
+    try {
+      const password = await Auth.requestPassword();
+      await updateAllData(localData, password);
+    } catch (e) {
+      console.warn("Firebase: Выгрузка локальных данных отменена.", e);
+    }
+  }
+
+  console.log("Firebase: Синхронизация завершена.");
   return false;
 }
 
@@ -78,6 +93,7 @@ async function updateList(listId, heroArray, password) {
     Toast.error("Неверный пароль.");
     return false;
   }
+  if (!getDb()) return false;
   try {
     await update(ref(getDb(), `${DB_PATH}/lists`), {
       [listId]: heroArray,
@@ -99,6 +115,7 @@ async function deleteList(listId, password) {
     Toast.error("Неверный пароль.");
     return false;
   }
+  if (!getDb()) return false;
   try {
     await remove(ref(getDb(), `${DB_PATH}/lists/${listId}`));
     Toast.success("Список удален с сервера.");
@@ -118,6 +135,7 @@ async function updateAllData(data, password) {
     Toast.error("Неверный пароль.");
     return false;
   }
+  if (!getDb()) return false;
   try {
     await set(ref(getDb(), DB_PATH), data);
     console.log("Firebase: Все данные обновлены на сервере.");
