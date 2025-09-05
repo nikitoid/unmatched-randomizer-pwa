@@ -18,20 +18,17 @@ if ("serviceWorker" in navigator) {
 
 // --- Инициализация приложения ---
 document.addEventListener("DOMContentLoaded", () => {
-  // --- Инициализация базовых модулей ---
   const storage = new AppStorage();
   const listManager = new ListManager(storage);
   Theme.init();
 
-  // --- Глобальные переменные ---
   let lastGeneration = storage.get("lastGeneration");
 
-  // --- Обновление UI ---
+  // --- Функции обновления UI ---
   const updateThemeIcons = () => {
     const themeIconLight = document.getElementById("theme-icon-light");
     const themeIconDark = document.getElementById("theme-icon-dark");
     if (!themeIconLight || !themeIconDark) return;
-
     if (document.documentElement.classList.contains("dark")) {
       themeIconLight.classList.add("hidden");
       themeIconDark.classList.remove("hidden");
@@ -45,14 +42,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const select = document.getElementById("hero-select");
     if (!select) return;
 
-    const lists = listManager.getLists().filter((l) => !l.isTemp);
-    const activeList = listManager.getActiveList();
+    const allLists = listManager.getLists();
+    const activeListId = listManager.getActiveListId();
 
-    select.innerHTML = lists
+    select.innerHTML = allLists
       .map(
         (list) =>
           `<option value="${list.id}" ${
-            list.id === activeList.id ? "selected" : ""
+            list.id === activeListId ? "selected" : ""
           }>${list.name}</option>`
       )
       .join("");
@@ -63,13 +60,19 @@ document.addEventListener("DOMContentLoaded", () => {
   updateActiveListDisplay();
 
   // --- Обработчики событий ---
+  window.addEventListener("listChanged", updateActiveListDisplay);
+
   document.getElementById("theme-toggle")?.addEventListener("click", () => {
     Theme.toggleTheme();
     updateThemeIcons();
   });
 
   document.getElementById("hero-select")?.addEventListener("change", (e) => {
-    listManager.setDefaultList(e.target.value);
+    const selectedId = e.target.value;
+    const list = listManager.getListById(selectedId);
+    if (list && !list.isTemp) {
+      listManager.setDefaultList(selectedId);
+    }
     updateActiveListDisplay();
   });
 
@@ -86,30 +89,29 @@ document.addEventListener("DOMContentLoaded", () => {
         return;
       }
 
-      const excludedHeroes = storage.get("excludedHeroes") || [];
-      const generation = Generator.generateAll(
-        activeList.heroes,
-        excludedHeroes
-      );
+      const generation = Generator.generateAll(activeList.heroes, []); // Исключения теперь обрабатываются через временные списки
 
       if (generation) {
         lastGeneration = generation;
         storage.set("lastGeneration", generation);
         Toast.success("Команды сгенерированы!");
-        Results.show(generation, activeList.heroes, (excluded) => {
-          // Callback для обновления исключенных героев
-          storage.set("excludedHeroes", excluded);
+        Results.show(generation, activeList.heroes, (excludedNames) => {
+          listManager.createTempList(excludedNames);
+          updateActiveListDisplay();
         });
       } else {
-        Toast.error("Недостаточно героев для генерации!");
+        Toast.error(
+          "Недостаточно героев для генерации (с учетом исключенных)!"
+        );
       }
     });
 
   document.getElementById("last-gen-btn")?.addEventListener("click", () => {
     if (lastGeneration) {
       const activeList = listManager.getActiveList();
-      Results.show(lastGeneration, activeList.heroes, (excluded) => {
-        storage.set("excludedHeroes", excluded);
+      Results.show(lastGeneration, activeList.heroes, (excludedNames) => {
+        listManager.createTempList(excludedNames);
+        updateActiveListDisplay();
       });
     } else {
       Toast.info("Нет данных о последней генерации.");
@@ -122,9 +124,11 @@ document.addEventListener("DOMContentLoaded", () => {
       new Modal({
         type: "dialog",
         title: "Подтверждение",
-        content: "Сбросить сессию? Список исключенных героев будет очищен.",
+        content:
+          "Сбросить сессию? Временные списки и последняя генерация будут удалены.",
         onConfirm: () => {
-          storage.remove("excludedHeroes");
+          storage.remove("lastGeneration");
+          lastGeneration = null;
           listManager.clearTempLists();
           updateActiveListDisplay();
           Toast.success("Сессия сброшена.");
