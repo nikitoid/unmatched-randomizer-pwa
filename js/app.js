@@ -31,15 +31,16 @@ function registerServiceWorker() {
         });
     });
 
-    // Слушаем сообщения от SW
-    navigator.serviceWorker.addEventListener("message", (event) => {
-      // Когда получаем сообщение об обновлении кэша
-      if (event.data && event.data.type === "CACHE_UPDATED") {
-        console.log("Получено сообщение от SW: кэш обновлен.");
+    // Слушаем событие, когда новый SW берет управление на себя.
+    // Это надежный способ узнать, что обновление завершено.
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      // Убеждаемся, что это не первоначальная установка, а именно обновление
+      if (navigator.serviceWorker.controller) {
+        console.log(
+          "Контроллер Service Worker изменился, обновление завершено."
+        );
         const spinner = document.getElementById("update-spinner");
         if (spinner) spinner.classList.add("invisible");
-
-        // Показываем кастомное уведомление
         Toast.success("Приложение обновлено!");
       }
     });

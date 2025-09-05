@@ -1,5 +1,5 @@
 // Меняем версию кэша, чтобы спровоцировать обновление
-const CACHE_NAME = "randomatched-cache-v3";
+const CACHE_NAME = "randomatched-cache-v5";
 const urlsToCache = [
   "/",
   "/index.html",
@@ -26,26 +26,16 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   console.log("Service Worker: активирован");
   event.waitUntil(
-    caches
-      .keys()
-      .then((cacheNames) => {
-        return Promise.all(
-          cacheNames.map((cacheName) => {
-            if (cacheName !== CACHE_NAME) {
-              console.log("Service Worker: удаление старого кэша", cacheName);
-              return caches.delete(cacheName);
-            }
-          })
-        );
-      })
-      .then(() => {
-        // Уведомляем все открытые клиенты (вкладки) о том, что SW обновился
-        return self.clients.matchAll().then((clients) => {
-          clients.forEach((client) =>
-            client.postMessage({ type: "CACHE_UPDATED" })
-          );
-        });
-      })
+    caches.keys().then((cacheNames) => {
+      return Promise.all(
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log("Service Worker: удаление старого кэша", cacheName);
+            return caches.delete(cacheName);
+          }
+        })
+      );
+    })
   );
   // Принудительно делаем новый SW активным для всех клиентов
   return self.clients.claim();
