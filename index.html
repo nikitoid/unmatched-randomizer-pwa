@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru" class="dark">
+  <!-- Тема по умолчанию, будет управляться JS -->
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -7,103 +8,106 @@
       content="width=device-width, initial-scale=1.0, user-scalable=no"
     />
     <title>Randomatched</title>
+
+    <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json" />
-    <link rel="stylesheet" href="css/style.css" />
+
+    <!-- Theme Color для мобильных браузеров -->
+    <meta name="theme-color" content="#1a202c" />
+
+    <!-- Иконка для Apple устройств -->
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-      /* Custom animations for modals and toasts */
-      @keyframes fadeIn {
-        from {
-          opacity: 0;
-        }
-        to {
-          opacity: 1;
-        }
-      }
-      @keyframes fadeOut {
-        from {
-          opacity: 1;
-        }
-        to {
-          opacity: 0;
-        }
-      }
-      @keyframes fadeInUp {
-        from {
-          opacity: 0;
-          transform: translateY(20px);
-        }
-        to {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      }
-      @keyframes slideInUp {
-        from {
-          transform: translateY(100%);
-        }
-        to {
-          transform: translateY(0);
-        }
-      }
-      .animate-fade-in {
-        animation: fadeIn 0.3s ease-out forwards;
-      }
-      .animate-fade-out {
-        animation: fadeOut 0.3s ease-in forwards;
-      }
-      .animate-fade-in-up {
-        animation: fadeInUp 0.3s ease-out forwards;
-      }
-      .animate-slide-in-up {
-        animation: slideInUp 0.3s ease-out forwards;
-      }
-    </style>
+    <script>
+      // Конфигурация Tailwind для поддержки темной темы через класс 'dark'
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {},
+        },
+      };
+    </script>
+
+    <!-- Пользовательские стили -->
+    <link rel="stylesheet" href="css/style.css" />
   </head>
   <body
-    class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 font-sans antialiased"
+    class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased h-screen overflow-hidden"
   >
-    <div id="app" class="flex flex-col h-screen p-4">
+    <div class="container mx-auto px-4 py-4 h-full flex flex-col">
       <!-- Header -->
-      <header class="flex justify-between items-center flex-shrink-0">
+      <header class="flex justify-between items-center mb-4 flex-shrink-0">
         <button
           id="theme-toggle"
-          class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+          class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
         >
-          <!-- Icons will be injected by theme.js -->
+          <!-- Sun Icon -->
+          <svg
+            id="theme-icon-light"
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+            ></path>
+          </svg>
+          <!-- Moon Icon -->
+          <svg
+            id="theme-icon-dark"
+            class="w-6 h-6 hidden"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+            ></path>
+          </svg>
         </button>
-        <h1 class="text-2xl font-bold text-teal-500">Randomatched</h1>
+        <h1 class="text-3xl font-bold text-teal-500 dark:text-teal-400">
+          Randomatched
+        </h1>
         <div class="w-10"></div>
         <!-- Spacer -->
       </header>
 
       <!-- Main Content -->
       <main
-        class="flex-grow flex flex-col justify-center items-center text-center"
+        class="flex-grow flex flex-col items-center justify-center text-center"
       >
-        <div class="w-full max-w-sm mx-auto">
-          <label
-            for="list-select"
-            class="block text-sm font-medium text-gray-600 dark:text-gray-400 mb-2"
-          >
-            Активный список героев:
-          </label>
-          <div class="flex items-center gap-2">
-            <div
-              id="current-list-display"
-              class="w-full text-center py-3 px-4 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm"
+        <!-- Hero Selection -->
+        <div class="w-full max-w-sm mb-6">
+          <label for="hero-select" class="sr-only">Выберите героев</label>
+          <div class="flex items-center space-x-2">
+            <select
+              id="hero-select"
+              class="block w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
-              <span id="current-list-name" class="font-semibold"></span>
-            </div>
+              <option>Все герои</option>
+              <!-- Другие списки будут добавлены позже -->
+            </select>
             <button
               id="settings-btn"
-              class="flex-shrink-0 p-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-sm active:scale-95 transition-transform"
+              class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
               <svg
-                class="w-6 h-6 text-gray-700 dark:text-gray-300"
+                class="w-6 h-6"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
               >
                 <path
                   stroke-linecap="round"
@@ -121,39 +125,40 @@
             </button>
           </div>
         </div>
+
+        <!-- Main Action Button -->
+        <button
+          id="generate-teams-btn"
+          class="w-full max-w-sm bg-teal-500 active:bg-teal-600 text-white font-bold py-4 px-6 rounded-lg shadow-md text-xl transition-transform transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75"
+        >
+          Сгенерировать команды
+        </button>
       </main>
 
       <!-- Footer Actions -->
-      <footer class="flex-shrink-0 mt-auto">
-        <div class="space-y-3 w-full max-w-sm mx-auto">
-          <button
-            id="generate-btn"
-            class="w-full bg-teal-500 text-white font-bold text-lg py-4 px-6 rounded-xl shadow-lg transition-transform transform active:scale-95"
-          >
-            Сгенерировать команды
-          </button>
-          <div class="grid grid-cols-2 gap-3">
-            <button
-              id="last-gen-btn"
-              class="w-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg shadow-md active:scale-95 transition-transform"
-            >
-              Последняя генерация
-            </button>
-            <button
-              id="reset-session-btn"
-              class="w-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 font-semibold py-3 px-4 rounded-lg shadow-md active:scale-95 transition-transform"
-            >
-              Сброс сессии
-            </button>
-          </div>
-        </div>
+      <footer
+        class="flex justify-center items-center space-x-4 py-2 flex-shrink-0"
+      >
+        <button
+          id="last-gen-btn"
+          class="text-sm text-gray-600 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
+        >
+          Последняя генерация
+        </button>
+        <span class="text-gray-400 dark:text-gray-600">|</span>
+        <button
+          id="reset-session-btn"
+          class="text-sm text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 transition-colors"
+        >
+          Сброс сессии
+        </button>
       </footer>
     </div>
 
-    <!-- Toast container -->
+    <!-- Контейнер для toast-уведомлений -->
     <div
       id="toast-container"
-      class="fixed bottom-5 right-5 z-50 space-y-3"
+      class="fixed bottom-5 right-5 z-[100] flex flex-col items-end space-y-3 w-full max-w-xs"
     ></div>
 
     <script type="module" src="js/app.js"></script>
