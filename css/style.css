@@ -1,4 +1,4 @@
-/* Здесь вы можете добавить свои пользовательские стили, если Tailwind CSS будет недостаточно. */
 body {
-  -webkit-tap-highlight-color: transparent; /* Убирает подсветку при нажатии на мобильных устройствах */
+  -webkit-tap-highlight-color: transparent; /* Отключение подсветки при нажатии на мобильных */
+  transition: background-color 0.3s ease, color 0.3s ease;
 }

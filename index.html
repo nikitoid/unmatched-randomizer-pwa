@@ -1,8 +1,12 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" class="dark">
+  <!-- Тема по умолчанию, будет управляться JS -->
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
     <title>Randomatched</title>
 
     <!-- PWA Manifest -->
@@ -16,6 +20,15 @@
 
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Конфигурация Tailwind для поддержки темной темы через класс 'dark'
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {},
+        },
+      };
+    </script>
 
     <!-- Alpine.js CDN -->
     <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -30,103 +43,133 @@
     <!-- Пользовательские стили -->
     <link rel="stylesheet" href="css/style.css" />
   </head>
-  <body class="bg-gray-900 text-gray-100 font-sans antialiased">
-    <div
-      class="container mx-auto px-4 min-h-screen flex flex-col items-center justify-center"
-    >
-      <div
-        x-data="{ hero: null, sidekick: null }"
-        class="text-center w-full max-w-md p-6 bg-gray-800 rounded-2xl shadow-lg"
+  <body
+    class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased"
+  >
+    <div class="container mx-auto px-4 py-6 min-h-screen flex flex-col">
+      <!-- Header -->
+      <header class="flex justify-between items-center mb-8">
+        <button
+          id="theme-toggle"
+          class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
+        >
+          <!-- Sun Icon -->
+          <svg
+            id="theme-icon-light"
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+            ></path>
+          </svg>
+          <!-- Moon Icon -->
+          <svg
+            id="theme-icon-dark"
+            class="w-6 h-6 hidden"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+            ></path>
+          </svg>
+        </button>
+        <h1 class="text-3xl font-bold text-teal-500 dark:text-teal-400">
+          Randomatched
+        </h1>
+        <div class="w-10"></div>
+        <!-- Spacer -->
+      </header>
+
+      <!-- Main Content -->
+      <main
+        class="flex-grow flex flex-col items-center justify-center text-center"
       >
-        <header class="mb-8">
-          <h1 class="text-4xl font-bold text-teal-400">Randomatched</h1>
-          <p class="text-gray-400 mt-2">Генератор случайных героев Unmatched</p>
-        </header>
-
-        <main>
-          <!-- Область вывода результата -->
-          <div
-            class="bg-gray-700 rounded-lg p-6 min-h-[120px] flex items-center justify-center mb-8 transition-all duration-300"
-          >
-            <template x-if="hero">
-              <div class="text-center">
-                <h2
-                  class="text-3xl font-semibold text-white"
-                  x-text="hero"
-                ></h2>
-                <p class="text-lg text-teal-300" x-text="sidekick"></p>
-              </div>
-            </template>
-            <template x-if="!hero">
-              <p class="text-gray-400">Нажмите на кнопку, чтобы начать</p>
-            </template>
-          </div>
-
-          <!-- Кнопка генерации -->
-          <button
-            @click="
-                        const heroes = [
-                            { name: 'Король Артур', sidekick: 'Мерлин' },
-                            { name: 'Алиса', sidekick: 'Бармаглот' },
-                            { name: 'Медуза', sidekick: 'Гарпии' },
-                            { name: 'Синдбад', sidekick: 'Носильщик' }
-                        ];
-                        const randomHero = heroes[Math.floor(Math.random() * heroes.length)];
-                        hero = randomHero.name;
-                        sidekick = randomHero.sidekick;
-                        // Используем toast-уведомление
-                        window.Toast.success(`Сгенерирован: ${hero}!`);
-                    "
-            class="w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition-transform transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75 mb-6"
-          >
-            Сгенерировать героя
-          </button>
-
-          <!-- Демонстрация модулей -->
-          <div class="border-t border-gray-700 pt-6 space-y-3">
-            <h3 class="text-lg font-semibold text-gray-400 text-center mb-2">
-              Демонстрация модулей
-            </h3>
-            <button
-              id="open-dialog"
-              class="w-full bg-blue-500 active:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+        <!-- Hero Selection -->
+        <div class="w-full max-w-sm mb-6">
+          <label for="hero-select" class="sr-only">Выберите героев</label>
+          <div class="flex items-center space-x-2">
+            <select
+              id="hero-select"
+              class="block w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
-              Открыть диалог
-            </button>
+              <option>Все герои</option>
+              <option>Только мои герои</option>
+              <option>Герои из "Vol. 1"</option>
+            </select>
             <button
-              id="open-sheet"
-              class="w-full bg-indigo-500 active:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
+              id="settings-btn"
+              class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
             >
-              Открыть шторку
-            </button>
-            <button
-              id="open-fullscreen"
-              class="w-full bg-purple-500 active:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-            >
-              Полный экран
-            </button>
-            <button
-              id="show-toast"
-              class="w-full bg-green-500 active:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition-colors"
-            >
-              Показать уведомления
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                ></path>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                ></path>
+              </svg>
             </button>
           </div>
-        </main>
+        </div>
 
-        <footer class="mt-8">
-          <p class="text-sm text-gray-500">&copy; 2024 Randomatched</p>
-        </footer>
-      </div>
+        <!-- Main Action Button -->
+        <button
+          id="generate-teams-btn"
+          class="w-full max-w-sm bg-teal-500 active:bg-teal-600 text-white font-bold py-4 px-6 rounded-lg shadow-md text-xl transition-transform transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75"
+        >
+          Сгенерировать команды
+        </button>
+      </main>
+
+      <!-- Footer Actions -->
+      <footer class="flex justify-center items-center space-x-4 p-4">
+        <button
+          id="last-gen-btn"
+          class="text-sm text-gray-600 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
+        >
+          Последняя генерация
+        </button>
+        <span class="text-gray-400 dark:text-gray-600">|</span>
+        <button
+          id="reset-session-btn"
+          class="text-sm text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 transition-colors"
+        >
+          Сброс сессии
+        </button>
+      </footer>
     </div>
 
     <!-- Контейнер для toast-уведомлений -->
     <div
       id="toast-container"
-      class="fixed bottom-5 right-5 z-50 flex flex-col items-end space-y-3 w-full max-w-xs"
+      class="fixed bottom-5 right-5 z-[100] flex flex-col items-end space-y-3 w-full max-w-xs"
     ></div>
 
-    <!-- Подключение основного скрипта как модуля -->
     <script type="module" src="js/app.js"></script>
   </body>
 </html>

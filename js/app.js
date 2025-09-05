@@ -10,72 +10,98 @@ if ("serviceWorker" in navigator) {
         console.log("Ошибка регистрации Service Worker:", error);
       });
   });
-} else {
-  console.log("Service Worker не поддерживается в этом браузере.");
 }
 
 // --- Импорт и использование модулей ---
-
 import Modal from "./modules/modal.js";
 import Toast from "./modules/toast.js";
+import Theme from "./modules/theme.js";
+import Storage from "./modules/storage.js";
 
-// Делаем Toast доступным глобально для Alpine.js
-window.Toast = Toast;
+// --- Инициализация темы ---
+Theme.init();
 
-// Демонстрация для модальных окон
+// --- Обработчики событий ---
 document.addEventListener("DOMContentLoaded", () => {
-  const openDialogBtn = document.getElementById("open-dialog");
-  const openSheetBtn = document.getElementById("open-sheet");
-  const openFullscreenBtn = document.getElementById("open-fullscreen");
-  const showToastBtn = document.getElementById("show-toast");
+  // Переключение темы
+  const themeToggle = document.getElementById("theme-toggle");
+  const themeIconLight = document.getElementById("theme-icon-light");
+  const themeIconDark = document.getElementById("theme-icon-dark");
 
-  if (openDialogBtn) {
-    openDialogBtn.addEventListener("click", () => {
-      const dialogModal = new Modal({
-        type: "dialog",
-        title: "Диалоговое окно",
-        content:
-          "<p>Это стандартное модальное окно. Оно закроется при нажатии на кнопки или фон.</p>",
-        confirmText: "Принять",
-        cancelText: "Отклонить",
-        onConfirm: () => Toast.success("Вы приняли условия!"),
-        onCancel: () => Toast.warning("Вы отклонили условия."),
-      });
-      dialogModal.open();
+  const updateThemeIcons = () => {
+    if (document.documentElement.classList.contains("dark")) {
+      themeIconLight.classList.add("hidden");
+      themeIconDark.classList.remove("hidden");
+    } else {
+      themeIconLight.classList.remove("hidden");
+      themeIconDark.classList.add("hidden");
+    }
+  };
+
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      Theme.toggleTheme();
+      updateThemeIcons();
     });
   }
+  updateThemeIcons(); // Обновляем иконку при загрузке
+  window.addEventListener("theme-changed", updateThemeIcons); // Обновляем при системных изменениях
 
-  if (openSheetBtn) {
-    openSheetBtn.addEventListener("click", () => {
-      const sheetModal = new Modal({
+  // Кнопка настроек
+  const settingsBtn = document.getElementById("settings-btn");
+  if (settingsBtn) {
+    settingsBtn.addEventListener("click", () => {
+      new Modal({
         type: "bottom-sheet",
-        title: "Нижняя шторка",
-        content:
-          "Это модальное окно, которое появляется снизу. Удобно для мобильных устройств.",
-        onConfirm: () => Toast.info("Действие подтверждено."),
-      });
-      sheetModal.open();
+        title: "Настройки",
+        content: "<p>Здесь будут настройки списков героев.</p>",
+        confirmText: "Сохранить",
+      }).open();
     });
   }
 
-  if (openFullscreenBtn) {
-    openFullscreenBtn.addEventListener("click", () => {
-      const fullModal = new Modal({
-        type: "fullscreen",
-        title: "Полный экран",
-        content:
-          "<p>Это модальное окно занимает весь экран. Используется для важных форм или информации.</p>",
-        onConfirm: () => Toast.success("Форма отправлена!"),
-      });
-      fullModal.open();
+  // Кнопка генерации
+  const generateBtn = document.getElementById("generate-teams-btn");
+  if (generateBtn) {
+    generateBtn.addEventListener("click", () => {
+      const teams = { team1: "Король Артур", team2: "Медуза" }; // Пример
+      Storage.saveLastGeneration(teams);
+      Toast.success("Команды сгенерированы!");
     });
   }
 
-  if (showToastBtn) {
-    showToastBtn.addEventListener("click", () => {
-      Toast.info("Это информационное сообщение.");
-      setTimeout(() => Toast.success("А это сообщение об успехе!"), 500);
-      setTimeout(() => Toast.error("Это ошибка! Что-то пошло не так."), 1000);
+  // Кнопка последней генерации
+  const lastGenBtn = document.getElementById("last-gen-btn");
+  if (lastGenBtn) {
+    lastGenBtn.addEventListener("click", () => {
+      const lastGen = Storage.loadLastGeneration();
+      if (lastGen) {
+        new Modal({
+          type: "dialog",
+          title: "Последняя генерация",
+          content: `<div class="text-left"><p class="mb-2"><span class="font-semibold text-teal-400">Команда 1:</span> ${lastGen.team1}</p><p><span class="font-semibold text-teal-400">Команда 2:</span> ${lastGen.team2}</p></div>`,
+          confirmText: "OK",
+        }).open();
+      } else {
+        Toast.info("Нет данных о последней генерации.");
+      }
+    });
+  }
+
+  // Кнопка сброса сессии
+  const resetBtn = document.getElementById("reset-session-btn");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      new Modal({
+        type: "dialog",
+        title: "Подтверждение",
+        content:
+          "Вы уверены, что хотите сбросить сессию? Данные о последней генерации будут удалены.",
+        onConfirm: () => {
+          Storage.clearSession();
+          Toast.success("Сессия сброшена.");
+        },
+      }).open();
     });
   }
 });
