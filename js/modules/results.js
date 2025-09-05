@@ -4,7 +4,7 @@ import Generator from "./generator.js";
 import Toast from "./toast.js";
 
 let currentGeneration = null;
-let allHeroesData = []; // Пул ВСЕХ уникальных героев для реролла одного
+let heroesInActiveListForReroll = [];
 let resultsModal = null;
 let onListUpdateCallback = () => {};
 
@@ -88,13 +88,13 @@ function createUniqueExclusionListName(baseName, existingLists) {
  * Логика исключения героев: либо изменяет существующую копию, либо создает новую.
  */
 function handleExclusion(heroesToExclude) {
-  const activeListName = Storage.loadActiveList();
-  const heroLists = Storage.loadHeroLists() || {};
-  const originalMap = Storage.loadOriginalListMap();
+  const appData = Storage.getFullData();
+  const activeListName = appData.activeList;
+  const heroLists = appData.lists;
+  const originalMap = appData.originalMap;
   const isCopy = originalMap.hasOwnProperty(activeListName);
 
   if (isCopy) {
-    // --- Изменяем существующую копию ---
     const currentHeroes = heroLists[activeListName] || [];
     const newHeroList = currentHeroes.filter(
       (name) => !heroesToExclude.includes(name)
@@ -102,18 +102,17 @@ function handleExclusion(heroesToExclude) {
 
     if (newHeroList.length < 4) {
       Toast.warning(
-        "После исключения в списке останется меньше 4 героев. Изменения не применены."
+        "В списке останется меньше 4 героев. Изменения не применены."
       );
       return { success: false };
     }
 
-    heroLists[activeListName] = newHeroList;
-    Storage.saveHeroLists(heroLists);
+    appData.lists[activeListName] = newHeroList;
+    Storage.setFullData(appData);
     Toast.success(`Герои исключены из списка "${activeListName}".`);
     if (onListUpdateCallback) onListUpdateCallback();
     return { success: true };
   } else {
-    // --- Создаем новую копию ---
     const originalHeroList = heroLists[activeListName];
     if (!originalHeroList) {
       Toast.error(`Список "${activeListName}" не найден.`);
@@ -126,7 +125,7 @@ function handleExclusion(heroesToExclude) {
 
     if (newHeroList.length < 4) {
       Toast.warning(
-        "После исключения в списке останется меньше 4 героев. Новый список не создан."
+        "В списке останется меньше 4 героев. Новый список не создан."
       );
       return { success: false };
     }
@@ -135,12 +134,11 @@ function handleExclusion(heroesToExclude) {
       activeListName,
       heroLists
     );
-    heroLists[newListName] = newHeroList;
-    originalMap[newListName] = activeListName; // Запоминаем оригинал
+    appData.lists[newListName] = newHeroList;
+    appData.originalMap[newListName] = activeListName; // Запоминаем оригинал
+    appData.activeList = newListName;
 
-    Storage.saveHeroLists(heroLists);
-    Storage.saveOriginalListMap(originalMap);
-    Storage.saveActiveList(newListName);
+    Storage.setFullData(appData);
 
     Toast.success(`Создан и активирован список "${newListName}".`);
     if (onListUpdateCallback) onListUpdateCallback();
@@ -162,15 +160,11 @@ function addEventListeners() {
     e.stopPropagation();
     const action = button.dataset.action;
 
-    const activeListName = Storage.loadActiveList();
-    const heroLists = Storage.loadHeroLists() || {};
-    const heroesInActiveList = (heroLists[activeListName] || []).map(
-      (name) => ({ name })
-    );
+    const activeListHeroes = heroesInActiveListForReroll;
 
     switch (action) {
       case "reshuffle-all":
-        const newFullGen = Generator.generateAll(heroesInActiveList, []);
+        const newFullGen = Generator.generateAll(activeListHeroes, []);
         if (newFullGen) updateResults(newFullGen);
         else Toast.error("Недостаточно героев в текущем списке");
         break;
@@ -190,7 +184,7 @@ function addEventListeners() {
         break;
 
       case "reshuffle-heroes":
-        const newHeroes = Generator.shuffleHeroes(heroesInActiveList, [], 4);
+        const newHeroes = Generator.shuffleHeroes(activeListHeroes, [], 4);
         if (newHeroes && newHeroes.length === 4) {
           const newHeroGen = {
             ...currentGeneration,
@@ -211,7 +205,7 @@ function addEventListeners() {
         const currentHeroNames = Object.values(
           currentGeneration.assignment
         ).map((h) => h.name);
-        const heroesForReshuffle = heroesInActiveList.filter(
+        const heroesForReshuffle = activeListHeroes.filter(
           (h) => !currentHeroNames.includes(h.name)
         );
 
@@ -271,7 +265,7 @@ function addEventListeners() {
                 .map((h) => h.name)
                 .filter((name) => name !== heroNameToExclude);
 
-              const heroesForReplacement = heroesInActiveList.filter(
+              const heroesForReplacement = activeListHeroes.filter(
                 (h) =>
                   !otherThreeHeroes.includes(h.name) &&
                   h.name !== heroNameToExclude
@@ -320,9 +314,9 @@ function addEventListeners() {
 /**
  * Открывает модальное окно с результатами.
  */
-function show(generation, allHeroes, onListUpdate) {
+function show(generation, heroesInActiveList, onListUpdate) {
   currentGeneration = generation;
-  allHeroesData = allHeroes;
+  heroesInActiveListForReroll = heroesInActiveList;
   onListUpdateCallback = onListUpdate;
 
   resultsModal = new Modal({
