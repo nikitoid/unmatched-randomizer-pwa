@@ -17,9 +17,27 @@ import Modal from "./modules/modal.js";
 import Toast from "./modules/toast.js";
 import Theme from "./modules/theme.js";
 import Storage from "./modules/storage.js";
+import Generator from "./modules/generator.js";
+import Results from "./modules/results.js";
 
 // --- Инициализация темы ---
 Theme.init();
+
+// --- Данные о героях (временно) ---
+const HERO_DATA = [
+  { name: "Король Артур", set: "BoL: Vol 1" },
+  { name: "Алиса", set: "BoL: Vol 1" },
+  { name: "Медуза", set: "BoL: Vol 1" },
+  { name: "Синдбад", set: "BoL: Vol 1" },
+  { name: "Красная Шапочка", set: "Cobble & Fog" },
+  { name: "Беовульф", set: "Cobble & Fog" },
+  { name: "Дракула", set: "Cobble & Fog" },
+  { name: "Человек-невидимка", set: "Cobble & Fog" },
+  { name: "Ахиллес", set: "BoL: Vol 2" },
+  { name: "Кровавая Мэри", set: "BoL: Vol 2" },
+  { name: "Сунь Укун", set: "BoL: Vol 2" },
+  { name: "Енанга", set: "BoL: Vol 2" },
+];
 
 // --- Обработчики событий ---
 document.addEventListener("DOMContentLoaded", () => {
@@ -64,9 +82,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const generateBtn = document.getElementById("generate-teams-btn");
   if (generateBtn) {
     generateBtn.addEventListener("click", () => {
-      const teams = { team1: "Король Артур", team2: "Медуза" }; // Пример
-      Storage.saveLastGeneration(teams);
-      Toast.success("Команды сгенерированы!");
+      const excludedHeroes = Storage.loadExcludedHeroes();
+      const generation = Generator.generateAll(HERO_DATA, excludedHeroes);
+
+      if (generation) {
+        Storage.saveLastGeneration(generation);
+        Toast.success("Команды сгенерированы!");
+        Results.show(generation, HERO_DATA);
+      } else {
+        Toast.error("Недостаточно героев для генерации!");
+      }
     });
   }
 
@@ -76,12 +101,7 @@ document.addEventListener("DOMContentLoaded", () => {
     lastGenBtn.addEventListener("click", () => {
       const lastGen = Storage.loadLastGeneration();
       if (lastGen) {
-        new Modal({
-          type: "dialog",
-          title: "Последняя генерация",
-          content: `<div class="text-left"><p class="mb-2"><span class="font-semibold text-teal-400">Команда 1:</span> ${lastGen.team1}</p><p><span class="font-semibold text-teal-400">Команда 2:</span> ${lastGen.team2}</p></div>`,
-          confirmText: "OK",
-        }).open();
+        Results.show(lastGen, HERO_DATA);
       } else {
         Toast.info("Нет данных о последней генерации.");
       }
@@ -96,7 +116,7 @@ document.addEventListener("DOMContentLoaded", () => {
         type: "dialog",
         title: "Подтверждение",
         content:
-          "Вы уверены, что хотите сбросить сессию? Данные о последней генерации будут удалены.",
+          "Вы уверены, что хотите сбросить сессию? Данные о последней генерации и список исключенных героев будут удалены.",
         onConfirm: () => {
           Storage.clearSession();
           Toast.success("Сессия сброшена.");

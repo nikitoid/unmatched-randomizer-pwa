@@ -2,6 +2,10 @@
  * Модуль-обертка для работы с localStorage.
  * Автоматически обрабатывает JSON.
  */
+
+const LAST_GEN_KEY = "last-generation";
+const EXCLUDED_HEROES_KEY = "excluded-heroes";
+
 const Storage = {
   /**
    * Получить значение из localStorage по ключу.
@@ -63,16 +67,24 @@ const Storage = {
   },
 
   saveLastGeneration(teams) {
-    this.set("last-generation", teams);
+    this.set(LAST_GEN_KEY, teams);
   },
 
   loadLastGeneration() {
-    return this.get("last-generation");
+    return this.get(LAST_GEN_KEY);
+  },
+
+  saveExcludedHeroes(heroes) {
+    this.set(EXCLUDED_HEROES_KEY, heroes);
+  },
+
+  loadExcludedHeroes() {
+    return this.get(EXCLUDED_HEROES_KEY) || [];
   },
 
   clearSession() {
-    this.remove("last-generation");
-    // В будущем здесь можно будет очищать и другие данные сессии
+    this.remove(LAST_GEN_KEY);
+    this.remove(EXCLUDED_HEROES_KEY);
     console.log("Сессия очищена.");
   },
 };
