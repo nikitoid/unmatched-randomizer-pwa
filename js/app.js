@@ -8,12 +8,22 @@ import ListManager from "./modules/lists.js";
 
 document.addEventListener("DOMContentLoaded", () => {
   // --- Инициализация модулей ---
-  const theme = new Theme();
   const storage = new Storage("randomatched_");
   const listManager = new ListManager(storage);
 
   // --- Глобальные переменные ---
   let lastGeneration = storage.getItem("lastGeneration", null);
+
+  // --- Инициализация темы (с проверкой) ---
+  const themeToggleBtn = document.getElementById("theme-toggle");
+  let theme;
+  if (themeToggleBtn) {
+    theme = new Theme();
+  } else {
+    console.error(
+      "Кнопка смены темы не найдена! Модуль Theme не будет инициализирован."
+    );
+  }
 
   // --- Функции обновления UI ---
   function updateActiveListDisplay() {
@@ -28,9 +38,9 @@ document.addEventListener("DOMContentLoaded", () => {
   updateActiveListDisplay();
 
   // --- Обработчики событий ---
-  document
-    .getElementById("theme-toggle")
-    .addEventListener("click", () => theme.toggle());
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener("click", () => theme.toggle());
+  }
 
   document.getElementById("settings-btn").addEventListener("click", () => {
     listManager.showManagementModal();
