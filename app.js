@@ -48,6 +48,12 @@ $(document).ready(function () {
   const passwordModalContainer = $("#password-modal-container"),
     passwordModalPanel = $("#password-modal-panel");
 
+  // --- Check for update status on load ---
+  if (sessionStorage.getItem("appUpdated")) {
+    showNotification("Приложение обновлено до последней версии.", "success");
+    sessionStorage.removeItem("appUpdated");
+  }
+
   // --- Setup Firebase ---
   function initializeFirebase() {
     try {
@@ -468,7 +474,13 @@ $(document).ready(function () {
     }
     const hash = CryptoJS.SHA256($("#password-input").val()).toString();
     try {
-      if (!listsDocRef) throw new Error("Firebase not initialized");
+      if (!listsDocRef) {
+        showNotification(
+          "Функция недоступна: нет подключения к базе.",
+          "error"
+        );
+        return;
+      }
       const docSnap = await getDoc(listsDocRef);
       if (docSnap.exists() && docSnap.data().passwordHash === hash) {
         isSettingsAuthenticated = true;
@@ -570,12 +582,23 @@ $(document).ready(function () {
   });
   settingsModalPanel.on("click", "#add-list-btn", (e) => {
     e.stopPropagation();
-    if (!isSettingsAuthenticated && navigator.onLine) {
+    if (!navigator.onLine) {
+      showNotification("Функция недоступна в оффлайн-режиме.", "error");
+      return;
+    }
+    if (!isSettingsAuthenticated) {
       openPasswordModal();
       return;
     }
     const newListName = prompt("Введите название нового списка:");
     if (newListName && !localListsCache.lists[newListName]) {
+      if (!listsDocRef) {
+        showNotification(
+          "Функция недоступна: нет подключения к базе.",
+          "error"
+        );
+        return;
+      }
       const key = `lists.${newListName.replace(/\./g, "_")}`;
       updateDoc(listsDocRef, { [key]: [] }).then(() => {
         showNotification(`Список "${newListName}" создан.`, "success");
@@ -605,6 +628,13 @@ $(document).ready(function () {
         );
         return;
       }
+      if (!listsDocRef) {
+        showNotification(
+          "Функция недоступна: нет подключения к базе.",
+          "error"
+        );
+        return;
+      }
       const key = `lists.${listName.replace(/\./g, "_")}`;
       await updateDoc(listsDocRef, { [key]: heroes });
       showNotification(`Список "${listName}" сохранен в Firebase.`, "success");
@@ -629,6 +659,13 @@ $(document).ready(function () {
       return;
     }
     try {
+      if (!listsDocRef) {
+        showNotification(
+          "Функция недоступна: нет подключения к базе.",
+          "error"
+        );
+        return;
+      }
       const docSnap = await getDoc(listsDocRef);
       if (docSnap.exists() && docSnap.data().lists[oldName]) {
         const data = docSnap.data();
@@ -662,6 +699,13 @@ $(document).ready(function () {
       const isDelete = $(this).hasClass("delete-list-btn");
       const action = isDelete
         ? async () => {
+            if (!listsDocRef) {
+              showNotification(
+                "Функция недоступна: нет подключения к базе.",
+                "error"
+              );
+              return;
+            }
             const docSnap = await getDoc(listsDocRef);
             if (docSnap.exists()) {
               const data = docSnap.data();
@@ -676,6 +720,13 @@ $(document).ready(function () {
             }
           }
         : async () => {
+            if (!listsDocRef) {
+              showNotification(
+                "Функция недоступна: нет подключения к базе.",
+                "error"
+              );
+              return;
+            }
             await updateDoc(listsDocRef, { selected: listName });
             showNotification(
               `Список "${listName}" установлен по умолчанию.`,
@@ -730,14 +781,15 @@ $(document).ready(function () {
   function showNotification(message, type = "error", duration = 4000) {
     const color = type === "success" ? "bg-green-500" : "bg-red-500";
     const notificationId = `notification-${Date.now()}`;
+    // Adjusted styles for toast notifications
     const notificationDiv = $(
-      `<div id="${notificationId}" class="absolute top-20 w-full max-w-sm p-3 ${color} text-white rounded-lg shadow-lg transition-opacity duration-300 text-center">${message}</div>`
+      `<div id="${notificationId}" style="z-index: 100;" class="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-sm p-4 ${color} text-white rounded-b-lg shadow-lg transition-all duration-300 text-center">${message}</div>`
     );
     $("#app").prepend(notificationDiv);
-    setTimeout(
-      () => $(`#${notificationId}`).addClass("opacity-0").delay(300).remove(),
-      duration
-    );
+    setTimeout(() => {
+      notificationDiv.css("top", `-${notificationDiv.outerHeight()}px`);
+      notificationDiv.on("transitionend", () => notificationDiv.remove());
+    }, duration);
   }
 
   // --- Service Worker ---
@@ -747,14 +799,11 @@ $(document).ready(function () {
         .register("/sw.js")
         .then((reg) => {
           reg.onupdatefound = () => {
+            $("#update-indicator").removeClass("hidden"); // Show spinner on update found
             const installingWorker = reg.installing;
             installingWorker.onstatechange = () => {
-              if (
-                installingWorker.state === "installed" &&
-                navigator.serviceWorker.controller
-              ) {
-                $("#update-indicator").removeClass("hidden");
-              }
+              // The 'installed' state is when the new worker is ready to take over.
+              // The actual takeover happens on 'controllerchange'.
             };
           };
         })
@@ -763,6 +812,9 @@ $(document).ready(function () {
         );
     });
     navigator.serviceWorker.addEventListener("controllerchange", () => {
+      // This event fires when the new worker has taken control.
+      // Set a flag to show toast after reload.
+      sessionStorage.setItem("appUpdated", "true");
       window.location.reload();
     });
   }
