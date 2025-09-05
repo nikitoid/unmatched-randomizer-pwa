@@ -1,6 +1,6 @@
 // --- Service Worker ---
 
-const CACHE_NAME = "randomatched-v4"; // Увеличиваем версию для чистого обновления
+const CACHE_NAME = "randomatched-v6"; // Увеличиваем версию для форсирования обновления
 const URLS_TO_CACHE = [
   // Локальные ассеты
   "/",
@@ -26,17 +26,24 @@ self.addEventListener("install", (event) => {
     caches
       .open(CACHE_NAME)
       .then((cache) => {
-        console.log("[SW] Opened cache. Caching all assets for offline use.");
+        console.log(
+          "[SW] Открыт кэш. Кэширование всех ресурсов для оффлайн-режима."
+        );
         return cache.addAll(URLS_TO_CACHE);
       })
-      .then(() => self.skipWaiting()) // Принудительно активируем новый SW
+      .then(() => {
+        console.log(
+          "[SW] Все ресурсы успешно закэшированы. Активация немедленно."
+        );
+        return self.skipWaiting(); // Принудительно активируем новый SW
+      })
       .catch((err) => {
-        console.error("[SW] Asset caching failed during install: ", err);
+        console.error("[SW] Ошибка кэширования при установке: ", err);
       })
   );
 });
 
-// Активация: удаляем старые кэши, чтобы освободить место
+// Активация: удаляем старые кэши и захватываем контроль
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
@@ -45,28 +52,29 @@ self.addEventListener("activate", (event) => {
         return Promise.all(
           cacheNames.map((cacheName) => {
             if (cacheName !== CACHE_NAME) {
-              console.log("[SW] Deleting old cache:", cacheName);
+              console.log("[SW] Удаление старого кэша:", cacheName);
               return caches.delete(cacheName);
             }
           })
         );
       })
-      .then(() => self.clients.claim())
+      .then(() => {
+        console.log(
+          "[SW] Новый Service Worker активирован и контролирует страницу."
+        );
+        return self.clients.claim(); // Захватываем контроль над открытыми страницами
+      })
   );
 });
 
-// Fetch: Стратегия "Cache falling back to network" (Кэш, затем сеть)
+// Fetch: Стратегия "Cache falling back to network"
 self.addEventListener("fetch", (event) => {
-  // Игнорируем запросы к Firestore API, так как у него свой оффлайн-механизм
   if (event.request.url.includes("firestore.googleapis.com")) {
     return;
   }
 
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
-      // Если ресурс есть в кэше, возвращаем его.
-      // Иначе — делаем запрос в сеть. Это важно для случаев, когда
-      // пользователь переходит на страницу, которой нет в кэше (хотя в нашем приложении таких нет).
       return cachedResponse || fetch(event.request);
     })
   );
