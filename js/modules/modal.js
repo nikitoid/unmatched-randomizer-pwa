@@ -38,34 +38,34 @@ class Modal {
 
     // Создание контейнера модального окна
     this.modalElement = document.createElement("div");
+
+    const baseClasses =
+      "fixed z-50 bg-gray-800 text-gray-100 shadow-lg p-6 transform transition-all duration-300 ease-out";
+    let positionClasses = "";
     let typeClasses = "";
     let animationClasses = "";
 
     switch (this.options.type) {
       case "fullscreen":
+        positionClasses = "inset-0";
         typeClasses = "w-full h-full rounded-none";
         animationClasses = "opacity-0 scale-95";
         break;
       case "bottom-sheet":
-        // FIX: Убраны лишние классы позиционирования, так как они задаются ниже
+        positionClasses = "bottom-0 left-0 right-0";
         typeClasses = "w-full rounded-t-2xl";
         animationClasses = "translate-y-full";
         break;
       case "dialog":
       default:
-        // FIX: Убран 'my-8' для корректной работы 'm-auto' и добавлен 'h-fit'
-        // чтобы высота контейнера была по содержимому.
-        typeClasses = "w-11/12 max-w-md mx-auto rounded-2xl relative h-fit";
+        positionClasses = "inset-0 m-auto";
+        // FIX: Удален 'relative' и лишний 'mx-auto'
+        typeClasses = "w-11/12 max-w-md rounded-2xl h-fit";
         animationClasses = "opacity-0 -translate-y-8";
         break;
     }
 
-    this.modalElement.className = `fixed inset-0 m-auto z-50 bg-gray-800 text-gray-100 shadow-lg p-6 transform transition-all duration-300 ease-out ${typeClasses} ${animationClasses}`;
-
-    // Корректировка для bottom-sheet, чтобы он не был по центру
-    if (this.options.type === "bottom-sheet") {
-      this.modalElement.className = `fixed bottom-0 left-0 right-0 z-50 bg-gray-800 text-gray-100 shadow-lg p-6 transform transition-all duration-300 ease-out ${typeClasses} ${animationClasses}`;
-    }
+    this.modalElement.className = `${baseClasses} ${positionClasses} ${typeClasses} ${animationClasses}`;
 
     // Содержимое модального окна
     this.modalElement.innerHTML = `
