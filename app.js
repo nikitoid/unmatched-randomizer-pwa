@@ -98,8 +98,10 @@ $(document).ready(function () {
 
   // --- Data Sync & Caching ---
   async function syncWithFirebase() {
-    if (!navigator.onLine) {
-      console.log("Offline mode: Skipping Firebase sync.");
+    if (!navigator.onLine || !listsDocRef) {
+      console.log(
+        "Offline mode or Firebase not ready: Skipping Firebase sync."
+      );
       return;
     }
     try {
