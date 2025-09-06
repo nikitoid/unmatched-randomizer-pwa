@@ -7,6 +7,10 @@ import Generator from "./modules/generator.js";
 import Results from "./modules/results.js";
 import ListManager from "./modules/listManager.js";
 
+// --- Firebase и Auth модули ---
+import "./modules/firebase.js";
+import "./modules/auth.js";
+
 // --- Инициализация темы ---
 Theme.init();
 
@@ -49,6 +53,8 @@ function registerServiceWorker() {
 
 // --- Глобальное состояние и данные ---
 let heroLists = {};
+let firebaseManager = null;
+let authManager = null;
 
 /**
  * Обновляет выпадающий список героев на главном экране.
@@ -89,6 +95,32 @@ function updateHeroSelect() {
       option.selected = true;
     }
     heroSelect.appendChild(option);
+  }
+}
+
+/**
+ * Инициализирует Firebase и Auth менеджеры
+ */
+async function initializeFirebase() {
+  try {
+    firebaseManager = new FirebaseManager();
+    authManager = new AuthManager();
+    
+    // Wait for Firebase to initialize
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // Check internet connection and sync if available
+    if (firebaseManager.isReady()) {
+      await firebaseManager.syncLists();
+      Toast.info("Данные синхронизированы с облаком");
+    } else {
+      Toast.info("Работа в автономном режиме");
+    }
+    
+    console.log('Firebase initialized successfully');
+  } catch (error) {
+    console.error('Firebase initialization failed:', error);
+    Toast.warning("Не удалось подключиться к облаку. Работа в автономном режиме.");
   }
 }
 
@@ -152,7 +184,22 @@ document.addEventListener("DOMContentLoaded", () => {
   updateThemeIcons();
   window.addEventListener("theme-changed", updateThemeIcons);
 
-  initializeAppState();
+  // Initialize Firebase first, then app state
+  initializeFirebase().then(() => {
+    // Migrate legacy data to Firebase format
+    Storage.migrateToFirebase();
+    initializeAppState();
+  });
+
+  // Listen for storage updates from Firebase
+  window.addEventListener('storageUpdated', (event) => {
+    console.log('Storage updated from:', event.detail.source);
+    if (event.detail.source === 'firebase') {
+      // Reload data and update UI
+      heroLists = Storage.loadHeroLists();
+      updateHeroSelect();
+    }
+  });
 
   const settingsBtn = document.getElementById("settings-btn");
   if (settingsBtn) {

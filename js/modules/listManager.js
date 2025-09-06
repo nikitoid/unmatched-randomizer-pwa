@@ -176,7 +176,7 @@ const ListManager = {
         </div>`;
   },
 
-  handleSaveList() {
+  async handleSaveList() {
     const textarea = document.getElementById("list-hero-editor");
     if (!textarea) return;
     const newHeroNames = textarea.value
@@ -185,8 +185,22 @@ const ListManager = {
       .filter((name) => name);
 
     this.heroLists[this.listToEdit] = newHeroNames;
-    Storage.saveHeroLists(this.heroLists);
-    Toast.success(`Список "${this.listToEdit}" сохранен.`);
+    
+    // Try to sync with Firebase if available
+    if (window.firebaseManager && window.firebaseManager.isReady()) {
+      try {
+        const password = await this.requestPasswordIfNeeded();
+        await window.firebaseManager.updateList(this.listToEdit, newHeroNames, password);
+        Toast.success(`Список "${this.listToEdit}" сохранен и синхронизирован.`);
+      } catch (error) {
+        console.error('Firebase sync failed:', error);
+        Storage.saveHeroLists(this.heroLists);
+        Toast.warning(`Список "${this.listToEdit}" сохранен локально. ${error.message}`);
+      }
+    } else {
+      Storage.saveHeroLists(this.heroLists);
+      Toast.success(`Список "${this.listToEdit}" сохранен.`);
+    }
 
     this.currentView = "manager";
     this.render();
@@ -305,16 +319,43 @@ const ListManager = {
       title: "Подтверждение",
       content: `Вы уверены, что хотите удалить список "${listName}"?`,
       confirmText: "Удалить",
-      onConfirm: () => {
-        if (Storage.loadActiveList() === listName) {
-          Storage.remove("active-list-name");
+      onConfirm: async () => {
+        try {
+          // Try to sync with Firebase if available
+          if (window.firebaseManager && window.firebaseManager.isReady()) {
+            const password = await this.requestPasswordIfNeeded();
+            await window.firebaseManager.deleteList(listName, password);
+            Toast.success(`Список "${listName}" удален и синхронизирован.`);
+          } else {
+            // Local deletion only
+            if (Storage.loadActiveList() === listName) {
+              Storage.remove("active-list-name");
+            }
+            delete this.heroLists[listName];
+            Storage.saveHeroLists(this.heroLists);
+            Toast.success(`Список "${listName}" удален.`);
+          }
+        } catch (error) {
+          console.error('Delete failed:', error);
+          Toast.error(`Ошибка при удалении: ${error.message}`);
+          return;
         }
-        delete this.heroLists[listName];
-        Storage.saveHeroLists(this.heroLists);
-        Toast.success(`Список "${listName}" удален.`);
         this.render();
       },
     }).open();
+  },
+
+  // Helper method to request password if needed
+  async requestPasswordIfNeeded() {
+    if (window.authManager && window.authManager.hasCachedPassword()) {
+      return window.authManager.getCachedPassword();
+    }
+    
+    if (window.authManager) {
+      return await window.authManager.requestPassword();
+    }
+    
+    return null;
   },
 };
 

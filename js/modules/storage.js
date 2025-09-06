@@ -1,5 +1,5 @@
 /**
- * Модуль-обертка для работы с localStorage.
+ * Модуль-обертка для работы с localStorage и Firebase.
  */
 
 const LAST_GEN_KEY = "last-generation";
@@ -7,6 +7,7 @@ const HERO_LISTS_KEY = "hero-lists";
 const DEFAULT_LIST_KEY = "default-list-name";
 const ACTIVE_LIST_KEY = "active-list-name";
 const ORIGINAL_LIST_MAP_KEY = "original-list-map"; // Карта для отслеживания оригиналов
+const UNMATCHED_LISTS_KEY = "unmatchedLists"; // Firebase data key
 
 const Storage = {
   get(key) {
@@ -55,9 +56,15 @@ const Storage = {
   // --- Методы для управления списками ---
   saveHeroLists(lists) {
     this.set(HERO_LISTS_KEY, lists);
+    this.syncWithFirebase();
   },
 
   loadHeroLists() {
+    // Try to load from Firebase data first, fallback to legacy storage
+    const firebaseData = this.get(UNMATCHED_LISTS_KEY);
+    if (firebaseData && firebaseData.lists) {
+      return firebaseData.lists;
+    }
     return this.get(HERO_LISTS_KEY);
   },
 
@@ -71,9 +78,15 @@ const Storage = {
 
   saveActiveList(listName) {
     this.set(ACTIVE_LIST_KEY, listName);
+    this.syncWithFirebase();
   },
 
   loadActiveList() {
+    // Try to load from Firebase data first, fallback to legacy storage
+    const firebaseData = this.get(UNMATCHED_LISTS_KEY);
+    if (firebaseData && firebaseData.selected) {
+      return firebaseData.selected;
+    }
     return this.get(ACTIVE_LIST_KEY);
   },
 
@@ -122,6 +135,49 @@ const Storage = {
     this.remove(ORIGINAL_LIST_MAP_KEY);
     this.remove(LAST_GEN_KEY);
     console.log("Сессия очищена, временные списки удалены.");
+  },
+
+  // --- Firebase integration methods ---
+  syncWithFirebase() {
+    // This method will be called when Firebase manager is available
+    if (window.firebaseManager && window.firebaseManager.isReady()) {
+      // Trigger sync in background
+      window.firebaseManager.syncLists().catch(error => {
+        console.error('Background sync failed:', error);
+      });
+    }
+  },
+
+  // Update Firebase data structure
+  updateFirebaseData(lists, selected = null) {
+    const currentData = this.get(UNMATCHED_LISTS_KEY) || { lists: {}, passwordHash: '', selected: '' };
+    const newData = {
+      ...currentData,
+      lists: lists || currentData.lists,
+      selected: selected !== null ? selected : currentData.selected
+    };
+    this.set(UNMATCHED_LISTS_KEY, newData);
+  },
+
+  // Get Firebase data structure
+  getFirebaseData() {
+    return this.get(UNMATCHED_LISTS_KEY) || { lists: {}, passwordHash: '', selected: '' };
+  },
+
+  // Migrate legacy data to Firebase format
+  migrateToFirebase() {
+    const legacyLists = this.get(HERO_LISTS_KEY);
+    const legacySelected = this.get(ACTIVE_LIST_KEY);
+    
+    if (legacyLists && !this.get(UNMATCHED_LISTS_KEY)) {
+      const firebaseData = {
+        lists: legacyLists,
+        passwordHash: '',
+        selected: legacySelected || ''
+      };
+      this.set(UNMATCHED_LISTS_KEY, firebaseData);
+      console.log('Legacy data migrated to Firebase format');
+    }
   },
 };
 
