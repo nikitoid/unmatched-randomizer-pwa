@@ -1,195 +1,154 @@
 <!DOCTYPE html>
-<html lang="ru" class="dark">
-  <!-- Тема по умолчанию, будет управляться JS -->
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=no"
-    />
-    <title>Randomatched</title>
-
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Randomatched - генератор случайных героев для игры Unmatched">
+    <meta name="theme-color" content="#1f2937">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Randomatched">
+    <meta name="msapplication-TileColor" content="#1f2937">
+    <meta name="msapplication-config" content="/browserconfig.xml">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/x-icon" href="/favicon.ico">
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
+    
     <!-- PWA Manifest -->
-    <link rel="manifest" href="manifest.json" />
-
-    <!-- Theme Color для мобильных браузеров -->
-    <meta name="theme-color" content="#1a202c" />
-
-    <!-- Иконка для Apple устройств -->
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-
+    <link rel="manifest" href="/manifest.json">
+    
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script>
-      // Конфигурация Tailwind для поддержки темной темы через класс 'dark'
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {},
-        },
-      };
-    </script>
-
-    <!-- Пользовательские стили -->
-    <link rel="stylesheet" href="css/style.css" />
-
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  </head>
-  <body
-    class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased h-screen overflow-hidden"
-  >
-    <div class="container mx-auto px-4 py-4 h-full flex flex-col">
-      <!-- Header -->
-      <header class="flex justify-between items-center mb-4 flex-shrink-0">
-        <button
-          id="theme-toggle"
-          class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
-        >
-          <!-- Sun Icon -->
-          <svg
-            id="theme-icon-light"
-            class="w-6 h-6"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-            ></path>
-          </svg>
-          <!-- Moon Icon -->
-          <svg
-            id="theme-icon-dark"
-            class="w-6 h-6 hidden"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
-            ></path>
-          </svg>
-        </button>
-        <h1 class="text-3xl font-bold text-teal-500 dark:text-teal-400">
-          Randomatched
-        </h1>
-        <!-- Контейнер для спиннера обновления -->
-        <div
-          id="update-spinner"
-          class="w-10 h-10 flex items-center justify-center invisible"
-        >
-          <svg
-            class="animate-spin h-6 w-6 text-teal-500"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              class="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              stroke-width="4"
-            ></circle>
-            <path
-              class="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/style.css">
+    
+    <title>Randomatched - Unmatched Randomizer</title>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+    <!-- Header -->
+    <header class="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center">
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+                        Randomatched
+                    </h1>
+                    <span class="ml-2 text-sm text-gray-500 dark:text-gray-400">
+                        Unmatched Randomizer
+                    </span>
+                </div>
+                
+                <!-- Theme Toggle -->
+                <button 
+                    id="theme-toggle" 
+                    class="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors duration-200"
+                    aria-label="Переключить тему"
+                >
+                    <svg id="theme-icon" class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path id="sun-icon" fill-rule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" clip-rule="evenodd"></path>
+                        <path id="moon-icon" fill-rule="evenodd" d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" clip-rule="evenodd" style="display: none;"></path>
+                    </svg>
+                </button>
+            </div>
         </div>
-      </header>
+    </header>
 
-      <!-- Main Content -->
-      <main
-        class="flex-grow flex flex-col items-center justify-center text-center"
-      >
-        <!-- Hero Selection -->
-        <div class="w-full max-w-sm mb-6">
-          <label for="hero-select" class="sr-only">Выберите героев</label>
-          <div class="flex items-center space-x-2">
-            <select
-              id="hero-select"
-              class="block w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <option>Все герои</option>
-              <!-- Другие списки будут добавлены позже -->
-            </select>
-            <button
-              id="settings-btn"
-              class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
-            >
-              <svg
-                class="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                ></path>
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                ></path>
-              </svg>
-            </button>
-          </div>
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Hero Section -->
+        <div class="text-center mb-12">
+            <h2 class="text-4xl font-bold text-gray-900 dark:text-white mb-4">
+                Генератор случайных героев
+            </h2>
+            <p class="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                Создавайте случайные команды героев для игры Unmatched и открывайте новые стратегии!
+            </p>
         </div>
 
-        <!-- Main Action Button -->
-        <button
-          id="generate-teams-btn"
-          class="w-full max-w-sm bg-teal-500 active:bg-teal-600 text-white font-bold py-4 px-6 rounded-lg shadow-md text-xl transition-transform transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75"
-        >
-          Сгенерировать команды
-        </button>
-      </main>
+        <!-- Generator Section -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+            <div class="text-center">
+                <button 
+                    id="generate-btn" 
+                    class="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white font-bold py-4 px-8 rounded-lg text-lg transition-colors duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+                >
+                    Сгенерировать команду
+                </button>
+            </div>
+        </div>
 
-      <!-- Footer Actions -->
-      <footer
-        class="flex justify-center items-center space-x-4 py-2 flex-shrink-0"
-      >
-        <button
-          id="last-gen-btn"
-          class="text-sm text-gray-600 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
-        >
-          Последняя генерация
-        </button>
-        <span class="text-gray-400 dark:text-gray-600">|</span>
-        <button
-          id="reset-session-btn"
-          class="text-sm text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 transition-colors"
-        >
-          Сброс сессии
-        </button>
-      </footer>
+        <!-- Results Section -->
+        <div id="results-section" class="hidden">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-6 text-center">
+                    Ваша случайная команда
+                </h3>
+                <div id="results-container" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Results will be populated here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mt-8">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-white mb-4">
+                Настройки генерации
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Количество героев
+                    </label>
+                    <select id="hero-count" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                        <option value="1">1 герой</option>
+                        <option value="2" selected>2 героя</option>
+                        <option value="3">3 героя</option>
+                        <option value="4">4 героя</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Режим игры
+                    </label>
+                    <select id="game-mode" class="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white">
+                        <option value="all" selected>Все герои</option>
+                        <option value="base">Базовые герои</option>
+                        <option value="expansions">Только дополнения</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="text-center text-gray-600 dark:text-gray-400">
+                <p>&copy; 2024 Randomatched. Создано для поклонников игры Unmatched.</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2">
+        <!-- Toast notifications will appear here -->
     </div>
 
-    <!-- Контейнер для toast-уведомлений -->
-    <div
-      id="toast-container"
-      class="fixed bottom-5 right-5 z-[100] flex flex-col items-end space-y-3 w-full max-w-xs"
-    ></div>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center space-x-3">
+            <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+            <span class="text-gray-900 dark:text-white">Генерация команды...</span>
+        </div>
+    </div>
 
-    <script type="module" src="js/app.js"></script>
-  </body>
+    <!-- Scripts -->
+    <script type="module" src="/js/app.js"></script>
+</body>
 </html>

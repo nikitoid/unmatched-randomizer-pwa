@@ -1,184 +1,401 @@
 /**
- * Модуль-обертка для работы с localStorage и Firebase.
+ * Модуль управления локальным хранилищем
+ * Обеспечивает сохранение и загрузку данных приложения
  */
 
-const LAST_GEN_KEY = "last-generation";
-const HERO_LISTS_KEY = "hero-lists";
-const DEFAULT_LIST_KEY = "default-list-name";
-const ACTIVE_LIST_KEY = "active-list-name";
-const ORIGINAL_LIST_MAP_KEY = "original-list-map"; // Карта для отслеживания оригиналов
-const UNMATCHED_LISTS_KEY = "unmatchedLists"; // Firebase data key
-
-const Storage = {
-  get(key) {
-    try {
-      const value = localStorage.getItem(key);
-      return value ? JSON.parse(value) : null;
-    } catch (error) {
-      console.error(
-        `Ошибка при получении данных '${key}' из localStorage`,
-        error
-      );
-      return null;
-    }
-  },
-
-  set(key, value) {
-    try {
-      localStorage.setItem(key, JSON.stringify(value));
-    } catch (error) {
-      console.error(
-        `Ошибка при сохранении данных '${key}' в localStorage`,
-        error
-      );
-    }
-  },
-
-  remove(key) {
-    try {
-      localStorage.removeItem(key);
-    } catch (error) {
-      console.error(
-        `Ошибка при удалении данных '${key}' из localStorage`,
-        error
-      );
-    }
-  },
-
-  saveLastGeneration(teams) {
-    this.set(LAST_GEN_KEY, teams);
-  },
-
-  loadLastGeneration() {
-    return this.get(LAST_GEN_KEY);
-  },
-
-  // --- Методы для управления списками ---
-  saveHeroLists(lists) {
-    this.set(HERO_LISTS_KEY, lists);
-    this.syncWithFirebase();
-  },
-
-  loadHeroLists() {
-    // Try to load from Firebase data first, fallback to legacy storage
-    const firebaseData = this.get(UNMATCHED_LISTS_KEY);
-    if (firebaseData && firebaseData.lists) {
-      return firebaseData.lists;
-    }
-    return this.get(HERO_LISTS_KEY);
-  },
-
-  saveDefaultList(listName) {
-    this.set(DEFAULT_LIST_KEY, listName);
-  },
-
-  loadDefaultList() {
-    return this.get(DEFAULT_LIST_KEY);
-  },
-
-  saveActiveList(listName) {
-    this.set(ACTIVE_LIST_KEY, listName);
-    this.syncWithFirebase();
-  },
-
-  loadActiveList() {
-    // Try to load from Firebase data first, fallback to legacy storage
-    const firebaseData = this.get(UNMATCHED_LISTS_KEY);
-    if (firebaseData && firebaseData.selected) {
-      return firebaseData.selected;
-    }
-    return this.get(ACTIVE_LIST_KEY);
-  },
-
-  // --- Методы для карт оригинальных списков ---
-  saveOriginalListMap(map) {
-    this.set(ORIGINAL_LIST_MAP_KEY, map);
-  },
-
-  loadOriginalListMap() {
-    return this.get(ORIGINAL_LIST_MAP_KEY) || {};
-  },
-
-  clearSession() {
-    const heroLists = this.loadHeroLists() || {};
-    const originalMap = this.loadOriginalListMap();
-    const activeList = this.loadActiveList();
-
-    let newActiveList = activeList;
-
-    // Если активный список - копия, найти его оригинал
-    if (originalMap[activeList]) {
-      newActiveList = originalMap[activeList];
+export class Storage {
+    constructor() {
+        this.storageKey = 'randomatched';
+        this.init();
     }
 
-    // Удаляем все списки, которые являются копиями
-    const newHeroLists = {};
-    for (const listName in heroLists) {
-      if (!originalMap.hasOwnProperty(listName)) {
-        newHeroLists[listName] = heroLists[listName];
-      }
+    /**
+     * Инициализация модуля хранилища
+     */
+    init() {
+        this.migrateOldData();
+        console.log('💾 Storage module initialized');
     }
 
-    this.saveHeroLists(newHeroLists);
-
-    // Если новый активный список не существует (был удален), сбросить на дефолтный или первый
-    if (!newHeroLists[newActiveList]) {
-      const defaultList = this.loadDefaultList();
-      if (newHeroLists[defaultList]) {
-        newActiveList = defaultList;
-      } else {
-        newActiveList = Object.keys(newHeroLists)[0];
-      }
+    /**
+     * Миграция старых данных
+     */
+    migrateOldData() {
+        try {
+            // Проверяем наличие старых ключей и мигрируем их
+            const oldKeys = ['unmatched-randomizer', 'randomizer-data'];
+            
+            oldKeys.forEach(oldKey => {
+                const oldData = localStorage.getItem(oldKey);
+                if (oldData) {
+                    try {
+                        const parsed = JSON.parse(oldData);
+                        this.set('migrated_' + oldKey, parsed);
+                        localStorage.removeItem(oldKey);
+                        console.log(`Migrated data from ${oldKey}`);
+                    } catch (error) {
+                        console.warn(`Failed to migrate data from ${oldKey}:`, error);
+                    }
+                }
+            });
+        } catch (error) {
+            console.warn('Migration failed:', error);
+        }
     }
 
-    this.saveActiveList(newActiveList);
-    this.remove(ORIGINAL_LIST_MAP_KEY);
-    this.remove(LAST_GEN_KEY);
-    console.log("Сессия очищена, временные списки удалены.");
-  },
-
-  // --- Firebase integration methods ---
-  syncWithFirebase() {
-    // This method will be called when Firebase manager is available
-    if (window.firebaseManager && window.firebaseManager.isReady()) {
-      // Trigger sync in background
-      window.firebaseManager.syncLists().catch(error => {
-        console.error('Background sync failed:', error);
-      });
+    /**
+     * Получить данные из хранилища
+     */
+    get(key, defaultValue = null) {
+        try {
+            const data = this.getAllData();
+            return data.hasOwnProperty(key) ? data[key] : defaultValue;
+        } catch (error) {
+            console.warn(`Failed to get ${key} from storage:`, error);
+            return defaultValue;
+        }
     }
-  },
 
-  // Update Firebase data structure
-  updateFirebaseData(lists, selected = null) {
-    const currentData = this.get(UNMATCHED_LISTS_KEY) || { lists: {}, passwordHash: '', selected: '' };
-    const newData = {
-      ...currentData,
-      lists: lists || currentData.lists,
-      selected: selected !== null ? selected : currentData.selected
-    };
-    this.set(UNMATCHED_LISTS_KEY, newData);
-  },
-
-  // Get Firebase data structure
-  getFirebaseData() {
-    return this.get(UNMATCHED_LISTS_KEY) || { lists: {}, passwordHash: '', selected: '' };
-  },
-
-  // Migrate legacy data to Firebase format
-  migrateToFirebase() {
-    const legacyLists = this.get(HERO_LISTS_KEY);
-    const legacySelected = this.get(ACTIVE_LIST_KEY);
-    
-    if (legacyLists && !this.get(UNMATCHED_LISTS_KEY)) {
-      const firebaseData = {
-        lists: legacyLists,
-        passwordHash: '',
-        selected: legacySelected || ''
-      };
-      this.set(UNMATCHED_LISTS_KEY, firebaseData);
-      console.log('Legacy data migrated to Firebase format');
+    /**
+     * Сохранить данные в хранилище
+     */
+    set(key, value) {
+        try {
+            const data = this.getAllData();
+            data[key] = value;
+            this.saveAllData(data);
+            return true;
+        } catch (error) {
+            console.error(`Failed to set ${key} in storage:`, error);
+            return false;
+        }
     }
-  },
-};
 
-export default Storage;
+    /**
+     * Удалить данные из хранилища
+     */
+    remove(key) {
+        try {
+            const data = this.getAllData();
+            delete data[key];
+            this.saveAllData(data);
+            return true;
+        } catch (error) {
+            console.error(`Failed to remove ${key} from storage:`, error);
+            return false;
+        }
+    }
+
+    /**
+     * Получить все данные из хранилища
+     */
+    getAllData() {
+        try {
+            const data = localStorage.getItem(this.storageKey);
+            return data ? JSON.parse(data) : {};
+        } catch (error) {
+            console.warn('Failed to parse storage data:', error);
+            return {};
+        }
+    }
+
+    /**
+     * Сохранить все данные в хранилище
+     */
+    saveAllData(data) {
+        try {
+            localStorage.setItem(this.storageKey, JSON.stringify(data));
+            return true;
+        } catch (error) {
+            console.error('Failed to save storage data:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Очистить все данные
+     */
+    clear() {
+        try {
+            localStorage.removeItem(this.storageKey);
+            return true;
+        } catch (error) {
+            console.error('Failed to clear storage:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Добавить команду в историю
+     */
+    addToHistory(team) {
+        try {
+            const history = this.get('history', []);
+            
+            // Добавляем новую команду в начало
+            history.unshift({
+                ...team,
+                savedAt: new Date().toISOString()
+            });
+
+            // Ограничиваем историю 50 записями
+            if (history.length > 50) {
+                history.splice(50);
+            }
+
+            this.set('history', history);
+            return true;
+        } catch (error) {
+            console.error('Failed to add team to history:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Получить историю команд
+     */
+    getHistory(limit = null) {
+        try {
+            const history = this.get('history', []);
+            return limit ? history.slice(0, limit) : history;
+        } catch (error) {
+            console.error('Failed to get history:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Удалить команду из истории
+     */
+    removeFromHistory(teamId) {
+        try {
+            const history = this.get('history', []);
+            const filteredHistory = history.filter(team => team.id !== teamId);
+            this.set('history', filteredHistory);
+            return true;
+        } catch (error) {
+            console.error('Failed to remove team from history:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Очистить историю
+     */
+    clearHistory() {
+        try {
+            this.set('history', []);
+            return true;
+        } catch (error) {
+            console.error('Failed to clear history:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Сохранить избранную команду
+     */
+    saveFavorite(team) {
+        try {
+            const favorites = this.get('favorites', []);
+            
+            // Проверяем, не существует ли уже такая команда
+            const exists = favorites.some(fav => fav.id === team.id);
+            if (!exists) {
+                favorites.push({
+                    ...team,
+                    favoritedAt: new Date().toISOString()
+                });
+                this.set('favorites', favorites);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Failed to save favorite:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Получить избранные команды
+     */
+    getFavorites() {
+        try {
+            return this.get('favorites', []);
+        } catch (error) {
+            console.error('Failed to get favorites:', error);
+            return [];
+        }
+    }
+
+    /**
+     * Удалить из избранного
+     */
+    removeFavorite(teamId) {
+        try {
+            const favorites = this.get('favorites', []);
+            const filteredFavorites = favorites.filter(team => team.id !== teamId);
+            this.set('favorites', filteredFavorites);
+            return true;
+        } catch (error) {
+            console.error('Failed to remove favorite:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Сохранить настройки приложения
+     */
+    saveSettings(settings) {
+        try {
+            const currentSettings = this.get('settings', {});
+            const newSettings = { ...currentSettings, ...settings };
+            this.set('settings', newSettings);
+            return true;
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Получить настройки приложения
+     */
+    getSettings() {
+        try {
+            return this.get('settings', {
+                heroCount: '2',
+                gameMode: 'all',
+                theme: 'system',
+                notifications: true,
+                autoSave: true
+            });
+        } catch (error) {
+            console.error('Failed to get settings:', error);
+            return {};
+        }
+    }
+
+    /**
+     * Экспорт всех данных
+     */
+    exportData() {
+        try {
+            const data = this.getAllData();
+            return {
+                data: data,
+                exportedAt: new Date().toISOString(),
+                version: '1.0.0',
+                app: 'Randomatched'
+            };
+        } catch (error) {
+            console.error('Failed to export data:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Импорт данных
+     */
+    importData(importedData) {
+        try {
+            if (!importedData || !importedData.data) {
+                throw new Error('Invalid import data');
+            }
+
+            // Создаем резервную копию текущих данных
+            const backup = this.exportData();
+            this.set('backup_' + Date.now(), backup);
+
+            // Импортируем новые данные
+            this.saveAllData(importedData.data);
+            
+            return true;
+        } catch (error) {
+            console.error('Failed to import data:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Получить статистику хранилища
+     */
+    getStorageStats() {
+        try {
+            const data = this.getAllData();
+            const history = this.get('history', []);
+            const favorites = this.get('favorites', []);
+            
+            return {
+                totalKeys: Object.keys(data).length,
+                historyCount: history.length,
+                favoritesCount: favorites.length,
+                storageSize: JSON.stringify(data).length,
+                lastModified: this.get('lastModified', null)
+            };
+        } catch (error) {
+            console.error('Failed to get storage stats:', error);
+            return {};
+        }
+    }
+
+    /**
+     * Проверить доступность localStorage
+     */
+    isAvailable() {
+        try {
+            const testKey = '__test__';
+            localStorage.setItem(testKey, 'test');
+            localStorage.removeItem(testKey);
+            return true;
+        } catch (error) {
+            return false;
+        }
+    }
+
+    /**
+     * Получить размер используемого хранилища
+     */
+    getStorageSize() {
+        try {
+            let total = 0;
+            for (let key in localStorage) {
+                if (localStorage.hasOwnProperty(key)) {
+                    total += localStorage[key].length + key.length;
+                }
+            }
+            return total;
+        } catch (error) {
+            return 0;
+        }
+    }
+
+    /**
+     * Очистить старые данные
+     */
+    cleanup() {
+        try {
+            const history = this.get('history', []);
+            const favorites = this.get('favorites', []);
+            
+            // Удаляем команды старше 30 дней из истории
+            const thirtyDaysAgo = new Date();
+            thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+            
+            const filteredHistory = history.filter(team => {
+                const teamDate = new Date(team.savedAt || team.createdAt);
+                return teamDate > thirtyDaysAgo;
+            });
+            
+            if (filteredHistory.length !== history.length) {
+                this.set('history', filteredHistory);
+                console.log(`Cleaned up ${history.length - filteredHistory.length} old history entries`);
+            }
+            
+            return true;
+        } catch (error) {
+            console.error('Failed to cleanup storage:', error);
+            return false;
+        }
+    }
+}

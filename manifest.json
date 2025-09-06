@@ -1,27 +1,98 @@
 {
-  "name": "Randomatched",
+  "name": "Randomatched - Unmatched Randomizer",
   "short_name": "Randomatched",
-  "description": "Приложение для случайной генерации героев игры Unmatched.",
+  "description": "Генератор случайных героев для игры Unmatched",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a202c",
-  "theme_color": "#2d3748",
+  "background_color": "#ffffff",
+  "theme_color": "#1f2937",
   "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "ru",
+  "dir": "ltr",
+  "categories": ["games", "entertainment", "utilities"],
   "icons": [
     {
-      "src": "icons/icon-192.png",
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
-      "sizes": "192x192"
+      "purpose": "any maskable"
     },
     {
-      "src": "icons/icon-512.png",
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
       "type": "image/png",
-      "sizes": "512x512"
+      "purpose": "any maskable"
     },
     {
-      "src": "icons/apple-touch-icon.png",
+      "src": "/icons/apple-touch-icon.png",
+      "sizes": "180x180",
       "type": "image/png",
-      "sizes": "180x180"
+      "purpose": "any"
     }
-  ]
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/desktop.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Главная страница Randomatched на десктопе"
+    },
+    {
+      "src": "/screenshots/mobile.png",
+      "sizes": "390x844",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Главная страница Randomatched на мобильном устройстве"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Быстрая генерация",
+      "short_name": "Генерация",
+      "description": "Сгенерировать случайную команду героев",
+      "url": "/?action=generate",
+      "icons": [
+        {
+          "src": "/icons/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    }
+  ],
+  "related_applications": [],
+  "prefer_related_applications": false,
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
+  "handle_links": "preferred",
+  "capture_links": "new-client",
+  "protocol_handlers": [
+    {
+      "protocol": "web+randomatched",
+      "url": "/?hero=%s"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/",
+      "accept": {
+        "application/json": [".json"]
+      }
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }

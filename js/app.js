@@ -1,290 +1,328 @@
-// --- Импорт и использование модулей ---
-import Modal from "./modules/modal.js";
-import Toast from "./modules/toast.js";
-import Theme from "./modules/theme.js";
-import Storage from "./modules/storage.js";
-import Generator from "./modules/generator.js";
-import Results from "./modules/results.js";
-import ListManager from "./modules/listManager.js";
+/**
+ * Randomatched - Unmatched Randomizer PWA
+ * Главный файл приложения с модульной архитектурой
+ */
 
-// --- Firebase и Auth модули ---
-import "./modules/firebase.js";
-import "./modules/auth.js";
+// Импорт модулей
+import { ThemeManager } from './modules/theme.js';
+import { Generator } from './modules/generator.js';
+import { Results } from './modules/results.js';
+import { Toast } from './modules/toast.js';
+import { Storage } from './modules/storage.js';
+import { Modal } from './modules/modal.js';
 
-// --- Инициализация темы ---
-Theme.init();
+class RandomatchedApp {
+    constructor() {
+        this.modules = {};
+        this.isInitialized = false;
+        this.init();
+    }
 
-// --- Логика обновления Service Worker ---
-function registerServiceWorker() {
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker
-        .register("/sw.js")
-        .then((registration) => {
-          console.log("Service Worker зарегистрирован:", registration);
+    /**
+     * Инициализация приложения
+     */
+    async init() {
+        try {
+            console.log('🎲 Initializing Randomatched...');
+            
+            // Инициализация модулей
+            await this.initializeModules();
+            
+            // Настройка обработчиков событий
+            this.setupEventListeners();
+            
+            // Регистрация Service Worker
+            await this.registerServiceWorker();
+            
+            // Загрузка сохраненных данных
+            await this.loadSavedData();
+            
+            // Инициализация завершена
+            this.isInitialized = true;
+            console.log('✅ Randomatched initialized successfully');
+            
+            // Показать уведомление о готовности
+            this.modules.toast.show('Приложение готово к работе!', 'success');
+            
+        } catch (error) {
+            console.error('❌ Error initializing Randomatched:', error);
+            this.modules.toast.show('Ошибка инициализации приложения', 'error');
+        }
+    }
 
-          // Показываем спиннер при обнаружении нового SW
-          registration.addEventListener("updatefound", () => {
-            console.log("Найден новый Service Worker, начинается установка...");
-            const spinner = document.getElementById("update-spinner");
-            if (spinner) spinner.classList.remove("invisible");
-          });
-        })
-        .catch((error) => {
-          console.log("Ошибка регистрации Service Worker:", error);
+    /**
+     * Инициализация всех модулей
+     */
+    async initializeModules() {
+        // Менеджер тем
+        this.modules.theme = new ThemeManager();
+        
+        // Менеджер уведомлений
+        this.modules.toast = new Toast();
+        
+        // Менеджер хранилища
+        this.modules.storage = new Storage();
+        
+        // Менеджер модальных окон
+        this.modules.modal = new Modal();
+        
+        // Генератор героев
+        this.modules.generator = new Generator({
+            storage: this.modules.storage,
+            toast: this.modules.toast
         });
-    });
+        
+        // Менеджер результатов
+        this.modules.results = new Results({
+            storage: this.modules.storage,
+            toast: this.modules.toast,
+            modal: this.modules.modal
+        });
+        
+        console.log('📦 All modules initialized');
+    }
 
-    // Слушаем событие, когда новый SW берет управление на себя.
-    // Это надежный способ узнать, что обновление завершено.
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      // Убеждаемся, что это не первоначальная установка, а именно обновление
-      if (navigator.serviceWorker.controller) {
-        console.log(
-          "Контроллер Service Worker изменился, обновление завершено."
-        );
-        const spinner = document.getElementById("update-spinner");
-        if (spinner) spinner.classList.add("invisible");
-        Toast.success("Приложение обновлено!");
-      }
-    });
-  }
+    /**
+     * Настройка обработчиков событий
+     */
+    setupEventListeners() {
+        // Кнопка генерации
+        const generateBtn = document.getElementById('generate-btn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', () => this.handleGenerate());
+        }
+
+        // Переключатель темы
+        const themeToggle = document.getElementById('theme-toggle');
+        if (themeToggle) {
+            themeToggle.addEventListener('click', () => this.modules.theme.toggle());
+        }
+
+        // Настройки генерации
+        const heroCountSelect = document.getElementById('hero-count');
+        const gameModeSelect = document.getElementById('game-mode');
+        
+        if (heroCountSelect) {
+            heroCountSelect.addEventListener('change', (e) => {
+                this.modules.storage.set('heroCount', e.target.value);
+            });
+        }
+        
+        if (gameModeSelect) {
+            gameModeSelect.addEventListener('change', (e) => {
+                this.modules.storage.set('gameMode', e.target.value);
+            });
+        }
+
+        // Обработка быстрых действий из URL
+        this.handleURLActions();
+
+        // Обработка клавиатурных сокращений
+        this.setupKeyboardShortcuts();
+
+        // Обработка изменения размера окна
+        window.addEventListener('resize', this.debounce(() => {
+            this.handleResize();
+        }, 250));
+
+        // Обработка онлайн/оффлайн статуса
+        window.addEventListener('online', () => {
+            this.modules.toast.show('Соединение восстановлено', 'success');
+        });
+
+        window.addEventListener('offline', () => {
+            this.modules.toast.show('Работа в оффлайн режиме', 'warning');
+        });
+
+        console.log('🎯 Event listeners setup complete');
+    }
+
+    /**
+     * Обработка генерации команды
+     */
+    async handleGenerate() {
+        if (!this.isInitialized) {
+            this.modules.toast.show('Приложение еще загружается...', 'warning');
+            return;
+        }
+
+        try {
+            // Показать индикатор загрузки
+            this.showLoading(true);
+
+            // Получить настройки
+            const heroCount = parseInt(this.modules.storage.get('heroCount', '2'));
+            const gameMode = this.modules.storage.get('gameMode', 'all');
+
+            // Сгенерировать команду
+            const team = await this.modules.generator.generateTeam(heroCount, gameMode);
+
+            // Показать результаты
+            this.modules.results.displayTeam(team);
+
+            // Сохранить в историю
+            this.modules.storage.addToHistory(team);
+
+            // Показать уведомление
+            this.modules.toast.show(`Сгенерирована команда из ${heroCount} героев!`, 'success');
+
+        } catch (error) {
+            console.error('Error generating team:', error);
+            this.modules.toast.show('Ошибка при генерации команды', 'error');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    /**
+     * Обработка быстрых действий из URL
+     */
+    handleURLActions() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const action = urlParams.get('action');
+
+        if (action === 'generate') {
+            // Автоматическая генерация при загрузке
+            setTimeout(() => {
+                this.handleGenerate();
+            }, 1000);
+        }
+
+        const hero = urlParams.get('hero');
+        if (hero) {
+            // Генерация с конкретным героем
+            this.modules.generator.setFixedHero(hero);
+        }
+    }
+
+    /**
+     * Настройка клавиатурных сокращений
+     */
+    setupKeyboardShortcuts() {
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + Enter - генерация
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                e.preventDefault();
+                this.handleGenerate();
+            }
+
+            // Ctrl/Cmd + T - переключение темы
+            if ((e.ctrlKey || e.metaKey) && e.key === 't') {
+                e.preventDefault();
+                this.modules.theme.toggle();
+            }
+
+            // Escape - закрытие модальных окон
+            if (e.key === 'Escape') {
+                this.modules.modal.close();
+            }
+        });
+    }
+
+    /**
+     * Обработка изменения размера окна
+     */
+    handleResize() {
+        // Обновление результатов при изменении размера
+        if (this.modules.results && this.modules.results.currentTeam) {
+            this.modules.results.updateLayout();
+        }
+    }
+
+    /**
+     * Показать/скрыть индикатор загрузки
+     */
+    showLoading(show) {
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) {
+            overlay.classList.toggle('hidden', !show);
+        }
+    }
+
+    /**
+     * Загрузка сохраненных данных
+     */
+    async loadSavedData() {
+        try {
+            // Восстановление настроек
+            const heroCount = this.modules.storage.get('heroCount', '2');
+            const gameMode = this.modules.storage.get('gameMode', 'all');
+
+            const heroCountSelect = document.getElementById('hero-count');
+            const gameModeSelect = document.getElementById('game-mode');
+
+            if (heroCountSelect) heroCountSelect.value = heroCount;
+            if (gameModeSelect) gameModeSelect.value = gameMode;
+
+            console.log('💾 Saved data loaded');
+        } catch (error) {
+            console.error('Error loading saved data:', error);
+        }
+    }
+
+    /**
+     * Регистрация Service Worker
+     */
+    async registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.register('/sw.js');
+                console.log('🔧 Service Worker registered:', registration);
+
+                // Обработка обновлений
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                            this.modules.toast.show('Доступно обновление приложения', 'info', {
+                                action: 'Обновить',
+                                callback: () => {
+                                    newWorker.postMessage({ type: 'SKIP_WAITING' });
+                                    window.location.reload();
+                                }
+                            });
+                        }
+                    });
+                });
+
+            } catch (error) {
+                console.error('Service Worker registration failed:', error);
+            }
+        }
+    }
+
+    /**
+     * Утилита для debounce
+     */
+    debounce(func, wait) {
+        let timeout;
+        return function executedFunction(...args) {
+            const later = () => {
+                clearTimeout(timeout);
+                func(...args);
+            };
+            clearTimeout(timeout);
+            timeout = setTimeout(later, wait);
+        };
+    }
+
+    /**
+     * Получить информацию о приложении
+     */
+    getAppInfo() {
+        return {
+            name: 'Randomatched',
+            version: '1.0.0',
+            initialized: this.isInitialized,
+            modules: Object.keys(this.modules)
+        };
+    }
 }
 
-// --- Глобальное состояние и данные ---
-let heroLists = {};
-let firebaseManager = null;
-let authManager = null;
-
-/**
- * Обновляет выпадающий список героев на главном экране.
- */
-function updateHeroSelect() {
-  const heroSelect = document.getElementById("hero-select");
-  heroLists = Storage.loadHeroLists() || {};
-  const activeList = Storage.loadActiveList();
-  const defaultList = Storage.loadDefaultList();
-
-  let targetSelection = activeList;
-  if (!heroLists[targetSelection]) {
-    targetSelection = defaultList;
-    if (!heroLists[targetSelection]) {
-      targetSelection = Object.keys(heroLists)[0];
-    }
-    Storage.saveActiveList(targetSelection);
-  }
-
-  heroSelect.innerHTML = "";
-
-  if (Object.keys(heroLists).length === 0) {
-    const option = document.createElement("option");
-    option.textContent = "Списки не найдены";
-    option.disabled = true;
-    heroSelect.appendChild(option);
-    document.getElementById("generate-teams-btn").disabled = true;
-    return;
-  }
-
-  document.getElementById("generate-teams-btn").disabled = false;
-
-  for (const listName in heroLists) {
-    const option = document.createElement("option");
-    option.value = listName;
-    option.textContent = listName;
-    if (listName === targetSelection) {
-      option.selected = true;
-    }
-    heroSelect.appendChild(option);
-  }
-}
-
-/**
- * Инициализирует Firebase и Auth менеджеры
- */
-async function initializeFirebase() {
-  try {
-    firebaseManager = new FirebaseManager();
-    authManager = new AuthManager();
-    
-    // Wait for Firebase to initialize
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Check internet connection and sync if available
-    if (firebaseManager.isReady()) {
-      await firebaseManager.syncLists();
-      Toast.info("Данные синхронизированы с облаком");
-    } else {
-      Toast.info("Работа в автономном режиме");
-    }
-    
-    console.log('Firebase initialized successfully');
-  } catch (error) {
-    console.error('Firebase initialization failed:', error);
-    Toast.warning("Не удалось подключиться к облаку. Работа в автономном режиме.");
-  }
-}
-
-/**
- * Инициализирует состояние приложения при загрузке.
- */
-function initializeAppState() {
-  heroLists = Storage.loadHeroLists();
-  let defaultList = Storage.loadDefaultList();
-
-  if (!heroLists || Object.keys(heroLists).length === 0) {
-    const starterHeroes = [
-      "Король Артур",
-      "Алиса",
-      "Медуза",
-      "Синдбад",
-      "Красная Шапочка",
-      "Беовульф",
-      "Дракула",
-      "Человек-невидимка",
-      "Ахиллес",
-      "Кровавая Мэри",
-      "Сунь Укун",
-      "Енанга",
-    ];
-    heroLists = { "Стартовый набор": starterHeroes };
-    defaultList = "Стартовый набор";
-
-    Storage.saveHeroLists(heroLists);
-    Storage.saveDefaultList(defaultList);
-    Storage.saveActiveList(defaultList);
-    Toast.info("Создан стартовый набор героев.");
-  }
-  updateHeroSelect();
-}
-
-// --- Обработчики событий ---
-document.addEventListener("DOMContentLoaded", () => {
-  registerServiceWorker(); // Запускаем логику SW
-
-  const themeToggle = document.getElementById("theme-toggle");
-  const themeIconLight = document.getElementById("theme-icon-light");
-  const themeIconDark = document.getElementById("theme-icon-dark");
-
-  const updateThemeIcons = () => {
-    if (document.documentElement.classList.contains("dark")) {
-      themeIconLight.classList.add("hidden");
-      themeIconDark.classList.remove("hidden");
-    } else {
-      themeIconLight.classList.remove("hidden");
-      themeIconDark.classList.add("hidden");
-    }
-  };
-
-  if (themeToggle) {
-    themeToggle.addEventListener("click", () => {
-      Theme.toggleTheme();
-      updateThemeIcons();
-    });
-  }
-  updateThemeIcons();
-  window.addEventListener("theme-changed", updateThemeIcons);
-
-  // Initialize Firebase first, then app state
-  initializeFirebase().then(() => {
-    // Migrate legacy data to Firebase format
-    Storage.migrateToFirebase();
-    initializeAppState();
-  });
-
-  // Listen for storage updates from Firebase
-  window.addEventListener('storageUpdated', (event) => {
-    console.log('Storage updated from:', event.detail.source);
-    if (event.detail.source === 'firebase') {
-      // Reload data and update UI
-      heroLists = Storage.loadHeroLists();
-      updateHeroSelect();
-    }
-  });
-
-  const settingsBtn = document.getElementById("settings-btn");
-  if (settingsBtn) {
-    settingsBtn.addEventListener("click", () => {
-      ListManager.show(Storage.loadHeroLists(), initializeAppState);
-    });
-  }
-
-  const generateBtn = document.getElementById("generate-teams-btn");
-  if (generateBtn) {
-    generateBtn.addEventListener("click", () => {
-      const heroSelect = document.getElementById("hero-select");
-      const selectedListName = heroSelect.value;
-      const heroNamesInList = heroLists[selectedListName];
-
-      if (!heroNamesInList) {
-        Toast.error("Пожалуйста, выберите корректный список.");
-        return;
-      }
-
-      const heroesForGeneration = heroNamesInList.map((name) => ({ name }));
-
-      if (heroesForGeneration.length < 4) {
-        Toast.error(
-          `В списке "${selectedListName}" недостаточно героев для генерации (нужно минимум 4, доступно ${heroesForGeneration.length}).`
-        );
-        return;
-      }
-
-      const generation = Generator.generateAll(heroesForGeneration, []);
-
-      if (generation) {
-        Storage.saveLastGeneration(generation);
-        Toast.success("Команды сгенерированы!");
-
-        const allUniqueHeroNames = [
-          ...new Set(Object.values(heroLists).flat()),
-        ];
-        const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
-
-        Results.show(generation, allUniqueHeroes, initializeAppState);
-      } else {
-        Toast.error("Не удалось сгенерировать команды!");
-      }
-    });
-  }
-
-  const heroSelect = document.getElementById("hero-select");
-  if (heroSelect) {
-    heroSelect.addEventListener("change", (e) => {
-      Storage.saveActiveList(e.target.value);
-    });
-  }
-
-  const lastGenBtn = document.getElementById("last-gen-btn");
-  if (lastGenBtn) {
-    lastGenBtn.addEventListener("click", () => {
-      const lastGen = Storage.loadLastGeneration();
-      if (lastGen) {
-        const currentHeroLists = Storage.loadHeroLists() || {};
-        const allUniqueHeroNames = [
-          ...new Set(Object.values(currentHeroLists).flat()),
-        ];
-        const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
-        Results.show(lastGen, allUniqueHeroes, initializeAppState);
-      } else {
-        Toast.info("Нет данных о последней генерации.");
-      }
-    });
-  }
-
-  const resetBtn = document.getElementById("reset-session-btn");
-  if (resetBtn) {
-    resetBtn.addEventListener("click", () => {
-      new Modal({
-        type: "dialog",
-        title: "Подтверждение",
-        content:
-          "Вы уверены, что хотите сбросить сессию? Все временные списки (с пометкой 'искл.') и последняя генерация будут удалены.",
-        onConfirm: () => {
-          Storage.clearSession(); // Новая логика теперь здесь
-          initializeAppState(); // Обновляем UI
-          Toast.success("Сессия сброшена.");
-        },
-      }).open();
-    });
-  }
+// Инициализация приложения при загрузке DOM
+document.addEventListener('DOMContentLoaded', () => {
+    window.randomatchedApp = new RandomatchedApp();
 });
+
+// Экспорт для использования в других модулях
+export { RandomatchedApp };

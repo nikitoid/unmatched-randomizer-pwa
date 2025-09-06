@@ -1,339 +1,384 @@
-import Modal from "./modal.js";
-import Storage from "./storage.js";
-import Generator from "./generator.js";
-import Toast from "./toast.js";
-
-let currentGeneration = null;
-let allHeroesData = []; // Пул ВСЕХ уникальных героев для реролла одного
-let resultsModal = null;
-let onListUpdateCallback = () => {};
-
 /**
- * Создает HTML-разметку для отображения результатов.
+ * Модуль отображения результатов генерации
+ * Управляет показом сгенерированных команд героев
  */
-function createResultsHTML(generation) {
-  const { assignment, shuffledPlayers } = generation;
 
-  const playersHTML = shuffledPlayers
-    .map((playerNum) => {
-      const hero = assignment[playerNum];
-      if (!hero) return "";
-      const teamNum = playerNum % 2 === 0 ? 1 : 2;
-      const teamColor =
-        teamNum === 1
-          ? "bg-teal-100 dark:bg-teal-900 text-teal-700 dark:text-teal-300"
-          : "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300";
+export class Results {
+    constructor(dependencies = {}) {
+        this.storage = dependencies.storage;
+        this.toast = dependencies.toast;
+        this.modal = dependencies.modal;
+        this.currentTeam = null;
+        this.init();
+    }
 
-      return `
-            <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-800 p-3 rounded-md shadow-sm">
-                <div class="text-left">
-                    <p class="font-semibold text-lg text-gray-800 dark:text-gray-100">${hero.name}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Игрок ${playerNum} <span class="text-xs font-medium px-2 py-0.5 rounded-full ${teamColor}">Команда ${teamNum}</span></p>
+    /**
+     * Инициализация модуля результатов
+     */
+    init() {
+        console.log('📊 Results module initialized');
+    }
+
+    /**
+     * Отображение сгенерированной команды
+     */
+    displayTeam(team) {
+        try {
+            this.currentTeam = team;
+            
+            // Показываем секцию результатов
+            this.showResultsSection();
+            
+            // Очищаем предыдущие результаты
+            this.clearResults();
+            
+            // Создаем карточки героев
+            this.createHeroCards(team.heroes);
+            
+            // Добавляем информацию о команде
+            this.addTeamInfo(team);
+            
+            // Прокручиваем к результатам
+            this.scrollToResults();
+            
+            console.log('📊 Team displayed successfully');
+            
+        } catch (error) {
+            console.error('Error displaying team:', error);
+            this.toast.show('Ошибка при отображении результатов', 'error');
+        }
+    }
+
+    /**
+     * Показать секцию результатов
+     */
+    showResultsSection() {
+        const resultsSection = document.getElementById('results-section');
+        if (resultsSection) {
+            resultsSection.classList.remove('hidden');
+            resultsSection.classList.add('animate-fade-in');
+        }
+    }
+
+    /**
+     * Скрыть секцию результатов
+     */
+    hideResultsSection() {
+        const resultsSection = document.getElementById('results-section');
+        if (resultsSection) {
+            resultsSection.classList.add('hidden');
+            resultsSection.classList.remove('animate-fade-in');
+        }
+    }
+
+    /**
+     * Очистить результаты
+     */
+    clearResults() {
+        const container = document.getElementById('results-container');
+        if (container) {
+            container.innerHTML = '';
+        }
+    }
+
+    /**
+     * Создать карточки героев
+     */
+    createHeroCards(heroes) {
+        const container = document.getElementById('results-container');
+        if (!container) return;
+
+        heroes.forEach((hero, index) => {
+            const heroCard = this.createHeroCard(hero, index);
+            container.appendChild(heroCard);
+        });
+    }
+
+    /**
+     * Создать карточку героя
+     */
+    createHeroCard(hero, index) {
+        const card = document.createElement('div');
+        card.className = 'hero-card animate-slide-in';
+        card.style.animationDelay = `${index * 0.1}s`;
+        
+        card.innerHTML = `
+            <div class="flex items-start justify-between mb-4">
+                <div>
+                    <h4 class="text-xl font-bold text-white mb-1">${hero.name}</h4>
+                    <p class="text-blue-100 text-sm">${hero.set}</p>
                 </div>
-                <div class="flex items-center space-x-1">
-                    <button class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-teal-500 transition-colors focus:outline-none" data-action="reshuffle-hero" data-player="${playerNum}" title="Сменить героя">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 20h5v-5M20 4h-5v5"></path></svg>
+                <button 
+                    class="hero-info-btn p-2 rounded-lg bg-white bg-opacity-20 hover:bg-opacity-30 transition-all duration-200"
+                    data-hero-id="${hero.id}"
+                    aria-label="Подробнее о ${hero.name}"
+                >
+                    <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                    </svg>
+                </button>
+            </div>
+            
+            <div class="space-y-2 mb-4">
+                <div class="flex items-center text-blue-100">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span class="text-sm">${hero.type}</span>
+                </div>
+                
+                <div class="flex items-center text-blue-100">
+                    <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd"></path>
+                    </svg>
+                    <span class="text-sm">${hero.difficulty}</span>
+                </div>
+            </div>
+            
+            <p class="text-blue-100 text-sm leading-relaxed">${hero.description}</p>
+        `;
+
+        // Добавляем обработчик клика для подробной информации
+        const infoBtn = card.querySelector('.hero-info-btn');
+        if (infoBtn) {
+            infoBtn.addEventListener('click', () => {
+                this.showHeroDetails(hero);
+            });
+        }
+
+        return card;
+    }
+
+    /**
+     * Добавить информацию о команде
+     */
+    addTeamInfo(team) {
+        const container = document.getElementById('results-container');
+        if (!container) return;
+
+        const teamInfo = document.createElement('div');
+        teamInfo.className = 'col-span-full bg-gray-100 dark:bg-gray-700 rounded-lg p-4 mt-4';
+        
+        teamInfo.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center space-x-4 text-sm text-gray-600 dark:text-gray-300">
+                    <span class="flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                        </svg>
+                        ${new Date(team.createdAt).toLocaleString('ru-RU')}
+                    </span>
+                    <span class="flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        ${team.heroCount} героев
+                    </span>
+                    <span class="flex items-center">
+                        <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        ${this.getGameModeLabel(team.gameMode)}
+                    </span>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <button 
+                        id="save-team-btn"
+                        class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg transition-colors duration-200"
+                    >
+                        Сохранить
                     </button>
-                    <button class="p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-red-500 transition-colors focus:outline-none" data-action="exclude-hero" data-hero-name="${hero.name}" title="Исключить героя">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                    <button 
+                        id="share-team-btn"
+                        class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors duration-200"
+                    >
+                        Поделиться
+                    </button>
+                    <button 
+                        id="export-team-btn"
+                        class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition-colors duration-200"
+                    >
+                        Экспорт
                     </button>
                 </div>
             </div>
         `;
-    })
-    .join("");
 
-  return `
-        <div id="results-content" class="space-y-3">
-            ${playersHTML}
-        </div>
-        <div class="grid grid-cols-2 gap-3 mt-6 text-sm">
-            <button data-action="reshuffle-teams" class="w-full bg-gray-600 active:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать команды</button>
-            <button data-action="reshuffle-heroes" class="w-full bg-gray-600 active:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать героев</button>
-            <button data-action="exclude-these-heroes" class="w-full bg-red-600 active:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Исключить этих героев</button>
-            <button data-action="reshuffle-all" class="w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать всё</button>
-        </div>
-    `;
-}
+        container.appendChild(teamInfo);
 
-/**
- * Обновляет содержимое модального окна.
- */
-function updateResults(generation) {
-  currentGeneration = generation;
-  Storage.saveLastGeneration(generation);
-  const newHTML = createResultsHTML(generation);
-  const contentElement = document.querySelector(
-    ".modal-container .modal-content"
-  );
-  if (contentElement) {
-    contentElement.innerHTML = newHTML;
-  }
-}
-
-/**
- * Создает уникальное имя для списка с исключениями.
- */
-function createUniqueExclusionListName(baseName, existingLists) {
-  let newName = `${baseName} (искл.)`;
-  let counter = 2;
-  while (Object.keys(existingLists).includes(newName)) {
-    newName = `${baseName} (искл. ${counter})`;
-    counter++;
-  }
-  return newName;
-}
-
-/**
- * Логика исключения героев: либо изменяет существующую копию, либо создает новую.
- */
-function handleExclusion(heroesToExclude) {
-  const activeListName = Storage.loadActiveList();
-  const heroLists = Storage.loadHeroLists() || {};
-  const originalMap = Storage.loadOriginalListMap();
-  const isCopy = originalMap.hasOwnProperty(activeListName);
-
-  if (isCopy) {
-    // --- Изменяем существующую копию ---
-    const currentHeroes = heroLists[activeListName] || [];
-    const newHeroList = currentHeroes.filter(
-      (name) => !heroesToExclude.includes(name)
-    );
-
-    if (newHeroList.length < 4) {
-      Toast.warning(
-        "После исключения в списке останется меньше 4 героев. Изменения не применены."
-      );
-      return { success: false };
+        // Добавляем обработчики событий для кнопок
+        this.setupTeamActionButtons(team);
     }
 
-    heroLists[activeListName] = newHeroList;
-    Storage.saveHeroLists(heroLists);
-    Toast.success(`Герои исключены из списка "${activeListName}".`);
-    if (onListUpdateCallback) onListUpdateCallback();
-    return { success: true };
-  } else {
-    // --- Создаем новую копию ---
-    const originalHeroList = heroLists[activeListName];
-    if (!originalHeroList) {
-      Toast.error(`Список "${activeListName}" не найден.`);
-      return { success: false };
+    /**
+     * Настройка кнопок действий с командой
+     */
+    setupTeamActionButtons(team) {
+        const saveBtn = document.getElementById('save-team-btn');
+        const shareBtn = document.getElementById('share-team-btn');
+        const exportBtn = document.getElementById('export-team-btn');
+
+        if (saveBtn) {
+            saveBtn.addEventListener('click', () => {
+                this.saveTeam(team);
+            });
+        }
+
+        if (shareBtn) {
+            shareBtn.addEventListener('click', () => {
+                this.shareTeam(team);
+            });
+        }
+
+        if (exportBtn) {
+            exportBtn.addEventListener('click', () => {
+                this.exportTeam(team);
+            });
+        }
     }
 
-    const newHeroList = originalHeroList.filter(
-      (name) => !heroesToExclude.includes(name)
-    );
+    /**
+     * Показать подробную информацию о герое
+     */
+    showHeroDetails(hero) {
+        const modalContent = `
+            <div class="text-center">
+                <h3 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">${hero.name}</h3>
+                <div class="space-y-4 text-left">
+                    <div>
+                        <h4 class="font-semibold text-gray-700 dark:text-gray-300">Набор:</h4>
+                        <p class="text-gray-600 dark:text-gray-400">${hero.set}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-700 dark:text-gray-300">Тип:</h4>
+                        <p class="text-gray-600 dark:text-gray-400">${hero.type}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-700 dark:text-gray-300">Сложность:</h4>
+                        <p class="text-gray-600 dark:text-gray-400">${hero.difficulty}</p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-gray-700 dark:text-gray-300">Описание:</h4>
+                        <p class="text-gray-600 dark:text-gray-400">${hero.description}</p>
+                    </div>
+                </div>
+            </div>
+        `;
 
-    if (newHeroList.length < 4) {
-      Toast.warning(
-        "После исключения в списке останется меньше 4 героев. Новый список не создан."
-      );
-      return { success: false };
+        this.modal.show('Информация о герое', modalContent);
     }
 
-    const newListName = createUniqueExclusionListName(
-      activeListName,
-      heroLists
-    );
-    heroLists[newListName] = newHeroList;
-    originalMap[newListName] = activeListName; // Запоминаем оригинал
+    /**
+     * Сохранить команду
+     */
+    saveTeam(team) {
+        try {
+            this.storage.addToHistory(team);
+            this.toast.show('Команда сохранена в историю!', 'success');
+        } catch (error) {
+            console.error('Error saving team:', error);
+            this.toast.show('Ошибка при сохранении команды', 'error');
+        }
+    }
 
-    Storage.saveHeroLists(heroLists);
-    Storage.saveOriginalListMap(originalMap);
-    Storage.saveActiveList(newListName);
+    /**
+     * Поделиться командой
+     */
+    async shareTeam(team) {
+        try {
+            const shareData = {
+                title: 'Моя команда Unmatched',
+                text: `Моя случайная команда: ${team.heroes.map(h => h.name).join(', ')}`,
+                url: window.location.href
+            };
 
-    Toast.success(`Создан и активирован список "${newListName}".`);
-    if (onListUpdateCallback) onListUpdateCallback();
-    return { success: true };
-  }
-}
+            if (navigator.share) {
+                await navigator.share(shareData);
+            } else {
+                // Fallback - копирование в буфер обмена
+                await navigator.clipboard.writeText(shareData.text);
+                this.toast.show('Ссылка скопирована в буфер обмена!', 'success');
+            }
+        } catch (error) {
+            console.error('Error sharing team:', error);
+            this.toast.show('Ошибка при попытке поделиться', 'error');
+        }
+    }
 
-/**
- * Назначает обработчики событий.
- */
-function addEventListeners() {
-  const modalElement = document.querySelector(".modal-container");
-  if (!modalElement) return;
+    /**
+     * Экспорт команды
+     */
+    exportTeam(team) {
+        try {
+            const exportData = {
+                team: team,
+                exportedAt: new Date().toISOString(),
+                app: 'Randomatched v1.0.0'
+            };
 
-  modalElement.addEventListener("click", (e) => {
-    const button = e.target.closest("button[data-action]");
-    if (!button) return;
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], { type: 'application/json' });
+            
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = `unmatched-team-${team.id}.json`;
+            link.click();
 
-    e.stopPropagation();
-    const action = button.dataset.action;
+            this.toast.show('Команда экспортирована!', 'success');
+        } catch (error) {
+            console.error('Error exporting team:', error);
+            this.toast.show('Ошибка при экспорте команды', 'error');
+        }
+    }
 
-    const activeListName = Storage.loadActiveList();
-    const heroLists = Storage.loadHeroLists() || {};
-    const heroesInActiveList = (heroLists[activeListName] || []).map(
-      (name) => ({ name })
-    );
-
-    switch (action) {
-      case "reshuffle-all":
-        const newFullGen = Generator.generateAll(heroesInActiveList, []);
-        if (newFullGen) updateResults(newFullGen);
-        else Toast.error("Недостаточно героев в текущем списке");
-        break;
-
-      case "reshuffle-teams":
-        const newPlayers = Generator.shuffleNumbers();
-        const newTeamGen = {
-          ...currentGeneration,
-          shuffledPlayers: newPlayers,
+    /**
+     * Получить метку режима игры
+     */
+    getGameModeLabel(gameMode) {
+        const labels = {
+            'all': 'Все герои',
+            'base': 'Базовые герои',
+            'expansions': 'Только дополнения'
         };
-        newTeamGen.assignment = {};
-        newPlayers.forEach((playerNum, index) => {
-          newTeamGen.assignment[playerNum] =
-            currentGeneration.shuffledHeroes[index];
-        });
-        updateResults(newTeamGen);
-        break;
-
-      case "reshuffle-heroes":
-        const newHeroes = Generator.shuffleHeroes(heroesInActiveList, [], 4);
-        if (newHeroes && newHeroes.length === 4) {
-          const newHeroGen = {
-            ...currentGeneration,
-            shuffledHeroes: newHeroes,
-          };
-          newHeroGen.assignment = {};
-          currentGeneration.shuffledPlayers.forEach((playerNum, index) => {
-            newHeroGen.assignment[playerNum] = newHeroes[index];
-          });
-          updateResults(newHeroGen);
-        } else {
-          Toast.error("Недостаточно героев в текущем списке для замены.");
-        }
-        break;
-
-      case "reshuffle-hero":
-        const playerToReshuffle = button.dataset.player;
-        const currentHeroNames = Object.values(
-          currentGeneration.assignment
-        ).map((h) => h.name);
-        const heroesForReshuffle = heroesInActiveList.filter(
-          (h) => !currentHeroNames.includes(h.name)
-        );
-
-        if (heroesForReshuffle.length > 0) {
-          const newHero = Generator.shuffle(heroesForReshuffle)[0];
-          const newAssignment = { ...currentGeneration.assignment };
-          newAssignment[playerToReshuffle] = newHero;
-          const heroIndex = currentGeneration.shuffledHeroes.findIndex(
-            (h) =>
-              h.name === currentGeneration.assignment[playerToReshuffle].name
-          );
-          const newShuffledHeroes = [...currentGeneration.shuffledHeroes];
-          if (heroIndex !== -1) newShuffledHeroes[heroIndex] = newHero;
-          updateResults({
-            ...currentGeneration,
-            assignment: newAssignment,
-            shuffledHeroes: newShuffledHeroes,
-          });
-        } else {
-          Toast.warning("Нет свободных героев для замены");
-        }
-        break;
-
-      case "exclude-these-heroes":
-        new Modal({
-          type: "dialog",
-          title: "Исключить 4 героев?",
-          content:
-            "Будет создан или обновлен временный список без этих героев.",
-          confirmText: "Да, исключить",
-          onConfirm: () => {
-            const heroesToExclude = currentGeneration.shuffledHeroes.map(
-              (h) => h.name
-            );
-            const result = handleExclusion(heroesToExclude);
-            if (result.success) {
-              resultsModal.close();
-            }
-          },
-        }).open();
-        break;
-
-      case "exclude-hero":
-        const heroNameToExclude = button.dataset.heroName;
-        new Modal({
-          type: "dialog",
-          title: "Исключить героя?",
-          content: `Будет создан или обновлен временный список без героя "${heroNameToExclude}".`,
-          confirmText: "Да, исключить",
-          onConfirm: () => {
-            const result = handleExclusion([heroNameToExclude]);
-
-            if (result.success) {
-              const otherThreeHeroes = Object.values(
-                currentGeneration.assignment
-              )
-                .map((h) => h.name)
-                .filter((name) => name !== heroNameToExclude);
-
-              const heroesForReplacement = heroesInActiveList.filter(
-                (h) =>
-                  !otherThreeHeroes.includes(h.name) &&
-                  h.name !== heroNameToExclude
-              );
-
-              if (heroesForReplacement.length > 0) {
-                const newHero = Generator.shuffle(heroesForReplacement)[0];
-                const playerToReplace = Object.keys(
-                  currentGeneration.assignment
-                ).find(
-                  (key) =>
-                    currentGeneration.assignment[key].name === heroNameToExclude
-                );
-
-                if (playerToReplace) {
-                  const newAssignment = { ...currentGeneration.assignment };
-                  newAssignment[playerToReplace] = newHero;
-                  const heroIndex = currentGeneration.shuffledHeroes.findIndex(
-                    (h) => h.name === heroNameToExclude
-                  );
-                  const newShuffledHeroes = [
-                    ...currentGeneration.shuffledHeroes,
-                  ];
-                  if (heroIndex !== -1) newShuffledHeroes[heroIndex] = newHero;
-                  updateResults({
-                    ...currentGeneration,
-                    assignment: newAssignment,
-                    shuffledHeroes: newShuffledHeroes,
-                  });
-                }
-              } else {
-                Toast.warning("Нет свободных героев для немедленной замены.");
-                button.closest(
-                  ".flex.items-center.justify-between"
-                ).style.opacity = "0.5";
-                button.disabled = true;
-              }
-            }
-          },
-        }).open();
-        break;
+        return labels[gameMode] || gameMode;
     }
-  });
+
+    /**
+     * Прокрутить к результатам
+     */
+    scrollToResults() {
+        const resultsSection = document.getElementById('results-section');
+        if (resultsSection) {
+            resultsSection.scrollIntoView({ 
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+    }
+
+    /**
+     * Обновить макет результатов
+     */
+    updateLayout() {
+        if (this.currentTeam) {
+            // Перерисовываем результаты при изменении размера окна
+            this.displayTeam(this.currentTeam);
+        }
+    }
+
+    /**
+     * Получить текущую команду
+     */
+    getCurrentTeam() {
+        return this.currentTeam;
+    }
+
+    /**
+     * Очистить текущую команду
+     */
+    clearCurrentTeam() {
+        this.currentTeam = null;
+        this.hideResultsSection();
+    }
 }
-
-/**
- * Открывает модальное окно с результатами.
- */
-function show(generation, allHeroes, onListUpdate) {
-  currentGeneration = generation;
-  allHeroesData = allHeroes;
-  onListUpdateCallback = onListUpdate;
-
-  resultsModal = new Modal({
-    type: "fullscreen",
-    title: "Результаты генерации",
-    content: createResultsHTML(generation),
-    confirmText: null,
-  });
-
-  resultsModal.open();
-  addEventListeners();
-}
-
-export default { show };
