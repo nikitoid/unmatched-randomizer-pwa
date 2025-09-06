@@ -1,13 +1,9 @@
-/**
- * Модуль-обертка для работы с localStorage.
- */
-
 const LAST_GEN_KEY = "last-generation";
 const HERO_LISTS_KEY = "hero-lists";
 const DEFAULT_LIST_KEY = "default-list-name";
 const ACTIVE_LIST_KEY = "active-list-name";
-const ORIGINAL_LIST_MAP_KEY = "original-list-map"; // Карта для отслеживания оригиналов
-const SYNCED_LIST_NAMES_KEY = "synced-list-names"; // --- НОВЫЙ КЛЮЧ ---
+const ORIGINAL_LIST_MAP_KEY = "original-list-map";
+const SYNCED_LIST_NAMES_KEY = "synced-list-names";
 
 const Storage = {
   get(key) {
@@ -48,16 +44,13 @@ const Storage = {
   saveLastGeneration(teams) {
     this.set(LAST_GEN_KEY, teams);
   },
-
   loadLastGeneration() {
     return this.get(LAST_GEN_KEY);
   },
 
-  // --- Методы для управления списками ---
   saveHeroLists(lists) {
     this.set(HERO_LISTS_KEY, lists);
   },
-
   loadHeroLists() {
     return this.get(HERO_LISTS_KEY);
   },
@@ -65,7 +58,6 @@ const Storage = {
   saveDefaultList(listName) {
     this.set(DEFAULT_LIST_KEY, listName);
   },
-
   loadDefaultList() {
     return this.get(DEFAULT_LIST_KEY);
   },
@@ -73,25 +65,32 @@ const Storage = {
   saveActiveList(listName) {
     this.set(ACTIVE_LIST_KEY, listName);
   },
-
   loadActiveList() {
     return this.get(ACTIVE_LIST_KEY);
   },
 
-  // --- НОВЫЕ МЕТОДЫ для отслеживания синхронизированных списков ---
   saveSyncedListNames(names) {
     this.set(SYNCED_LIST_NAMES_KEY, names);
   },
-
   loadSyncedListNames() {
     return this.get(SYNCED_LIST_NAMES_KEY);
   },
 
-  // --- Методы для карт оригинальных списков ---
+  loadCloudLists() {
+    const allLists = this.loadHeroLists() || {};
+    const syncedNames = this.loadSyncedListNames() || [];
+    const cloudLists = {};
+    for (const name of syncedNames) {
+      if (allLists[name]) {
+        cloudLists[name] = allLists[name];
+      }
+    }
+    return cloudLists;
+  },
+
   saveOriginalListMap(map) {
     this.set(ORIGINAL_LIST_MAP_KEY, map);
   },
-
   loadOriginalListMap() {
     return this.get(ORIGINAL_LIST_MAP_KEY) || {};
   },
@@ -100,31 +99,23 @@ const Storage = {
     const heroLists = this.loadHeroLists() || {};
     const originalMap = this.loadOriginalListMap();
     const activeList = this.loadActiveList();
-
     let newActiveList = activeList;
-
     if (originalMap[activeList]) {
       newActiveList = originalMap[activeList];
     }
-
     const newHeroLists = {};
     for (const listName in heroLists) {
       if (!originalMap.hasOwnProperty(listName)) {
         newHeroLists[listName] = heroLists[listName];
       }
     }
-
     this.saveHeroLists(newHeroLists);
-
     if (!newHeroLists[newActiveList]) {
       const defaultList = this.loadDefaultList();
-      if (newHeroLists[defaultList]) {
-        newActiveList = defaultList;
-      } else {
-        newActiveList = Object.keys(newHeroLists)[0];
-      }
+      newActiveList = newHeroLists[defaultList]
+        ? defaultList
+        : Object.keys(newHeroLists)[0];
     }
-
     this.saveActiveList(newActiveList);
     this.remove(ORIGINAL_LIST_MAP_KEY);
     this.remove(LAST_GEN_KEY);

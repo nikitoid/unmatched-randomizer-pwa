@@ -25,11 +25,6 @@ const ListManager = {
     cloud: `<svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>`,
   },
 
-  /**
-   * Обновляет только облачные списки в Firebase.
-   * @param {object} cloudPayload - Объект, содержащий только облачные списки для отправки.
-   * @returns {Promise<boolean>}
-   */
   async updateCloudLists(cloudPayload) {
     if (!navigator.onLine) {
       Toast.error("Нет сети. Изменения не сохранены в облако.");
@@ -37,7 +32,7 @@ const ListManager = {
     }
     try {
       const password = await Auth.requestPassword();
-      if (!password) return false; // Пользователь отменил ввод
+      if (!password) return false;
       const isValid = await Firebase.verifyPassword(password);
 
       if (!isValid) {
@@ -119,9 +114,7 @@ const ListManager = {
       save: () => this.handleSaveList(),
     };
 
-    if (actions[action]) {
-      actions[action]();
-    }
+    if (actions[action]) actions[action]();
   },
 
   render() {
@@ -237,17 +230,22 @@ const ListManager = {
   },
 
   handleCreateList() {
-    const content = `<input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg" placeholder="Например, 'Герои Marvel'"><div class="mt-4"><p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Выберите тип списка:</p><div class="flex gap-4"><button id="create-local" class="flex-1 py-2 px-4 rounded-lg bg-gray-600 text-white">Локальный</button><button id="create-cloud" class="flex-1 py-2 px-4 rounded-lg bg-sky-600 text-white">Облачный</button></div></div>`;
+    const content = `<input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg" placeholder="Например, 'Герои Marvel'"><div class="mt-4"><p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Выберите тип списка:</p><div class="flex gap-4"><button data-create-type="local" class="flex-1 py-2 px-4 rounded-lg bg-gray-600 text-white">Локальный</button><button data-create-type="cloud" class="flex-1 py-2 px-4 rounded-lg bg-sky-600 text-white">Облачный</button></div></div>`;
     const createModal = new Modal({
       title: "Создать новый список",
       content,
       confirmText: null,
     });
 
-    const handleCreation = async (isCloud) => {
+    const creationHandler = async (e) => {
+      const button = e.target.closest("button[data-create-type]");
+      if (!button) return;
+
+      const isCloud = button.dataset.createType === "cloud";
       const newName = document
         .getElementById("new-list-name-input")
         ?.value.trim();
+
       if (
         !newName ||
         this.isCopyRegex.test(newName) ||
@@ -278,11 +276,14 @@ const ListManager = {
       this.render();
       createModal.close();
     };
+
     createModal.open();
-    document.getElementById("create-local").onclick = () =>
-      handleCreation(false);
-    document.getElementById("create-cloud").onclick = () =>
-      handleCreation(true);
+    const modalElement = document.querySelector(
+      ".modal-container:last-of-type"
+    );
+    if (modalElement) {
+      modalElement.addEventListener("click", creationHandler, { once: true });
+    }
   },
 
   async handleRenameList(oldName) {
