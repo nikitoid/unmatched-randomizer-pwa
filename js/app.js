@@ -22,6 +22,11 @@ function registerServiceWorker() {
         .then((registration) => {
           console.log("Service Worker зарегистрирован:", registration);
 
+          // Если уже есть активный SW, значит, обновление не требуется при первой загрузке
+          if (registration.active) {
+            isSWUpdateComplete = true;
+          }
+
           registration.addEventListener("updatefound", () => {
             console.log("Найден новый Service Worker, начинается установка...");
             const spinner = document.getElementById("update-spinner");
@@ -46,6 +51,7 @@ function registerServiceWorker() {
       }
     });
   } else {
+    console.log("Service Worker не поддерживается, обновление не требуется.");
     isSWUpdateComplete = true; // Если SW не поддерживается, считаем "обновление" завершенным
   }
 }
@@ -149,7 +155,12 @@ function initializeAppState() {
 
 // --- Логика синхронизации с Firebase ---
 function startFirebaseSync() {
-  if (!isSWUpdateComplete) return; // Ждем завершения обновления PWA
+  if (!isSWUpdateComplete) {
+    console.log(
+      "Запуск синхронизации отложен: обновление Service Worker еще не завершено."
+    );
+    return;
+  }
 
   if (navigator.onLine) {
     if (!isInitialSyncDone) {
@@ -166,7 +177,7 @@ function startFirebaseSync() {
           Toast.success("Данные синхронизированы.");
           isInitialSyncDone = true;
         }
-        initializeAppState();
+        initializeAppState(); // Перезагружаем UI с объединенными данными
       } else {
         updateDbStatusIndicator("error");
         if (!isInitialSyncDone) {
@@ -184,7 +195,6 @@ function startFirebaseSync() {
 document.addEventListener("DOMContentLoaded", () => {
   registerServiceWorker();
 
-  // Инициализация темы
   Theme.init();
   const themeToggle = document.getElementById("theme-toggle");
   const updateThemeIcons = () => {
@@ -200,14 +210,14 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("theme-changed", updateThemeIcons);
   updateThemeIcons();
 
-  // Инициализация приложения
   initializeAppState();
 
-  // Если SW не поддерживается или уже активен, запускаем синхронизацию сразу
-  if (navigator.serviceWorker.controller || !("serviceWorker" in navigator)) {
-    isSWUpdateComplete = true;
-  }
-  startFirebaseSync();
+  // Отложенный запуск, чтобы дать SW время на первоначальную регистрацию
+  setTimeout(() => {
+    if (isSWUpdateComplete) {
+      startFirebaseSync();
+    }
+  }, 1000);
 
   window.addEventListener("online", startFirebaseSync);
   window.addEventListener("offline", () => updateDbStatusIndicator("error"));

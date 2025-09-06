@@ -7,6 +7,7 @@ const HERO_LISTS_KEY = "hero-lists";
 const DEFAULT_LIST_KEY = "default-list-name";
 const ACTIVE_LIST_KEY = "active-list-name";
 const ORIGINAL_LIST_MAP_KEY = "original-list-map"; // Карта для отслеживания оригиналов
+const SYNCED_LIST_NAMES_KEY = "synced-list-names"; // --- НОВЫЙ КЛЮЧ ---
 
 const Storage = {
   get(key) {
@@ -77,6 +78,15 @@ const Storage = {
     return this.get(ACTIVE_LIST_KEY);
   },
 
+  // --- НОВЫЕ МЕТОДЫ для отслеживания синхронизированных списков ---
+  saveSyncedListNames(names) {
+    this.set(SYNCED_LIST_NAMES_KEY, names);
+  },
+
+  loadSyncedListNames() {
+    return this.get(SYNCED_LIST_NAMES_KEY);
+  },
+
   // --- Методы для карт оригинальных списков ---
   saveOriginalListMap(map) {
     this.set(ORIGINAL_LIST_MAP_KEY, map);
@@ -93,12 +103,10 @@ const Storage = {
 
     let newActiveList = activeList;
 
-    // Если активный список - копия, найти его оригинал
     if (originalMap[activeList]) {
       newActiveList = originalMap[activeList];
     }
 
-    // Удаляем все списки, которые являются копиями
     const newHeroLists = {};
     for (const listName in heroLists) {
       if (!originalMap.hasOwnProperty(listName)) {
@@ -108,7 +116,6 @@ const Storage = {
 
     this.saveHeroLists(newHeroLists);
 
-    // Если новый активный список не существует (был удален), сбросить на дефолтный или первый
     if (!newHeroLists[newActiveList]) {
       const defaultList = this.loadDefaultList();
       if (newHeroLists[defaultList]) {

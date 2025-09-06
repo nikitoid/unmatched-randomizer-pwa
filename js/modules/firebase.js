@@ -108,24 +108,24 @@ async function syncLists(onUpdateCallback) {
       listsRef,
       (docSnap) => {
         if (docSnap.exists()) {
-          console.log(
-            "Firebase: Получены данные из Firestore:",
-            docSnap.data()
-          );
           const remoteData = docSnap.data();
+          console.log("Firebase: Получены данные из Firestore:", remoteData);
 
-          if (remoteData.lists) {
-            Storage.saveHeroLists(remoteData.lists);
-          }
-          // --- ИЗМЕНЕНО: 'selected' теперь строка ---
-          if (remoteData.selected) {
-            Storage.saveDefaultList(remoteData.selected);
-          }
+          const localLists = Storage.loadHeroLists() || {};
+          const remoteLists = remoteData.lists || {};
+
+          // --- НОВАЯ ЛОГИКА: Слияние списков ---
+          const mergedLists = { ...localLists, ...remoteLists };
+
+          Storage.saveHeroLists(mergedLists);
+          Storage.saveSyncedListNames(Object.keys(remoteLists)); // Сохраняем имена облачных списков
+
           onUpdateCallback(true);
         } else {
           console.warn(
             "Firebase: Документ 'lists/main' не найден в Firestore."
           );
+          Storage.saveSyncedListNames([]); // Если документа нет, то и облачных списков нет
           onUpdateCallback(false);
         }
       },
@@ -168,7 +168,7 @@ async function verifyPassword(password) {
 
 /**
  * Обновляет данные в Firestore.
- * @param {object} newData - Объект с новыми данными ({lists, selected}).
+ * @param {object} newData - Объект с новыми данными ({lists}).
  * @returns {Promise<boolean>} - true, если обновление прошло успешно.
  */
 async function updateRemoteData(newData) {
@@ -184,11 +184,6 @@ async function updateRemoteData(newData) {
     const dataToSet = {
       lists:
         newData.lists !== undefined ? newData.lists : currentData.lists || {},
-      // --- ИЗМЕНЕНО: 'selected' теперь строка ---
-      selected:
-        newData.selected !== undefined
-          ? newData.selected
-          : currentData.selected || "",
       passwordHash: currentData.passwordHash || "",
     };
 
