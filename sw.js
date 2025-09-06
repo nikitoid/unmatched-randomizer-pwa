@@ -1,5 +1,5 @@
 // Service Worker для Randomatched PWA
-const CACHE_NAME = 'randomatched-v1.0.1';
+const CACHE_NAME = 'randomatched-v1.0.2';
 const STATIC_CACHE_NAME = 'randomatched-static-v1.0.0';
 const DYNAMIC_CACHE_NAME = 'randomatched-dynamic-v1.0.0';
 
