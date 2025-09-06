@@ -1,5 +1,5 @@
-// Увеличиваем версию кэша, чтобы гарантировать обновление у всех пользователей
-const CACHE_NAME = "randomatched-cache-v7";
+// Меняем версию кэша, чтобы спровоцировать обновление
+const CACHE_NAME = "randomatched-cache-v1";
 const urlsToCache = [
   "/",
   "/index.html",
@@ -9,6 +9,7 @@ const urlsToCache = [
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
+  // --- Добавленные модули для кэширования ---
   "/js/modules/generator.js",
   "/js/modules/listManager.js",
   "/js/modules/modal.js",
@@ -16,22 +17,31 @@ const urlsToCache = [
   "/js/modules/storage.js",
   "/js/modules/theme.js",
   "/js/modules/toast.js",
-  "/js/modules/firebase.js",
-  "/js/modules/auth.js",
 ];
 
+// Установка Service Worker и кэширование статических файлов
 self.addEventListener("install", (event) => {
-  console.log("Service Worker: установка");
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      console.log("Кэш открыт");
-      return cache.addAll(urlsToCache);
-    })
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
+        console.log("Кэш открыт");
+        return cache.addAll(urlsToCache);
+      })
+      .then(() => {
+        // --- Ключевое изменение: активируем SW немедленно ---
+        console.log(
+          "Service Worker: пропуск ожидания и немедленная активация."
+        );
+        return self.skipWaiting();
+      })
   );
+  console.log("Service Worker: установлен");
 });
 
+// Активация Service Worker и удаление старых кэшей
 self.addEventListener("activate", (event) => {
-  console.log("Service Worker: активация");
+  console.log("Service Worker: активирован");
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -41,33 +51,42 @@ self.addEventListener("activate", (event) => {
             return caches.delete(cacheName);
           }
         })
-      ).then(() => {
-        console.log("Service Worker: клиенты взяты под контроль");
-        return self.clients.claim();
-      });
+      );
     })
   );
+  // Принудительно делаем новый SW активным для всех клиентов
+  return self.clients.claim();
 });
 
-// Слушатель для принудительной активации нового SW
-self.addEventListener("message", (event) => {
-  if (event.data && event.data.type === "SKIP_WAITING") {
-    console.log("Service Worker: получен сигнал SKIP_WAITING");
-    self.skipWaiting();
-  }
-});
-
+// Обработка запросов (стратегия "Cache First")
 self.addEventListener("fetch", (event) => {
-  // Используем стратегию "Cache First" для всех запросов
   event.respondWith(
     caches.match(event.request).then((response) => {
-      return (
-        response ||
-        fetch(event.request).catch((error) => {
-          console.error(`Fetch failed for: ${event.request.url}`, error);
-          // В случае ошибки сети можно вернуть запасной ответ, если это необходимо
-        })
-      );
+      // Если ресурс есть в кэше, возвращаем его
+      if (response) {
+        return response;
+      }
+
+      // В противном случае, делаем запрос к сети
+      return fetch(event.request).then((networkResponse) => {
+        // Проверяем, что ответ корректный
+        if (
+          !networkResponse ||
+          networkResponse.status !== 200 ||
+          networkResponse.type !== "basic"
+        ) {
+          return networkResponse;
+        }
+
+        // Клонируем ответ, так как его можно использовать только один раз
+        const responseToCache = networkResponse.clone();
+
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+
+        return networkResponse;
+      });
     })
   );
 });

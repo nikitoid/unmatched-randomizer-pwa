@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru" class="dark">
+  <!-- Тема по умолчанию, будет управляться JS -->
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -7,30 +8,49 @@
       content="width=device-width, initial-scale=1.0, user-scalable=no"
     />
     <title>Randomatched</title>
+
+    <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json" />
+
+    <!-- Theme Color для мобильных браузеров -->
     <meta name="theme-color" content="#1a202c" />
+
+    <!-- Иконка для Apple устройств -->
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-      tailwind.config = { darkMode: "class" };
+      // Конфигурация Tailwind для поддержки темной темы через класс 'dark'
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {},
+        },
+      };
     </script>
+
+    <!-- Пользовательские стили -->
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body
     class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased h-screen overflow-hidden"
   >
     <div class="container mx-auto px-4 py-4 h-full flex flex-col">
+      <!-- Header -->
       <header class="flex justify-between items-center mb-4 flex-shrink-0">
         <button
           id="theme-toggle"
           class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
         >
+          <!-- Sun Icon -->
           <svg
             id="theme-icon-light"
             class="w-6 h-6"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
           >
             <path
               stroke-linecap="round"
@@ -39,12 +59,14 @@
               d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
             ></path>
           </svg>
+          <!-- Moon Icon -->
           <svg
             id="theme-icon-dark"
             class="w-6 h-6 hidden"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
           >
             <path
               stroke-linecap="round"
@@ -57,48 +79,49 @@
         <h1 class="text-3xl font-bold text-teal-500 dark:text-teal-400">
           Randomatched
         </h1>
-        <!-- Контейнер для иконок статуса -->
-        <div class="w-10 h-10 flex items-center justify-center">
-          <!-- Спиннер обновления -->
-          <div id="update-spinner" class="invisible">
-            <svg
-              class="animate-spin h-6 w-6 text-teal-500"
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                class="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                stroke-width="4"
-              ></circle>
-              <path
-                class="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              ></path>
-            </svg>
-          </div>
-          <!-- Статус подключения к БД -->
-          <div id="db-status-container">
-            <div id="db-status"></div>
-          </div>
+        <!-- Контейнер для спиннера обновления -->
+        <div
+          id="update-spinner"
+          class="w-10 h-10 flex items-center justify-center invisible"
+        >
+          <svg
+            class="animate-spin h-6 w-6 text-teal-500"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
         </div>
       </header>
 
+      <!-- Main Content -->
       <main
         class="flex-grow flex flex-col items-center justify-center text-center"
       >
+        <!-- Hero Selection -->
         <div class="w-full max-w-sm mb-6">
           <label for="hero-select" class="sr-only">Выберите героев</label>
           <div class="flex items-center space-x-2">
             <select
               id="hero-select"
               class="block w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
-            ></select>
+            >
+              <option>Все герои</option>
+              <!-- Другие списки будут добавлены позже -->
+            </select>
             <button
               id="settings-btn"
               class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
@@ -108,6 +131,7 @@
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
               >
                 <path
                   stroke-linecap="round"
@@ -126,6 +150,7 @@
           </div>
         </div>
 
+        <!-- Main Action Button -->
         <button
           id="generate-teams-btn"
           class="w-full max-w-sm bg-teal-500 active:bg-teal-600 text-white font-bold py-4 px-6 rounded-lg shadow-md text-xl transition-transform transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75"
@@ -134,6 +159,7 @@
         </button>
       </main>
 
+      <!-- Footer Actions -->
       <footer
         class="flex justify-center items-center space-x-4 py-2 flex-shrink-0"
       >
@@ -153,10 +179,12 @@
       </footer>
     </div>
 
+    <!-- Контейнер для toast-уведомлений -->
     <div
       id="toast-container"
       class="fixed bottom-5 right-5 z-[100] flex flex-col items-end space-y-3 w-full max-w-xs"
     ></div>
+
     <script type="module" src="js/app.js"></script>
   </body>
 </html>

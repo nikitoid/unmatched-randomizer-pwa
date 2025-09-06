@@ -1,10 +1,12 @@
 import Modal from "./modal.js";
 import Storage from "./storage.js";
 import Toast from "./toast.js";
-import Firebase from "./firebase.js";
-import Auth from "./auth.js";
 
+/**
+ * Модуль для управления списками героев.
+ */
 const ListManager = {
+  // --- Состояние модуля ---
   modal: null,
   container: null,
   heroLists: {},
@@ -13,8 +15,9 @@ const ListManager = {
   currentView: "manager",
   listToEdit: null,
   isListenerAttached: false,
-  isCopyRegex: /\(искл\.( \d+)?\)$/,
+  isCopyRegex: /\(искл\.( \d+)?\)$/, // Регулярное выражение для обнаружения копий
 
+  // ... (иконки остаются без изменений)
   icons: {
     rename: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg>`,
     delete: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`,
@@ -22,38 +25,6 @@ const ListManager = {
     starFilled: `<svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`,
     back: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>`,
     add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
-    cloud: `<svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>`,
-  },
-
-  async updateCloudLists(cloudPayload) {
-    if (!navigator.onLine) {
-      Toast.error("Нет сети. Изменения не сохранены в облако.");
-      return false;
-    }
-    try {
-      const password = await Auth.requestPassword();
-      if (!password) return false;
-      const isValid = await Firebase.verifyPassword(password);
-
-      if (!isValid) {
-        Toast.error("Неверный пароль.");
-        Auth.clearCachedPassword();
-        return false;
-      }
-
-      Toast.info("Сохранение изменений в облаке...");
-      const success = await Firebase.updateRemoteData({ lists: cloudPayload });
-      if (success) {
-        Toast.success("Изменения сохранены.");
-        return true;
-      } else {
-        Toast.error("Ошибка сохранения в облаке.");
-        return false;
-      }
-    } catch (error) {
-      if (error) console.error("Ошибка при синхронизации:", error);
-      return false;
-    }
   },
 
   show(heroLists, onUpdate) {
@@ -62,6 +33,7 @@ const ListManager = {
     this.onUpdateCallback = onUpdate;
     this.currentView = "manager";
     this.isListenerAttached = false;
+
     this.modal = new Modal({
       type: "fullscreen",
       title: "Управление списками",
@@ -72,6 +44,7 @@ const ListManager = {
         this.isListenerAttached = false;
       },
     });
+
     this.modal.open();
     this.container = document.querySelector(".modal-content-wrapper");
     this.attachPersistentListener();
@@ -81,90 +54,91 @@ const ListManager = {
   attachPersistentListener() {
     if (this.isListenerAttached) return;
     const modalElement = document.querySelector(".modal-container");
-    if (modalElement) {
-      modalElement.addEventListener("click", this.handleClicks.bind(this));
-      this.isListenerAttached = true;
-    }
+    if (!modalElement) return;
+    modalElement.addEventListener("click", this.handleClicks.bind(this));
+    this.isListenerAttached = true;
   },
 
   handleClicks(e) {
-    const actionButton = e.target.closest("button[data-action]");
-    if (!actionButton) {
-      const listContainer = e.target.closest("div[data-list-name]");
-      if (listContainer && this.currentView === "manager") {
+    const target = e.target;
+    const actionButton = target.closest("button[data-action]");
+
+    if (this.currentView === "manager") {
+      const listContainer = target.closest("div[data-list-name]");
+      if (actionButton) {
+        const action = actionButton.dataset.action;
+        const listName = listContainer ? listContainer.dataset.listName : null;
+        if (action === "create") this.handleCreateList();
+        else if (listName) {
+          if (action === "set-default") this.handleSetDefault(listName);
+          if (action === "rename") this.handleRenameList(listName);
+          if (action === "delete") this.handleDeleteList(listName);
+        }
+      } else if (listContainer && target.closest('[data-action="edit"]')) {
         this.listToEdit = listContainer.dataset.listName;
         this.currentView = "editor";
         this.render();
       }
-      return;
+    } else if (this.currentView === "editor") {
+      if (actionButton) {
+        const action = actionButton.dataset.action;
+        if (action === "back") {
+          this.currentView = "manager";
+          this.render();
+        } else if (action === "save") {
+          this.handleSaveList();
+        }
+      }
     }
-
-    const listName = e.target.closest("div[data-list-name]")?.dataset.listName;
-    const action = actionButton.dataset.action;
-
-    const actions = {
-      create: () => this.handleCreateList(),
-      "set-default": () => listName && this.handleSetDefault(listName),
-      rename: () => listName && this.handleRenameList(listName),
-      delete: () => listName && this.handleDeleteList(listName),
-      back: () => {
-        this.currentView = "manager";
-        this.render();
-      },
-      save: () => this.handleSaveList(),
-    };
-
-    if (actions[action]) actions[action]();
   },
 
   render() {
     if (!this.container) return;
+    let html = "";
     const titleElement = document.getElementById("modal-title");
+
     if (this.currentView === "manager") {
       if (titleElement) titleElement.textContent = "Управление списками";
-      this.container.innerHTML = this.createManagerHTML();
-    } else {
+      html = this.createManagerHTML();
+    } else if (this.currentView === "editor") {
       if (titleElement)
         titleElement.textContent = `Редактор: ${this.listToEdit}`;
-      this.container.innerHTML = this.createEditorHTML();
+      html = this.createEditorHTML();
     }
+    this.container.innerHTML = html;
   },
 
   createManagerHTML() {
-    const syncedNames = Storage.loadSyncedListNames() || [];
     const listItems = Object.keys(this.heroLists)
-      .sort()
       .map((listName) => {
         const isDefault = listName === this.defaultList;
-        const heroCount = this.heroLists[listName]?.length || 0;
+        const heroCount = this.heroLists[listName].length;
         const isCopy = this.isCopyRegex.test(listName);
-        const isSynced = syncedNames.includes(listName) && !isCopy;
+
         const buttonsHTML = isCopy
-          ? `<div class="w-28 flex-shrink-0"></div>`
+          ? `<div class="w-28 flex-shrink-0"></div>` // Заглушка для выравнивания
           : `
             <div class="flex items-center space-x-1 flex-shrink-0">
-                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" data-action="set-default" title="Сделать по умолчанию">${
-                  isDefault ? this.icons.starFilled : this.icons.star
-                }</button>
-                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700" data-action="rename" title="Переименовать">${
-                  this.icons.rename
-                }</button>
-                <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50" data-action="delete" title="Удалить">${
-                  this.icons.delete
-                }</button>
+                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
+                    ${isDefault ? this.icons.starFilled : this.icons.star}
+                </button>
+                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать">
+                    ${this.icons.rename}
+                </button>
+                <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
+                    ${this.icons.delete}
+                </button>
             </div>`;
+
         const titleClass = isCopy
           ? "text-gray-500 dark:text-gray-400"
           : "text-gray-800 dark:text-gray-100";
-        const subtitle =
-          `${heroCount} героев` +
-          (isCopy ? " (временный)" : isSynced ? "" : " (локальный)");
-        const cloudIcon = isSynced
-          ? `<div class="mr-2" title="Синхронизировано с облаком">${this.icons.cloud}</div>`
-          : "";
+        const subtitle = isCopy
+          ? `${heroCount} героев (временный)`
+          : `${heroCount} героев`;
 
-        return `<div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
-                ${cloudIcon}
+        return `
+            <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
                 <div class="flex-grow cursor-pointer" data-action="edit">
                     <p class="font-semibold text-lg ${titleClass}">${listName}</p>
                     <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
@@ -173,7 +147,9 @@ const ListManager = {
             </div>`;
       })
       .join("");
-    return `<div class="space-y-3">${listItems}</div>
+
+    return `
+        <div class="space-y-3">${listItems}</div>
         <button data-action="create" class="mt-6 flex items-center justify-center gap-2 w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">
             ${this.icons.add} <span>Создать новый список</span>
         </button>`;
@@ -182,38 +158,36 @@ const ListManager = {
   createEditorHTML() {
     const heroNames = this.heroLists[this.listToEdit] || [];
     const heroText = heroNames.join("\n");
-    return `<div class="flex flex-col h-full">
+    const isCopy = this.isCopyRegex.test(this.listToEdit);
+    const backButtonText = isCopy ? "Закрыть редактор" : "Назад к спискам";
+
+    return `
+        <div class="flex flex-col h-full">
             <div class="flex-shrink-0 flex justify-between items-center mb-4">
-                 <button data-action="back" class="flex items-center gap-2 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-teal-500 py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">${this.icons.back} Назад к спискам</button>
-                <button data-action="save" class="text-sm font-bold text-white bg-teal-500 active:bg-teal-600 py-2 px-5 rounded-lg transition-transform transform active:scale-95">Сохранить</button>
+                 <button data-action="back" class="flex items-center gap-2 text-sm font-bold text-gray-600 dark:text-gray-300 hover:text-teal-500 transition-colors py-2 px-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700">
+                    ${this.icons.back} ${backButtonText}
+                </button>
+                <button data-action="save" class="text-sm font-bold text-white bg-teal-500 active:bg-teal-600 py-2 px-5 rounded-lg transition-transform transform active:scale-95">
+                    Сохранить
+                </button>
             </div>
-             <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Каждый герой должен быть на новой строке.</p>
+             <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Добавьте или измените героев. Каждый герой должен быть на новой строке.</p>
             <textarea id="list-hero-editor" class="w-full flex-grow bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500 text-base">${heroText}</textarea>
         </div>`;
   },
 
-  async handleSaveList() {
+  handleSaveList() {
     const textarea = document.getElementById("list-hero-editor");
+    if (!textarea) return;
     const newHeroNames = textarea.value
       .split("\n")
-      .map((n) => n.trim())
-      .filter(Boolean);
-    const updatedLists = { ...this.heroLists, [this.listToEdit]: newHeroNames };
+      .map((name) => name.trim())
+      .filter((name) => name);
 
-    const syncedNames = Storage.loadSyncedListNames() || [];
-    const isSynced = syncedNames.includes(this.listToEdit);
+    this.heroLists[this.listToEdit] = newHeroNames;
+    Storage.saveHeroLists(this.heroLists);
+    Toast.success(`Список "${this.listToEdit}" сохранен.`);
 
-    if (isSynced) {
-      const cloudPayload = {
-        ...Storage.loadCloudLists(),
-        [this.listToEdit]: newHeroNames,
-      };
-      const success = await this.updateCloudLists(cloudPayload);
-      if (!success) return;
-    }
-
-    Storage.saveHeroLists(updatedLists);
-    this.heroLists = updatedLists;
     this.currentView = "manager";
     this.render();
   },
@@ -223,145 +197,121 @@ const ListManager = {
       Toast.error("Временный список не может быть установлен по умолчанию.");
       return;
     }
-    Storage.saveDefaultList(listName);
     this.defaultList = listName;
+    Storage.saveDefaultList(listName);
     Toast.success(`Список "${listName}" установлен по умолчанию.`);
     this.render();
   },
 
   handleCreateList() {
-    const content = `<input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg" placeholder="Например, 'Герои Marvel'"><div class="mt-4"><p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Выберите тип списка:</p><div class="flex gap-4"><button data-create-type="local" class="flex-1 py-2 px-4 rounded-lg bg-gray-600 text-white">Локальный</button><button data-create-type="cloud" class="flex-1 py-2 px-4 rounded-lg bg-sky-600 text-white">Облачный</button></div></div>`;
-    const createModal = new Modal({
-      title: "Создать новый список",
-      content,
-      confirmText: null,
-    });
-
-    const creationHandler = async (e) => {
-      const button = e.target.closest("button[data-create-type]");
-      if (!button) return;
-
-      const isCloud = button.dataset.createType === "cloud";
-      const newName = document
-        .getElementById("new-list-name-input")
-        ?.value.trim();
-
-      if (
-        !newName ||
-        this.isCopyRegex.test(newName) ||
-        this.heroLists[newName]
-      ) {
-        Toast.error(
-          newName
-            ? "Некорректное имя или список уже существует."
-            : "Название не может быть пустым."
-        );
-        return;
-      }
-
-      const allLists = { ...this.heroLists, [newName]: [] };
-
-      if (isCloud) {
-        const cloudPayload = { ...Storage.loadCloudLists(), [newName]: [] };
-        const success = await this.updateCloudLists(cloudPayload);
-        if (!success) return;
-        const syncedNames = Storage.loadSyncedListNames() || [];
-        Storage.saveSyncedListNames([...syncedNames, newName]);
-      }
-
-      Storage.saveHeroLists(allLists);
-      this.heroLists = allLists;
-      this.listToEdit = newName;
-      this.currentView = "editor";
-      this.render();
-      createModal.close();
-    };
-
-    createModal.open();
-    const modalElement = document.querySelector(
-      ".modal-container:last-of-type"
-    );
-    if (modalElement) {
-      modalElement.addEventListener("click", creationHandler, { once: true });
-    }
-  },
-
-  async handleRenameList(oldName) {
-    const syncedNames = Storage.loadSyncedListNames() || [];
-    const isSynced = syncedNames.includes(oldName);
-
-    const content = `<input type="text" id="rename-list-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg" value="${oldName}">`;
+    const content = `
+        <p class="text-sm mb-2 text-gray-600 dark:text-gray-400">Введите название для нового списка героев.</p>
+        <input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Например, 'Только маги'">`;
     new Modal({
-      title: "Переименовать список",
+      title: "Создать новый список",
       content: content,
-      onConfirm: async () => {
-        const newName = document
-          .getElementById("rename-list-input")
-          ?.value.trim();
-        if (!newName || oldName === newName || this.heroLists[newName]) {
-          if (this.heroLists[newName])
-            Toast.error("Список с таким именем уже существует.");
+      onConfirm: () => {
+        const input = document.getElementById("new-list-name-input");
+        if (!input) return;
+
+        const newName = input.value.trim();
+        if (this.isCopyRegex.test(newName)) {
+          Toast.error("Название списка не может содержать '(искл.)'.");
           return;
         }
 
-        const updatedLists = { ...this.heroLists };
-        updatedLists[newName] = updatedLists[oldName];
-        delete updatedLists[oldName];
-
-        if (isSynced) {
-          const cloudPayload = { ...Storage.loadCloudLists() };
-          cloudPayload[newName] = cloudPayload[oldName];
-          delete cloudPayload[oldName];
-          const success = await this.updateCloudLists(cloudPayload);
-          if (!success) return;
-          Storage.saveSyncedListNames(
-            syncedNames.map((n) => (n === oldName ? newName : n))
-          );
+        if (newName && !this.heroLists[newName]) {
+          this.heroLists[newName] = [];
+          Storage.saveHeroLists(this.heroLists);
+          Toast.success(`Список "${newName}" создан.`);
+          this.listToEdit = newName;
+          this.currentView = "editor";
+          this.render();
+        } else if (this.heroLists[newName]) {
+          Toast.error("Список с таким именем уже существует.");
+        } else {
+          Toast.error("Название не может быть пустым.");
         }
-
-        if (Storage.loadDefaultList() === oldName)
-          Storage.saveDefaultList(newName);
-        if (Storage.loadActiveList() === oldName)
-          Storage.saveActiveList(newName);
-        Storage.saveHeroLists(updatedLists);
-        this.heroLists = updatedLists;
-        this.defaultList = Storage.loadDefaultList();
-        this.render();
       },
     }).open();
   },
 
-  async handleDeleteList(listName) {
+  handleRenameList(oldName) {
+    if (this.isCopyRegex.test(oldName)) {
+      Toast.error("Временные списки не могут быть переименованы.");
+      return;
+    }
+    const content = `<input type="text" id="rename-list-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" value="${oldName}">`;
+    new Modal({
+      title: "Переименовать список",
+      content: content,
+      onConfirm: () => {
+        const input = document.getElementById("rename-list-input");
+        if (!input) return;
+
+        const newName = input.value.trim();
+
+        if (this.isCopyRegex.test(newName)) {
+          Toast.error("Название списка не может содержать '(искл.)'.");
+          return;
+        }
+
+        if (newName && oldName !== newName && !this.heroLists[newName]) {
+          const updatedLists = {};
+          Object.keys(this.heroLists).forEach((key) => {
+            if (key === oldName) {
+              updatedLists[newName] = this.heroLists[oldName];
+            } else {
+              updatedLists[key] = this.heroLists[key];
+            }
+          });
+          this.heroLists = updatedLists;
+
+          if (this.defaultList === oldName) {
+            this.defaultList = newName;
+            Storage.saveDefaultList(newName);
+          }
+          if (Storage.loadActiveList() === oldName) {
+            Storage.saveActiveList(newName);
+          }
+
+          Storage.saveHeroLists(this.heroLists);
+          Toast.success("Список переименован.");
+          this.render();
+        } else if (this.heroLists[newName]) {
+          Toast.error("Список с таким именем уже существует.");
+        } else if (!newName) {
+          Toast.error("Название не может быть пустым.");
+        }
+      },
+    }).open();
+  },
+
+  handleDeleteList(listName) {
+    if (this.isCopyRegex.test(listName)) {
+      Toast.error("Временные списки не могут быть удалены отсюда.");
+      return;
+    }
     if (listName === this.defaultList) {
-      Toast.warning("Нельзя удалить список по умолчанию.");
+      Toast.warning("Нельзя удалить список, который установлен по умолчанию.");
+      return;
+    }
+    if (Object.keys(this.heroLists).length <= 1) {
+      Toast.error("Нельзя удалить последний список.");
       return;
     }
 
-    const syncedNames = Storage.loadSyncedListNames() || [];
-    const isSynced = syncedNames.includes(listName);
-
     new Modal({
       title: "Подтверждение",
-      content: `Удалить список "${listName}"?`,
+      content: `Вы уверены, что хотите удалить список "${listName}"?`,
       confirmText: "Удалить",
-      onConfirm: async () => {
-        const updatedLists = { ...this.heroLists };
-        delete updatedLists[listName];
-
-        if (isSynced) {
-          const cloudPayload = { ...Storage.loadCloudLists() };
-          delete cloudPayload[listName];
-          const success = await this.updateCloudLists(cloudPayload);
-          if (!success) return;
-          Storage.saveSyncedListNames(
-            syncedNames.filter((n) => n !== listName)
-          );
+      onConfirm: () => {
+        if (Storage.loadActiveList() === listName) {
+          Storage.remove("active-list-name");
         }
-
-        if (Storage.loadActiveList() === listName)
-          Storage.saveActiveList(this.defaultList);
-        Storage.saveHeroLists(updatedLists);
-        this.heroLists = updatedLists;
+        delete this.heroLists[listName];
+        Storage.saveHeroLists(this.heroLists);
+        Toast.success(`Список "${listName}" удален.`);
         this.render();
       },
     }).open();
