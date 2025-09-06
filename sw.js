@@ -1,5 +1,5 @@
-// Меняем версию кэша, чтобы спровоцировать обновление
-const CACHE_NAME = "randomatched-cache-v11"; // Версия изменена
+// Увеличиваем версию кэша, чтобы гарантировать обновление у всех пользователей
+const CACHE_NAME = "randomatched-cache-v7";
 const urlsToCache = [
   "/",
   "/index.html",
@@ -9,7 +9,6 @@ const urlsToCache = [
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
-  // --- Добавленные модули для кэширования ---
   "/js/modules/generator.js",
   "/js/modules/listManager.js",
   "/js/modules/modal.js",
@@ -17,32 +16,22 @@ const urlsToCache = [
   "/js/modules/storage.js",
   "/js/modules/theme.js",
   "/js/modules/toast.js",
-  "/js/modules/firebase.js", // --- Новый файл ---
-  "/js/modules/auth.js", // --- Новый файл ---
+  "/js/modules/firebase.js",
+  "/js/modules/auth.js",
 ];
 
-// Установка Service Worker и кэширование статических файлов
 self.addEventListener("install", (event) => {
+  console.log("Service Worker: установка");
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => {
-        console.log("Кэш открыт");
-        return cache.addAll(urlsToCache);
-      })
-      .then(() => {
-        console.log(
-          "Service Worker: пропуск ожидания и немедленная активация."
-        );
-        return self.skipWaiting();
-      })
+    caches.open(CACHE_NAME).then((cache) => {
+      console.log("Кэш открыт");
+      return cache.addAll(urlsToCache);
+    })
   );
-  console.log("Service Worker: установлен");
 });
 
-// Активация Service Worker и удаление старых кэшей
 self.addEventListener("activate", (event) => {
-  console.log("Service Worker: активирован");
+  console.log("Service Worker: активация");
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -52,22 +41,33 @@ self.addEventListener("activate", (event) => {
             return caches.delete(cacheName);
           }
         })
-      );
+      ).then(() => {
+        console.log("Service Worker: клиенты взяты под контроль");
+        return self.clients.claim();
+      });
     })
   );
-  return self.clients.claim();
 });
 
-// Обработка запросов (стратегия "Cache First")
-self.addEventListener("fetch", (event) => {
-  // Игнорируем запросы к Firebase, чтобы они всегда шли в сеть
-  if (event.request.url.includes("firebase")) {
-    return;
+// Слушатель для принудительной активации нового SW
+self.addEventListener("message", (event) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    console.log("Service Worker: получен сигнал SKIP_WAITING");
+    self.skipWaiting();
   }
+});
 
+self.addEventListener("fetch", (event) => {
+  // Используем стратегию "Cache First" для всех запросов
   event.respondWith(
     caches.match(event.request).then((response) => {
-      return response || fetch(event.request);
+      return (
+        response ||
+        fetch(event.request).catch((error) => {
+          console.error(`Fetch failed for: ${event.request.url}`, error);
+          // В случае ошибки сети можно вернуть запасной ответ, если это необходимо
+        })
+      );
     })
   );
 });

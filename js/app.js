@@ -13,6 +13,24 @@ Theme.init();
 
 let firebaseSyncStarted = false; // Флаг для предотвращения повторного запуска
 
+/**
+ * Управляет видимостью индикаторов обновления и статуса БД.
+ * @param {'default' | 'updating'} mode
+ */
+function setUIMode(mode) {
+  const updateSpinner = document.getElementById("update-spinner");
+  const dbStatusContainer = document.getElementById("db-status-container");
+
+  if (mode === "updating") {
+    if (dbStatusContainer) dbStatusContainer.classList.add("hidden");
+    if (updateSpinner) updateSpinner.classList.remove("invisible");
+  } else {
+    // 'default' mode
+    if (updateSpinner) updateSpinner.classList.add("invisible");
+    if (dbStatusContainer) dbStatusContainer.classList.remove("hidden");
+  }
+}
+
 // --- Логика обновления Service Worker ---
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
@@ -22,39 +40,52 @@ function registerServiceWorker() {
         .then((registration) => {
           console.log("Service Worker зарегистрирован:", registration);
 
-          // Если нет нового SW в ожидании или установке, можно безопасно синхронизироваться
-          if (!registration.installing && !registration.waiting) {
-            console.log(
-              "Обновление Service Worker не найдено. Запускаем синхронизацию."
-            );
-            startFirebaseSync();
+          // Если новый SW уже ждет активации, показываем спиннер.
+          // Перезагрузка произойдет по событию controllerchange.
+          if (registration.waiting) {
+            console.log("Обнаружен ожидающий Service Worker.");
+            setUIMode("updating");
+            // Отправляем команду на немедленную активацию
+            registration.waiting.postMessage({ type: "SKIP_WAITING" });
+            return;
           }
 
+          // Если новый SW уже устанавливается.
+          if (registration.installing) {
+            console.log("Идет установка нового Service Worker.");
+            setUIMode("updating");
+            return;
+          }
+
+          // Если на момент проверки нет ни ожидающих, ни устанавливающихся SW,
+          // значит, мы работаем с актуальной версией. Можно запускать синхронизацию.
+          console.log(
+            "Обновление Service Worker не найдено. Запускаем синхронизацию."
+          );
+          startFirebaseSync();
+
+          // Устанавливаем слушатель на случай, если обновление найдется позже.
           registration.addEventListener("updatefound", () => {
             console.log("Найден новый Service Worker, начинается установка...");
-            // Показываем спиннер, но НЕ запускаем синхронизацию.
-            // Слушатель 'controllerchange' обработает перезагрузку.
-            document
-              .getElementById("update-spinner")
-              ?.classList.remove("invisible");
+            setUIMode("updating");
           });
         })
         .catch((error) => {
-          console.log("Ошибка регистрации Service Worker:", error);
-          // Если SW не удалось зарегистрировать, все равно пытаемся синхронизироваться.
+          console.error("Ошибка регистрации Service Worker:", error);
+          // Если регистрация SW провалилась, приложение должно работать.
+          // Пытаемся запустить синхронизацию как запасной вариант.
           startFirebaseSync();
         });
     });
 
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      // Это событие срабатывает, когда новый SW взял управление.
-      // Самый надежный способ применить все обновления кэша - перезагрузить страницу.
+      // Это событие - самый надежный индикатор того, что новый SW взял управление.
+      // Перезагрузка страницы гарантирует, что клиент получит все обновленные ресурсы из кэша.
       if (navigator.serviceWorker.controller) {
         console.log(
           "Новый Service Worker активирован. Перезагрузка для применения обновления."
         );
         Toast.success("Приложение обновлено! Перезагрузка...");
-        // Даем время на отображение уведомления перед перезагрузкой.
         setTimeout(() => window.location.reload(), 1500);
       }
     });
@@ -95,7 +126,7 @@ function updateHeroSelect() {
 
   if (Object.keys(heroLists).length === 0) {
     heroSelect.innerHTML = `<option disabled>Списки не найдены</option>`;
-    generateBtn.disabled = true;
+    if (generateBtn) generateBtn.disabled = true;
   } else {
     for (const listName in heroLists) {
       const option = document.createElement("option");
@@ -104,7 +135,7 @@ function updateHeroSelect() {
       if (listName === targetSelection) option.selected = true;
       heroSelect.appendChild(option);
     }
-    generateBtn.disabled = false;
+    if (generateBtn) generateBtn.disabled = false;
   }
 }
 
@@ -116,30 +147,34 @@ function initializeAppState() {
 function startFirebaseSync() {
   if (firebaseSyncStarted) return;
   firebaseSyncStarted = true;
-  console.log("Запускаем синхронизацию с Firebase...");
 
-  if (navigator.onLine) {
-    Toast.info("Синхронизация с облаком...");
-    updateDbStatusIndicator("connecting");
-    Firebase.syncLists((isSuccess) => {
-      if (isSuccess) {
-        updateDbStatusIndicator("connected");
-        Toast.success("Данные синхронизированы.");
-      } else {
-        updateDbStatusIndicator("error");
-        Toast.warning("Не удалось получить данные из облака.");
-      }
-      initializeAppState();
-    });
-  } else {
+  if (!navigator.onLine) {
+    console.log("Офлайн-режим. Синхронизация отложена.");
     updateDbStatusIndicator("error");
     Toast.warning("Нет сети. Работа в офлайн-режиме.");
-    initializeAppState();
+    return;
   }
+
+  console.log("Запускаем синхронизацию с Firebase...");
+  Toast.info("Синхронизация с облаком...");
+  updateDbStatusIndicator("connecting");
+  Firebase.syncLists((isSuccess) => {
+    if (isSuccess) {
+      updateDbStatusIndicator("connected");
+      Toast.success("Данные синхронизированы.");
+    } else {
+      updateDbStatusIndicator("error");
+      Toast.warning("Не удалось получить данные из облака.");
+    }
+    // Обновляем UI из локального хранилища, которое теперь содержит свежие данные
+    initializeAppState();
+  });
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // 1. Сначала инициализируем UI из локальных данных, чтобы приложение было отзывчивым
   initializeAppState();
+  // 2. Затем запускаем всю логику Service Worker и синхронизации
   registerServiceWorker();
 
   Theme.init();
@@ -157,6 +192,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("theme-changed", updateThemeIcons);
   updateThemeIcons();
 
+  // Если сеть появится позже, пытаемся синхронизироваться
   window.addEventListener("online", startFirebaseSync);
   window.addEventListener("offline", () => updateDbStatusIndicator("error"));
 
