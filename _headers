@@ -86,16 +86,4 @@ https://cdn.tailwindcss.com/*
 
 # Дополнительные заголовки для PWA
 /
-  Cross-Origin-Embedder-Policy: require-corp
-  Cross-Origin-Opener-Policy: same-origin
-  Cross-Origin-Resource-Policy: cross-origin
-
-# Заголовки для оффлайн работы
-/sw.js
-  Cross-Origin-Embedder-Policy: require-corp
-  Cross-Origin-Opener-Policy: same-origin
-
-# Заголовки для манифеста
-/manifest.json
-  Cross-Origin-Embedder-Policy: require-corp
   Cross-Origin-Opener-Policy: same-origin

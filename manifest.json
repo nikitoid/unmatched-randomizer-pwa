@@ -13,38 +13,22 @@
   "categories": ["games", "entertainment", "utilities"],
   "icons": [
     {
-      "src": "/icons/icon-192.png",
+      "src": "/icons/icon-192.svg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icons/icon-512.svg",
       "sizes": "512x512",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/apple-touch-icon.png",
+      "src": "/icons/apple-touch-icon.svg",
       "sizes": "180x180",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshots/desktop.png",
-      "sizes": "1280x720",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "Главная страница Randomatched на десктопе"
-    },
-    {
-      "src": "/screenshots/mobile.png",
-      "sizes": "390x844",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "Главная страница Randomatched на мобильном устройстве"
     }
   ],
   "shortcuts": [
@@ -55,7 +39,7 @@
       "url": "/?action=generate",
       "icons": [
         {
-          "src": "/icons/icon-192.png",
+          "src": "/icons/icon-192.svg",
           "sizes": "192x192"
         }
       ]
