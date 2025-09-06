@@ -27,10 +27,10 @@ const ListManager = {
 
   /**
    * Обновляет только облачные списки в Firebase.
-   * @param {object} allLists - Все списки (локальные и облачные).
+   * @param {object} cloudPayload - Объект, содержащий только облачные списки для отправки.
    * @returns {Promise<boolean>}
    */
-  async updateCloudLists(allLists) {
+  async updateCloudLists(cloudPayload) {
     if (!navigator.onLine) {
       Toast.error("Нет сети. Изменения не сохранены в облако.");
       return false;
@@ -47,23 +47,7 @@ const ListManager = {
       }
 
       Toast.info("Сохранение изменений в облаке...");
-
-      const syncedNames = Storage.loadSyncedListNames() || [];
-      const cloudLists = {};
-      for (const name of syncedNames) {
-        if (allLists[name]) {
-          cloudLists[name] = allLists[name];
-        }
-      }
-      // Добавляем новые облачные списки, если они есть
-      for (const name in allLists) {
-        if (allLists[name].isCloud && !cloudLists[name]) {
-          const { isCloud, ...heroList } = allLists[name];
-          cloudLists[name] = heroList;
-        }
-      }
-
-      const success = await Firebase.updateRemoteData({ lists: cloudLists });
+      const success = await Firebase.updateRemoteData({ lists: cloudPayload });
       if (success) {
         Toast.success("Изменения сохранены.");
         return true;
@@ -83,7 +67,6 @@ const ListManager = {
     this.onUpdateCallback = onUpdate;
     this.currentView = "manager";
     this.isListenerAttached = false;
-
     this.modal = new Modal({
       type: "fullscreen",
       title: "Управление списками",
@@ -94,7 +77,6 @@ const ListManager = {
         this.isListenerAttached = false;
       },
     });
-
     this.modal.open();
     this.container = document.querySelector(".modal-content-wrapper");
     this.attachPersistentListener();
@@ -123,27 +105,22 @@ const ListManager = {
     }
 
     const listName = e.target.closest("div[data-list-name]")?.dataset.listName;
+    const action = actionButton.dataset.action;
 
-    switch (actionButton.dataset.action) {
-      case "create":
-        this.handleCreateList();
-        break;
-      case "set-default":
-        if (listName) this.handleSetDefault(listName);
-        break;
-      case "rename":
-        if (listName) this.handleRenameList(listName);
-        break;
-      case "delete":
-        if (listName) this.handleDeleteList(listName);
-        break;
-      case "back":
+    const actions = {
+      create: () => this.handleCreateList(),
+      "set-default": () => listName && this.handleSetDefault(listName),
+      rename: () => listName && this.handleRenameList(listName),
+      delete: () => listName && this.handleDeleteList(listName),
+      back: () => {
         this.currentView = "manager";
         this.render();
-        break;
-      case "save":
-        this.handleSaveList();
-        break;
+      },
+      save: () => this.handleSaveList(),
+    };
+
+    if (actions[action]) {
+      actions[action]();
     }
   },
 
@@ -162,15 +139,13 @@ const ListManager = {
 
   createManagerHTML() {
     const syncedNames = Storage.loadSyncedListNames() || [];
-
     const listItems = Object.keys(this.heroLists)
       .sort()
       .map((listName) => {
         const isDefault = listName === this.defaultList;
-        const heroCount = this.heroLists[listName].length;
+        const heroCount = this.heroLists[listName]?.length || 0;
         const isCopy = this.isCopyRegex.test(listName);
         const isSynced = syncedNames.includes(listName) && !isCopy;
-
         const buttonsHTML = isCopy
           ? `<div class="w-28 flex-shrink-0"></div>`
           : `
@@ -185,7 +160,6 @@ const ListManager = {
                   this.icons.delete
                 }</button>
             </div>`;
-
         const titleClass = isCopy
           ? "text-gray-500 dark:text-gray-400"
           : "text-gray-800 dark:text-gray-100";
@@ -206,7 +180,6 @@ const ListManager = {
             </div>`;
       })
       .join("");
-
     return `<div class="space-y-3">${listItems}</div>
         <button data-action="create" class="mt-6 flex items-center justify-center gap-2 w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">
             ${this.icons.add} <span>Создать новый список</span>
@@ -232,15 +205,18 @@ const ListManager = {
       .split("\n")
       .map((n) => n.trim())
       .filter(Boolean);
-
     const updatedLists = { ...this.heroLists, [this.listToEdit]: newHeroNames };
 
     const syncedNames = Storage.loadSyncedListNames() || [];
     const isSynced = syncedNames.includes(this.listToEdit);
 
     if (isSynced) {
-      const success = await this.updateCloudLists(updatedLists);
-      if (!success) return; // Не закрываем редактор при ошибке
+      const cloudPayload = {
+        ...Storage.loadCloudLists(),
+        [this.listToEdit]: newHeroNames,
+      };
+      const success = await this.updateCloudLists(cloudPayload);
+      if (!success) return;
     }
 
     Storage.saveHeroLists(updatedLists);
@@ -272,33 +248,27 @@ const ListManager = {
       const newName = document
         .getElementById("new-list-name-input")
         ?.value.trim();
-      if (!newName) {
-        Toast.error("Название не может быть пустым.");
-        return;
-      }
-      if (this.heroLists[newName]) {
-        Toast.error("Список с таким именем уже существует.");
-        return;
-      }
-      if (this.isCopyRegex.test(newName)) {
-        Toast.error("Название не может содержать '(искл.)'.");
+      if (
+        !newName ||
+        this.isCopyRegex.test(newName) ||
+        this.heroLists[newName]
+      ) {
+        Toast.error(
+          newName
+            ? "Некорректное имя или список уже существует."
+            : "Название не может быть пустым."
+        );
         return;
       }
 
       const allLists = { ...this.heroLists, [newName]: [] };
 
       if (isCloud) {
+        const cloudPayload = { ...Storage.loadCloudLists(), [newName]: [] };
+        const success = await this.updateCloudLists(cloudPayload);
+        if (!success) return;
         const syncedNames = Storage.loadSyncedListNames() || [];
         Storage.saveSyncedListNames([...syncedNames, newName]);
-        const success = await this.updateCloudLists(allLists);
-        if (!success) {
-          // Если облако не сохранилось, откатываем
-          const newSynced = (Storage.loadSyncedListNames() || []).filter(
-            (n) => n !== newName
-          );
-          Storage.saveSyncedListNames(newSynced);
-          return;
-        }
       }
 
       Storage.saveHeroLists(allLists);
@@ -308,7 +278,6 @@ const ListManager = {
       this.render();
       createModal.close();
     };
-
     createModal.open();
     document.getElementById("create-local").onclick = () =>
       handleCreation(false);
@@ -317,11 +286,6 @@ const ListManager = {
   },
 
   async handleRenameList(oldName) {
-    if (this.isCopyRegex.test(oldName)) {
-      Toast.error("Временные списки не могут быть переименованы.");
-      return;
-    }
-
     const syncedNames = Storage.loadSyncedListNames() || [];
     const isSynced = syncedNames.includes(oldName);
 
@@ -333,13 +297,9 @@ const ListManager = {
         const newName = document
           .getElementById("rename-list-input")
           ?.value.trim();
-        if (!newName) {
-          Toast.error("Название не может быть пустым.");
-          return;
-        }
-        if (oldName === newName) return;
-        if (this.heroLists[newName]) {
-          Toast.error("Список с таким именем уже существует.");
+        if (!newName || oldName === newName || this.heroLists[newName]) {
+          if (this.heroLists[newName])
+            Toast.error("Список с таким именем уже существует.");
           return;
         }
 
@@ -348,12 +308,14 @@ const ListManager = {
         delete updatedLists[oldName];
 
         if (isSynced) {
-          const success = await this.updateCloudLists(updatedLists);
+          const cloudPayload = { ...Storage.loadCloudLists() };
+          cloudPayload[newName] = cloudPayload[oldName];
+          delete cloudPayload[oldName];
+          const success = await this.updateCloudLists(cloudPayload);
           if (!success) return;
-          const newSynced = syncedNames
-            .filter((n) => n !== oldName)
-            .concat(newName);
-          Storage.saveSyncedListNames(newSynced);
+          Storage.saveSyncedListNames(
+            syncedNames.map((n) => (n === oldName ? newName : n))
+          );
         }
 
         if (Storage.loadDefaultList() === oldName)
@@ -386,10 +348,13 @@ const ListManager = {
         delete updatedLists[listName];
 
         if (isSynced) {
-          const success = await this.updateCloudLists(updatedLists);
+          const cloudPayload = { ...Storage.loadCloudLists() };
+          delete cloudPayload[listName];
+          const success = await this.updateCloudLists(cloudPayload);
           if (!success) return;
-          const newSynced = syncedNames.filter((n) => n !== listName);
-          Storage.saveSyncedListNames(newSynced);
+          Storage.saveSyncedListNames(
+            syncedNames.filter((n) => n !== listName)
+          );
         }
 
         if (Storage.loadActiveList() === listName)

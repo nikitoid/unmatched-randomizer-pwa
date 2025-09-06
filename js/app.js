@@ -12,15 +12,22 @@ import Firebase from "./modules/firebase.js";
 Theme.init();
 
 let isSWReady = false; // Флаг готовности Service Worker
+let firebaseSyncStarted = false; // Флаг для предотвращения повторного запуска
 
 // --- Логика обновления Service Worker ---
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
-    // Определяем готовность SW при загрузке страницы
+    // Этот код выполнится при первой загрузке или когда SW уже активен.
     if (navigator.serviceWorker.controller) {
       console.log("Service Worker уже активен.");
       isSWReady = true;
     }
+
+    navigator.serviceWorker.ready.then(() => {
+      console.log("Service Worker готов к работе (ready).");
+      isSWReady = true;
+      startFirebaseSync(); // Попытка запуска синхронизации, когда SW готов
+    });
 
     window.addEventListener("load", () => {
       navigator.serviceWorker
@@ -39,17 +46,14 @@ function registerServiceWorker() {
         });
     });
 
-    // Слушатель смены контроллера - ключевой момент для старта синхронизации после обновления
     navigator.serviceWorker.addEventListener("controllerchange", () => {
-      if (navigator.serviceWorker.controller) {
-        console.log(
-          "Контроллер Service Worker изменился, обновление завершено."
-        );
-        isSWReady = true;
-        document.getElementById("update-spinner")?.classList.add("invisible");
-        Toast.success("Приложение обновлено!");
-        startFirebaseSync(); // Запускаем синхронизацию СТРОГО после обновления
-      }
+      console.log(
+        "Новый Service Worker активирован. Перезагрузка для применения обновления."
+      );
+      // Даем новому SW время на завершение всех дел и перезагружаем страницу
+      // Это самый надежный способ применить все обновления кэша.
+      Toast.success("Приложение обновлено! Перезагрузка...");
+      setTimeout(() => window.location.reload(), 1500);
     });
   } else {
     console.log("Service Worker не поддерживается.");
@@ -59,7 +63,6 @@ function registerServiceWorker() {
 
 // --- Глобальное состояние и данные ---
 let heroLists = {};
-let isInitialSyncDone = false;
 
 // --- Иконки для статуса БД ---
 const dbStatusIcons = {
@@ -68,94 +71,73 @@ const dbStatusIcons = {
   error: `<svg class="h-6 w-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>`,
 };
 
-/**
- * Обновляет иконку статуса подключения к БД
- * @param {'connecting' | 'connected' | 'error'} status
- */
 function updateDbStatusIndicator(status) {
   const dbStatusEl = document.getElementById("db-status");
   if (dbStatusEl) dbStatusEl.innerHTML = dbStatusIcons[status] || "";
 }
 
-/**
- * Обновляет выпадающий список героев на главном экране.
- */
 function updateHeroSelect() {
   const heroSelect = document.getElementById("hero-select");
   heroLists = Storage.loadHeroLists() || {};
   const activeList = Storage.loadActiveList();
   const defaultList = Storage.loadDefaultList();
-
-  let targetSelection = activeList;
+  let targetSelection = activeList || defaultList || Object.keys(heroLists)[0];
   if (!heroLists[targetSelection]) {
-    targetSelection = defaultList;
-    if (!heroLists[targetSelection]) {
-      targetSelection = Object.keys(heroLists)[0];
-    }
-    Storage.saveActiveList(targetSelection);
+    targetSelection = Object.keys(heroLists)[0];
   }
+  Storage.saveActiveList(targetSelection);
 
   heroSelect.innerHTML = "";
-  if (Object.keys(heroLists).length === 0) {
-    const option = document.createElement("option");
-    option.textContent = "Списки не найдены";
-    option.disabled = true;
-    heroSelect.appendChild(option);
-    document.getElementById("generate-teams-btn").disabled = true;
-    return;
-  }
-  document.getElementById("generate-teams-btn").disabled = false;
+  const generateBtn = document.getElementById("generate-teams-btn");
 
-  for (const listName in heroLists) {
-    const option = document.createElement("option");
-    option.value = listName;
-    option.textContent = listName;
-    if (listName === targetSelection) {
-      option.selected = true;
+  if (Object.keys(heroLists).length === 0) {
+    heroSelect.innerHTML = `<option disabled>Списки не найдены</option>`;
+    generateBtn.disabled = true;
+  } else {
+    for (const listName in heroLists) {
+      const option = document.createElement("option");
+      option.value = listName;
+      option.textContent = listName;
+      if (listName === targetSelection) option.selected = true;
+      heroSelect.appendChild(option);
     }
-    heroSelect.appendChild(option);
+    generateBtn.disabled = false;
   }
 }
 
-/**
- * Инициализирует состояние приложения при загрузке.
- */
 function initializeAppState() {
   heroLists = Storage.loadHeroLists() || {};
-  // --- Удалено создание стартового набора ---
   updateHeroSelect();
 }
 
-/**
- * Запускает синхронизацию с Firebase, если Service Worker готов.
- */
 function startFirebaseSync() {
-  if (!isSWReady) {
-    console.log("Запуск синхронизации отложен: Service Worker еще не готов.");
+  if (!isSWReady || firebaseSyncStarted) {
+    console.log(
+      `Синхронизация не начата. SW Ready: ${isSWReady}, Sync Started: ${firebaseSyncStarted}`
+    );
     return;
   }
 
-  if (navigator.onLine) {
-    if (!isInitialSyncDone) {
-      Toast.info("Синхронизация с облаком...");
-      updateDbStatusIndicator("connecting");
-    }
+  firebaseSyncStarted = true;
+  console.log("Попытка запуска синхронизации с Firebase...");
 
+  if (navigator.onLine) {
+    Toast.info("Синхронизация с облаком...");
+    updateDbStatusIndicator("connecting");
     Firebase.syncLists((isSuccess) => {
       if (isSuccess) {
         updateDbStatusIndicator("connected");
-        if (!isInitialSyncDone) Toast.success("Данные синхронизированы.");
-        isInitialSyncDone = true;
-        initializeAppState();
+        Toast.success("Данные синхронизированы.");
       } else {
         updateDbStatusIndicator("error");
-        if (!isInitialSyncDone)
-          Toast.warning("Не удалось получить данные из облака.");
+        Toast.warning("Не удалось получить данные из облака.");
       }
+      initializeAppState(); // Обновляем UI в любом случае
     });
   } else {
     updateDbStatusIndicator("error");
     Toast.warning("Нет сети. Работа в офлайн-режиме.");
+    initializeAppState(); // Инициализируем из локальных данных
   }
 }
 
@@ -178,12 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("theme-changed", updateThemeIcons);
   updateThemeIcons();
 
-  initializeAppState();
-
-  // Отложенный запуск на случай, если SW уже был активен
-  setTimeout(() => {
-    startFirebaseSync();
-  }, 500);
+  initializeAppState(); // Первоначальная инициализация из localStorage
 
   window.addEventListener("online", startFirebaseSync);
   window.addEventListener("offline", () => updateDbStatusIndicator("error"));
