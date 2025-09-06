@@ -11,26 +11,27 @@ import Firebase from "./modules/firebase.js";
 // --- Инициализация темы ---
 Theme.init();
 
-let isSWUpdateComplete = false;
+let isSWReady = false; // Флаг готовности Service Worker
 
 // --- Логика обновления Service Worker ---
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
+    // Определяем готовность SW при загрузке страницы
+    if (navigator.serviceWorker.controller) {
+      console.log("Service Worker уже активен.");
+      isSWReady = true;
+    }
+
     window.addEventListener("load", () => {
       navigator.serviceWorker
         .register("/sw.js")
         .then((registration) => {
           console.log("Service Worker зарегистрирован:", registration);
-
-          // Если уже есть активный SW, значит, обновление не требуется при первой загрузке
-          if (registration.active) {
-            isSWUpdateComplete = true;
-          }
-
           registration.addEventListener("updatefound", () => {
             console.log("Найден новый Service Worker, начинается установка...");
-            const spinner = document.getElementById("update-spinner");
-            if (spinner) spinner.classList.remove("invisible");
+            document
+              .getElementById("update-spinner")
+              ?.classList.remove("invisible");
           });
         })
         .catch((error) => {
@@ -38,21 +39,21 @@ function registerServiceWorker() {
         });
     });
 
+    // Слушатель смены контроллера - ключевой момент для старта синхронизации после обновления
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       if (navigator.serviceWorker.controller) {
         console.log(
           "Контроллер Service Worker изменился, обновление завершено."
         );
-        isSWUpdateComplete = true; // --- Флаг завершения обновления
-        const spinner = document.getElementById("update-spinner");
-        if (spinner) spinner.classList.add("invisible");
+        isSWReady = true;
+        document.getElementById("update-spinner")?.classList.add("invisible");
         Toast.success("Приложение обновлено!");
-        startFirebaseSync(); // --- Запускаем синхронизацию ПОСЛЕ обновления
+        startFirebaseSync(); // Запускаем синхронизацию СТРОГО после обновления
       }
     });
   } else {
-    console.log("Service Worker не поддерживается, обновление не требуется.");
-    isSWUpdateComplete = true; // Если SW не поддерживается, считаем "обновление" завершенным
+    console.log("Service Worker не поддерживается.");
+    isSWReady = true; // Если SW нет, считаем "готовым" для старта
   }
 }
 
@@ -69,16 +70,11 @@ const dbStatusIcons = {
 
 /**
  * Обновляет иконку статуса подключения к БД
- * @param {'connecting' | 'connected' | 'error' | 'hidden'} status
+ * @param {'connecting' | 'connected' | 'error'} status
  */
 function updateDbStatusIndicator(status) {
   const dbStatusEl = document.getElementById("db-status");
-  if (!dbStatusEl) return;
-  if (status === "hidden") {
-    dbStatusEl.innerHTML = "";
-  } else {
-    dbStatusEl.innerHTML = dbStatusIcons[status] || "";
-  }
+  if (dbStatusEl) dbStatusEl.innerHTML = dbStatusIcons[status] || "";
 }
 
 /**
@@ -125,40 +121,17 @@ function updateHeroSelect() {
  * Инициализирует состояние приложения при загрузке.
  */
 function initializeAppState() {
-  heroLists = Storage.loadHeroLists();
-  let defaultList = Storage.loadDefaultList();
-
-  if (!heroLists || Object.keys(heroLists).length === 0) {
-    const starterHeroes = [
-      "Король Артур",
-      "Алиса",
-      "Медуза",
-      "Синдбад",
-      "Красная Шапочка",
-      "Беовульф",
-      "Дракула",
-      "Человек-невидимка",
-      "Ахиллес",
-      "Кровавая Мэри",
-      "Сунь Укун",
-      "Енанга",
-    ];
-    heroLists = { "Стартовый набор": starterHeroes };
-    defaultList = "Стартовый набор";
-    Storage.saveHeroLists(heroLists);
-    Storage.saveDefaultList(defaultList);
-    Storage.saveActiveList(defaultList);
-    Toast.info("Создан стартовый набор героев.");
-  }
+  heroLists = Storage.loadHeroLists() || {};
+  // --- Удалено создание стартового набора ---
   updateHeroSelect();
 }
 
-// --- Логика синхронизации с Firebase ---
+/**
+ * Запускает синхронизацию с Firebase, если Service Worker готов.
+ */
 function startFirebaseSync() {
-  if (!isSWUpdateComplete) {
-    console.log(
-      "Запуск синхронизации отложен: обновление Service Worker еще не завершено."
-    );
+  if (!isSWReady) {
+    console.log("Запуск синхронизации отложен: Service Worker еще не готов.");
     return;
   }
 
@@ -171,18 +144,13 @@ function startFirebaseSync() {
     Firebase.syncLists((isSuccess) => {
       if (isSuccess) {
         updateDbStatusIndicator("connected");
-        if (isInitialSyncDone) {
-          Toast.success("Данные обновлены из облака.");
-        } else {
-          Toast.success("Данные синхронизированы.");
-          isInitialSyncDone = true;
-        }
-        initializeAppState(); // Перезагружаем UI с объединенными данными
+        if (!isInitialSyncDone) Toast.success("Данные синхронизированы.");
+        isInitialSyncDone = true;
+        initializeAppState();
       } else {
         updateDbStatusIndicator("error");
-        if (!isInitialSyncDone) {
+        if (!isInitialSyncDone)
           Toast.warning("Не удалось получить данные из облака.");
-        }
       }
     });
   } else {
@@ -201,10 +169,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const isDark = document.documentElement.classList.contains("dark");
     document
       .getElementById("theme-icon-light")
-      .classList.toggle("hidden", isDark);
+      ?.classList.toggle("hidden", isDark);
     document
       .getElementById("theme-icon-dark")
-      .classList.toggle("hidden", !isDark);
+      ?.classList.toggle("hidden", !isDark);
   };
   if (themeToggle) themeToggle.addEventListener("click", Theme.toggleTheme);
   window.addEventListener("theme-changed", updateThemeIcons);
@@ -212,26 +180,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   initializeAppState();
 
-  // Отложенный запуск, чтобы дать SW время на первоначальную регистрацию
+  // Отложенный запуск на случай, если SW уже был активен
   setTimeout(() => {
-    if (isSWUpdateComplete) {
-      startFirebaseSync();
-    }
-  }, 1000);
+    startFirebaseSync();
+  }, 500);
 
   window.addEventListener("online", startFirebaseSync);
   window.addEventListener("offline", () => updateDbStatusIndicator("error"));
 
-  const settingsBtn = document.getElementById("settings-btn");
-  if (settingsBtn) {
-    settingsBtn.addEventListener("click", () => {
-      ListManager.show(Storage.loadHeroLists(), initializeAppState);
-    });
-  }
+  document.getElementById("settings-btn")?.addEventListener("click", () => {
+    ListManager.show(Storage.loadHeroLists(), initializeAppState);
+  });
 
-  const generateBtn = document.getElementById("generate-teams-btn");
-  if (generateBtn) {
-    generateBtn.addEventListener("click", () => {
+  document
+    .getElementById("generate-teams-btn")
+    ?.addEventListener("click", () => {
       const selectedListName = document.getElementById("hero-select").value;
       const heroNamesInList = heroLists[selectedListName];
       if (!heroNamesInList) {
@@ -246,20 +209,22 @@ document.addEventListener("DOMContentLoaded", () => {
         );
         return;
       }
-      const generation = Generator.generateAll(heroesForGeneration, []);
+      const generation = Generator.generateAll(heroesForGeneration);
       if (generation) {
         Storage.saveLastGeneration(generation);
         Toast.success("Команды сгенерированы!");
         const allUniqueHeroNames = [
           ...new Set(Object.values(heroLists).flat()),
         ];
-        const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
-        Results.show(generation, allUniqueHeroes, initializeAppState);
+        Results.show(
+          generation,
+          allUniqueHeroNames.map((name) => ({ name })),
+          initializeAppState
+        );
       } else {
         Toast.error("Не удалось сгенерировать команды!");
       }
     });
-  }
 
   document.getElementById("hero-select")?.addEventListener("change", (e) => {
     Storage.saveActiveList(e.target.value);
@@ -268,12 +233,12 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("last-gen-btn")?.addEventListener("click", () => {
     const lastGen = Storage.loadLastGeneration();
     if (lastGen) {
-      const allUniqueHeroNames = [
+      const allHeroNames = [
         ...new Set(Object.values(Storage.loadHeroLists() || {}).flat()),
       ];
       Results.show(
         lastGen,
-        allUniqueHeroNames.map((name) => ({ name })),
+        allHeroNames.map((name) => ({ name })),
         initializeAppState
       );
     } else {
