@@ -180,12 +180,26 @@ class ModuleLoader {
 
     // Создаем экземпляр из класса
     if (ModuleClass && !moduleInstance) {
-      // Проверяем наследование от базового класса Module
-      if (ModuleClass.prototype instanceof Module) {
-        moduleInstance = new ModuleClass(moduleName, moduleConfig);
-      } else {
-        // Оборачиваем в адаптер
-        moduleInstance = this.wrapLegacyModule(moduleName, new ModuleClass(moduleConfig), moduleConfig);
+      try {
+        // Проверяем наследование от базового класса Module
+        if (ModuleClass.prototype instanceof Module) {
+          moduleInstance = new ModuleClass(moduleName, moduleConfig);
+        } else {
+          // Пробуем создать экземпляр с разными вариантами параметров
+          try {
+            moduleInstance = new ModuleClass(moduleName, moduleConfig);
+          } catch (e) {
+            // Если не получается, пробуем только с конфигом
+            moduleInstance = new ModuleClass(moduleConfig);
+          }
+          // Если это не модуль, оборачиваем в адаптер
+          if (!moduleInstance.init) {
+            moduleInstance = this.wrapLegacyModule(moduleName, moduleInstance, moduleConfig);
+          }
+        }
+      } catch (error) {
+        console.error(`ModuleLoader: Error creating instance for "${moduleName}":`, error);
+        throw error;
       }
     }
 

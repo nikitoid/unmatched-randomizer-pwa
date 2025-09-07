@@ -111,6 +111,14 @@ class App {
       }
     });
 
+    // Обработка событий от других модулей
+    eventBus.on('theme:show-notification', (data) => {
+      const notificationModule = this.getModule('notification');
+      if (notificationModule) {
+        notificationModule.show(data.title, data.message, data.type, data.options);
+      }
+    });
+
     eventBus.on('theme:changed', (data) => {
       console.log(`App: Theme changed to "${data.theme}"`);
       // Можно добавить дополнительную логику при смене темы
