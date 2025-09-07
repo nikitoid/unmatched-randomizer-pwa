@@ -1,4 +1,4 @@
-const CACHE_NAME = 'randomatched-v6';
+const CACHE_NAME = 'randomatched-v1';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -12,10 +12,11 @@ const urlsToCache = [
 ];
 
 self.addEventListener('install', event => {
+  console.log('SW: Установка новой версии...', CACHE_NAME);
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then(cache => {
-        console.log('Opened cache');
+        console.log('SW: Кеширование новых ресурсов...');
         return cache.addAll(urlsToCache);
       })
   );
@@ -26,9 +27,10 @@ self.addEventListener('fetch', event => {
     caches.match(event.request)
       .then(response => {
         if (response) {
+          console.log('SW: Ресурс найден в кеше:', event.request.url);
           return response;
         }
-
+        console.log('SW: Ресурс не найден в кеше, загрузка из сети:', event.request.url);
         const fetchRequest = event.request.clone();
 
         return fetch(fetchRequest).then(
@@ -52,12 +54,14 @@ self.addEventListener('fetch', event => {
 });
 
 self.addEventListener('activate', event => {
+  console.log('SW: Активация новой версии...', CACHE_NAME);
   const cacheWhitelist = [CACHE_NAME];
   event.waitUntil(
     caches.keys().then(cacheNames => {
       return Promise.all(
         cacheNames.map(cacheName => {
           if (cacheWhitelist.indexOf(cacheName) === -1) {
+            console.log('SW: Удаление старого кеша:', cacheName);
             return caches.delete(cacheName);
           }
         })
