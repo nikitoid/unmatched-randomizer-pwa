@@ -36,7 +36,6 @@ function displayToast(message, type) {
   toastContainer.appendChild(toastElement);
 
   const duration = 3000;
-  let timeoutId;
   let startTime = Date.now();
   let remaining = duration;
   let isPaused = false;
@@ -47,19 +46,22 @@ function displayToast(message, type) {
     progressBar = toastElement.querySelector('.toast-progress-bar');
     if (progressBar) {
       progressBar.style.animation = `progress ${duration / 1000}s linear forwards`;
-      progressBar.addEventListener('animationend', () => {
-        // Задержка нужна, чтобы избежать "моргания" перед закрытием
-        setTimeout(closeToast, 50);
-      });
+      progressBar.addEventListener('animationend', closeToast);
     }
   });
 
   const closeToast = (isSwipe = false) => {
-    // Если закрытие вызвано свайпом, немедленно удаляем таймер
+    // Убедимся, что closeToast не вызывается повторно
+    if (toastElement.classList.contains('closing')) return;
+    toastElement.classList.add('closing');
+    
     if (isSwipe) {
-      clearTimeout(timeoutId);
+      // При свайпе нам не нужен таймер или слушатель анимации
+      // Просто закрываем
+    } else {
+      // Закрытие по таймеру/окончанию анимации
     }
-
+    
     toastElement.classList.add("opacity-0");
     const swipeDirection = Math.sign(currentX - startX) || 1; // По умолчанию вправо, если не свайп
     toastElement.style.transform = `translateX(${swipeDirection * 100}%)`;
@@ -79,7 +81,7 @@ function displayToast(message, type) {
   const pause = () => {
     if (!isPaused) {
       isPaused = true;
-      clearTimeout(timeoutId);
+      // clearTimeout(timeoutId); // Больше не используется
       remaining -= Date.now() - startTime;
       if (progressBar) progressBar.style.animationPlayState = 'paused';
     }
@@ -89,15 +91,13 @@ function displayToast(message, type) {
     if (isPaused) {
       isPaused = false;
       startTime = Date.now();
-      // Возобновляем таймер только если он не был очищен
-      if (timeoutId) timeoutId = setTimeout(() => progressBar.dispatchEvent(new Event('animationend')), remaining);
+      // timeoutId больше не нужен, просто возобновляем анимацию
       if (progressBar) progressBar.style.animationPlayState = 'running';
     }
   }
 
-  // Убираем старый таймер, так как теперь закрытие инициируется событием animationend
-  // timeoutId = setTimeout(closeToast, duration);
-
+  // timeoutId больше не используется для автоматического закрытия
+  // let timeoutId; 
   let startX = 0;
   let currentX = 0;
   let isDragging = false;
