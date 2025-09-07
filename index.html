@@ -151,6 +151,85 @@
                 </div>
             </div>
 
+            <!-- Toast Demo Controls -->
+            <div class="mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <h3 class="text-lg font-medium mb-3 text-purple-800">Демонстрация Toast уведомлений</h3>
+                
+                <!-- Основные типы -->
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-2 mb-4">
+                    <button onclick="window.toastDemo.showSuccess()" class="bg-green-500 text-white px-3 py-2 rounded text-sm hover:bg-green-600 transition-colors">
+                        ✓ Успех
+                    </button>
+                    <button onclick="window.toastDemo.showError()" class="bg-red-500 text-white px-3 py-2 rounded text-sm hover:bg-red-600 transition-colors">
+                        ✕ Ошибка
+                    </button>
+                    <button onclick="window.toastDemo.showWarning()" class="bg-yellow-500 text-white px-3 py-2 rounded text-sm hover:bg-yellow-600 transition-colors">
+                        ⚠ Предупреждение
+                    </button>
+                    <button onclick="window.toastDemo.showInfo()" class="bg-blue-500 text-white px-3 py-2 rounded text-sm hover:bg-blue-600 transition-colors">
+                        ℹ Информация
+                    </button>
+                </div>
+
+                <!-- Дополнительные функции -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div class="space-y-2">
+                        <h4 class="font-medium text-purple-800">Специальные</h4>
+                        <button onclick="window.toastDemo.showCustom()" class="w-full bg-gray-600 text-white px-3 py-2 rounded text-sm hover:bg-gray-700 transition-colors">
+                            🎉 Кастомный
+                        </button>
+                        <button onclick="window.toastDemo.showHtml()" class="w-full bg-indigo-500 text-white px-3 py-2 rounded text-sm hover:bg-indigo-600 transition-colors">
+                            📝 HTML контент
+                        </button>
+                        <button onclick="window.toastDemo.showPersistent()" class="w-full bg-orange-500 text-white px-3 py-2 rounded text-sm hover:bg-orange-600 transition-colors">
+                            📌 Постоянный
+                        </button>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h4 class="font-medium text-purple-800">Позиционирование</h4>
+                        <button onclick="window.toastDemo.changePosition('top-right')" class="w-full bg-teal-500 text-white px-2 py-1 rounded text-xs hover:bg-teal-600 transition-colors">
+                            Верх-право
+                        </button>
+                        <button onclick="window.toastDemo.changePosition('top-left')" class="w-full bg-teal-500 text-white px-2 py-1 rounded text-xs hover:bg-teal-600 transition-colors">
+                            Верх-лево
+                        </button>
+                        <button onclick="window.toastDemo.changePosition('bottom-right')" class="w-full bg-teal-500 text-white px-2 py-1 rounded text-xs hover:bg-teal-600 transition-colors">
+                            Низ-право
+                        </button>
+                        <button onclick="window.toastDemo.changePosition('bottom-left')" class="w-full bg-teal-500 text-white px-2 py-1 rounded text-xs hover:bg-teal-600 transition-colors">
+                            Низ-лево
+                        </button>
+                    </div>
+
+                    <div class="space-y-2">
+                        <h4 class="font-medium text-purple-800">Анимации</h4>
+                        <button onclick="window.toastDemo.changeAnimation('slide')" class="w-full bg-pink-500 text-white px-2 py-1 rounded text-xs hover:bg-pink-600 transition-colors">
+                            Slide
+                        </button>
+                        <button onclick="window.toastDemo.changeAnimation('fade')" class="w-full bg-pink-500 text-white px-2 py-1 rounded text-xs hover:bg-pink-600 transition-colors">
+                            Fade
+                        </button>
+                        <button onclick="window.toastDemo.showPriority()" class="w-full bg-red-700 text-white px-2 py-1 rounded text-xs hover:bg-red-800 transition-colors">
+                            🚨 Приоритетный
+                        </button>
+                        <button onclick="window.toastDemo.performanceTest()" class="w-full bg-gray-700 text-white px-2 py-1 rounded text-xs hover:bg-gray-800 transition-colors">
+                            ⚡ Тест (10 toast)
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Управление -->
+                <div class="flex flex-wrap gap-2 pt-3 border-t border-purple-300">
+                    <button onclick="window.toastDemo.showStats()" class="bg-purple-600 text-white px-4 py-2 rounded text-sm hover:bg-purple-700 transition-colors">
+                        📊 Статистика
+                    </button>
+                    <button onclick="window.toastDemo.clearAll()" class="bg-red-600 text-white px-4 py-2 rounded text-sm hover:bg-red-700 transition-colors">
+                        🗑️ Очистить все
+                    </button>
+                </div>
+            </div>
+
             <!-- Network Status -->
             <div id="network-status" class="mt-4 p-3 rounded-lg">
                 <span class="font-medium">Статус сети: </span>
