@@ -3,42 +3,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Randomatched - Unmatched Randomizer</title>
+    <title>Randomatched</title>
     
-    <!-- PWA Meta -->
-    <meta name="theme-color" content="#1a202c">
-    <link rel="manifest" href="manifest.json">
-    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#2d3748"/>
+    <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
+    <link rel="manifest" href="/manifest.json">
 
-    <!-- Styles and Scripts -->
-    <link rel="stylesheet" href="css/style.css">
+    <!-- CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/css/style.css">
+
+    <script>
+        tailwind.config = {
+          theme: {
+            extend: {
+              colors: {
+                gray: {
+                    '800': '#1a202c',
+                    '700': '#2d3748',
+                }
+              }
+            }
+          }
+        }
+      </script>
 </head>
-<body class="bg-gray-900 text-white">
+<body class="bg-gray-800 text-white">
 
     <div class="container mx-auto p-4">
-        <h1 class="text-4xl font-bold text-center mb-8">Randomatched</h1>
-        
-        <!-- App content will go here -->
+        <header class="text-center my-8">
+            <h1 class="text-4xl font-bold">Randomatched</h1>
+            <p class="text-gray-400">Генератор случайных героев Unmatched</p>
+        </header>
 
+        <main x-data="{}" class="flex flex-col items-center">
+            <div class="w-full max-w-md p-6 bg-gray-700 rounded-lg shadow-lg">
+                <div id="hero-display" class="text-center mb-6">
+                    <p class="text-lg">Нажмите кнопку для генерации</p>
+                </div>
+                <button @click="console.log('generate!')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300">
+                    Сгенерировать
+                </button>
+            </div>
+        </main>
     </div>
 
-    <script src="js/app.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(registration => {
-                        console.log('Service Worker registered with scope:', registration.scope);
-                    })
-                    .catch(error => {
-                        console.log('Service Worker registration failed:', error);
-                    });
-            });
-        }
-    </script>
+    <script src="/js/app.js"></script>
 </body>
 </html>
