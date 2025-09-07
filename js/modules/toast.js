@@ -25,12 +25,11 @@ const maxVisibleToasts = 3;
 function displayToast(message, type) {
   visibleToasts++;
   const toastElement = document.createElement("div");
-  toastElement.className = `flex items-center w-full p-4 space-x-4 text-gray-200 bg-gray-800 rounded-lg shadow-lg transform transition-all duration-300 opacity-0 translate-x-full relative overflow-hidden`;
+  toastElement.className = `toast-notification flex items-center w-full p-4 space-x-4 text-gray-200 bg-gray-800 rounded-lg shadow-lg transform transition-all duration-300 opacity-0 translate-x-full relative overflow-hidden`;
 
   toastElement.innerHTML = `
         <div class="icon">${icons[type]}</div>
         <div class="text-sm font-normal">${message}</div>
-        <div class="toast-progress-bar"></div>
     `;
 
   toastContainer.appendChild(toastElement);
@@ -39,31 +38,29 @@ function displayToast(message, type) {
   let startTime = Date.now();
   let remaining = duration;
   let isPaused = false;
-  let progressBar;
+
+  const animationEndHandler = (e) => {
+    if (e.animationName === 'progress') {
+      closeToast();
+    }
+  };
 
   requestAnimationFrame(() => {
     toastElement.classList.remove("opacity-0", "translate-x-full");
-    progressBar = toastElement.querySelector('.toast-progress-bar');
-    if (progressBar) {
-      progressBar.style.animation = `progress ${duration / 1000}s linear forwards`;
-      progressBar.addEventListener('animationend', closeToast);
-    }
+    toastElement.classList.add('animate-progress');
+    toastElement.addEventListener('animationend', animationEndHandler);
   });
 
   const closeToast = (isSwipe = false) => {
-    // Убедимся, что closeToast не вызывается повторно
     if (toastElement.classList.contains('closing')) return;
     toastElement.classList.add('closing');
-    
+
     if (isSwipe) {
-      // При свайпе нам не нужен таймер или слушатель анимации
-      // Просто закрываем
-    } else {
-      // Закрытие по таймеру/окончанию анимации
+      toastElement.removeEventListener('animationend', animationEndHandler);
     }
     
     toastElement.classList.add("opacity-0");
-    const swipeDirection = Math.sign(currentX - startX) || 1; // По умолчанию вправо, если не свайп
+    const swipeDirection = Math.sign(currentX - startX) || 1;
     toastElement.style.transform = `translateX(${swipeDirection * 100}%)`;
 
     const onTransitionEnd = () => {
@@ -81,9 +78,8 @@ function displayToast(message, type) {
   const pause = () => {
     if (!isPaused) {
       isPaused = true;
-      // clearTimeout(timeoutId); // Больше не используется
       remaining -= Date.now() - startTime;
-      if (progressBar) progressBar.style.animationPlayState = 'paused';
+      toastElement.classList.add('progress-paused');
     }
   }
 
@@ -91,13 +87,10 @@ function displayToast(message, type) {
     if (isPaused) {
       isPaused = false;
       startTime = Date.now();
-      // timeoutId больше не нужен, просто возобновляем анимацию
-      if (progressBar) progressBar.style.animationPlayState = 'running';
+      toastElement.classList.remove('progress-paused');
     }
   }
 
-  // timeoutId больше не используется для автоматического закрытия
-  // let timeoutId; 
   let startX = 0;
   let currentX = 0;
   let isDragging = false;

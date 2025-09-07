@@ -3,14 +3,23 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-.toast-progress-bar {
+.toast-notification::after {
+  content: '';
   position: absolute;
   bottom: 0;
   left: 0;
   height: 4px;
   width: 100%;
   background-color: rgba(255, 255, 255, 0.7);
-  transform-origin: left;
+  transform: translateX(-100%); /* Start off-screen */
+}
+
+.toast-notification.animate-progress::after {
+  animation: progress 3s linear forwards;
+}
+
+.toast-notification.progress-paused::after {
+  animation-play-state: paused;
 }
 
 @keyframes progress {
