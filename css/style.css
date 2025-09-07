@@ -32,6 +32,25 @@ body {
   background-color: rgba(255, 255, 255, 0.7); /* Цвет прогресс-бара для темной темы */
 }
 
+/* Стили для второстепенных кнопок в модальных окнах */
+.secondary-action-btn {
+  background-color: #e2e8f0; /* Светло-серый фон для светлой темы */
+  color: #2d3748; /* Темный текст */
+}
+
+.secondary-action-btn:active {
+  background-color: #cbd5e0; /* Более темный фон при нажатии */
+}
+
+.dark .secondary-action-btn {
+  background-color: #4a5568; /* Темно-серый фон для темной темы */
+  color: #f7fafc; /* Светлый текст */
+}
+
+.dark .secondary-action-btn:active {
+  background-color: #2d3748; /* Более темный фон при нажатии в темной теме */
+}
+
 .toast-notification.animate-progress::after {
   animation: progress 3s linear forwards;
 }
