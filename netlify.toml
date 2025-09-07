@@ -1,68 +1,9 @@
 [build]
-  # Команда сборки (не нужна для статического сайта)
-  command = ""
-  
-  # Папка для публикации (корень проекта)
-  publish = "."
+  publish = "/"
 
-[build.environment]
-  # Версия Node.js (если понадобится для сборки)
-  NODE_VERSION = "18"
-
-# Редиректы для SPA
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
-
-# Заголовки безопасности
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    X-XSS-Protection = "1; mode=block"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-
-# Заголовки для PWA файлов
 [[headers]]
   for = "/sw.js"
   [headers.values]
-    Cache-Control = "public, max-age=0, must-revalidate"
-    Service-Worker-Allowed = "/"
+    cache-control = "no-cache"
 
-[[headers]]
-  for = "/manifest.json"
-  [headers.values]
-    Cache-Control = "public, max-age=86400"
 
-# Заголовки для статических ресурсов
-[[headers]]
-  for = "/*.css"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/*.js"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/icons/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
-
-# Настройки для PWA
-[context.production]
-  command = ""
-  publish = "."
-
-# Настройки для preview
-[context.deploy-preview]
-  command = ""
-  publish = "."
-
-# Настройки для branch deploys
-[context.branch-deploy]
-  command = ""
-  publish = "."
