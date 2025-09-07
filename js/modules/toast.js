@@ -20,20 +20,30 @@ const icons = {
 
 function createToast(message, type) {
   const toastElement = document.createElement("div");
-  toastElement.className = `flex items-center w-full p-4 space-x-4 text-gray-200 bg-gray-800 rounded-lg shadow-lg transform transition-all duration-300 opacity-0 translate-x-full`;
+  toastElement.className = `flex items-center w-full p-4 space-x-4 text-gray-200 bg-gray-800 rounded-lg shadow-lg transform transition-all duration-300 opacity-0 translate-x-full relative overflow-hidden`;
 
   toastElement.innerHTML = `
         <div class="icon">${icons[type]}</div>
         <div class="text-sm font-normal">${message}</div>
+        <div class="toast-progress-bar"></div>
     `;
 
   toastContainer.appendChild(toastElement);
 
+  const duration = 3000;
+  let timeoutId;
+  let startTime = Date.now();
+  let remaining = duration;
+  let isPaused = false;
+  let progressBar;
+
   requestAnimationFrame(() => {
     toastElement.classList.remove("opacity-0", "translate-x-full");
+    progressBar = toastElement.querySelector('.toast-progress-bar');
+    progressBar.style.animation = `progress ${duration / 1000}s linear forwards`;
   });
 
-  setTimeout(() => {
+  const closeToast = () => {
     toastElement.classList.add("opacity-0");
     toastElement.style.transform = "translateX(100%)";
 
@@ -42,7 +52,63 @@ function createToast(message, type) {
         toastElement.parentNode.removeChild(toastElement);
       }
     });
-  }, 3000);
+  };
+
+  const pause = () => {
+    if (!isPaused) {
+      isPaused = true;
+      clearTimeout(timeoutId);
+      remaining -= Date.now() - startTime;
+      if (progressBar) progressBar.style.animationPlayState = 'paused';
+    }
+  }
+
+  const resume = () => {
+    if (isPaused) {
+      isPaused = false;
+      startTime = Date.now();
+      timeoutId = setTimeout(closeToast, remaining);
+      if (progressBar) progressBar.style.animationPlayState = 'running';
+    }
+  }
+
+  timeoutId = setTimeout(closeToast, duration);
+
+  let startX = 0;
+  let currentX = 0;
+  let isDragging = false;
+
+  toastElement.addEventListener('touchstart', (e) => {
+    startX = e.touches[0].clientX;
+    isDragging = true;
+    toastElement.style.transition = 'none';
+    pause();
+  });
+
+  toastElement.addEventListener('touchmove', (e) => {
+    if (!isDragging) return;
+    currentX = e.touches[0].clientX;
+    const diffX = currentX - startX;
+    if (diffX > 0) {
+      toastElement.style.transform = `translateX(${diffX}px)`;
+      toastElement.style.opacity = 1 - (diffX / toastElement.offsetWidth);
+    }
+  });
+
+  toastElement.addEventListener('touchend', () => {
+    if (!isDragging) return;
+    isDragging = false;
+    toastElement.style.transition = 'transform 0.3s ease, opacity 0.3s ease';
+
+    const diffX = currentX - startX;
+    if (diffX > toastElement.offsetWidth / 3) {
+      closeToast();
+    } else {
+      toastElement.style.transform = 'translateX(0)';
+      toastElement.style.opacity = 1;
+      resume();
+    }
+  });
 }
 
 const Toast = {

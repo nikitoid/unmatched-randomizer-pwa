@@ -2,3 +2,22 @@ body {
   -webkit-tap-highlight-color: transparent; /* Отключение подсветки при нажатии на мобильных */
   transition: background-color 0.3s ease, color 0.3s ease;
 }
+
+.toast-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  width: 100%;
+  background-color: rgba(255, 255, 255, 0.7);
+  transform-origin: left;
+}
+
+@keyframes progress {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0%;
+  }
+}
