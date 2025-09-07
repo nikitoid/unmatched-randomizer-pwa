@@ -137,14 +137,28 @@ const ListManager = {
           ? `${heroCount} героев (временный)`
           : `${heroCount} героев`;
 
-        return `
-            <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
-                <div class="flex-grow cursor-pointer" data-action="edit">
-                    <p class="font-semibold text-lg ${titleClass}">${listName}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
+        const contentHTML = `
+          <p class="font-semibold text-lg ${titleClass}">${listName}</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
+        `;
+
+        if (isCopy) {
+          return `
+            <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm cursor-pointer" data-list-name="${listName}" data-action="edit">
+                <div class="flex-grow">
+                    ${contentHTML}
                 </div>
                 ${buttonsHTML}
             </div>`;
+        } else {
+          return `
+            <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
+                <div class="flex-grow cursor-pointer" data-action="edit">
+                    ${contentHTML}
+                </div>
+                ${buttonsHTML}
+            </div>`;
+        }
       })
       .join("");
 
