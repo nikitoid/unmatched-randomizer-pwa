@@ -1,4 +1,4 @@
-const CACHE_NAME = 'randomatched-v3';
+const CACHE_NAME = 'randomatched-v4';
 const urlsToCache = [
   '/',
   '/index.html',
@@ -6,9 +6,6 @@ const urlsToCache = [
   '/js/app.js',
   '/manifest.json',
   '/favicon.ico',
-  'https://cdn.tailwindcss.com',
-  'https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js',
-  'https://code.jquery.com/jquery-3.7.1.min.js',
   '/assets/icons/apple-touch-icon.png',
   '/assets/icons/icon-192.png',
   '/assets/icons/icon-512.png'
@@ -21,7 +18,6 @@ self.addEventListener('install', event => {
         console.log('Opened cache');
         return cache.addAll(urlsToCache);
       })
-      .then(() => self.skipWaiting())
   );
 });
 
@@ -68,4 +64,10 @@ self.addEventListener('activate', event => {
       );
     }).then(() => self.clients.claim())
   );
+});
+
+self.addEventListener('message', event => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
 });

@@ -35,8 +35,14 @@
 </head>
 <body class="bg-gray-800 text-white">
 
-    <div id="update-overlay" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-50 flex items-center justify-center hidden">
-        <div class="w-16 h-16 border-4 border-dashed rounded-full animate-spin border-white"></div>
+    <div id="update-banner" class="fixed bottom-4 right-4 bg-gray-700 text-white p-4 rounded-lg shadow-lg hidden items-center space-x-4">
+        <p>Доступно обновление!</p>
+        <button id="update-button" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+            Обновить
+        </button>
+        <button id="close-update-banner" class="text-gray-400 hover:text-white">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        </button>
     </div>
 
     <div class="container mx-auto p-4">

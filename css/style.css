@@ -3,3 +3,14 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
+
+#update-banner {
+    display: flex;
+    transform: translateY(200%);
+    transition: transform 0.3s ease-in-out;
+    z-index: 100;
+}
+
+#update-banner.show {
+    transform: translateY(0);
+}

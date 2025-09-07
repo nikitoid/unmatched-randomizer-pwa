@@ -1,40 +1,58 @@
 import Modal from './modules/modal.js';
 import Toast from './modules/toast.js';
 
-// Make them globally available for demo purposes
 window.Modal = Modal;
 window.Toast = Toast;
 
-const updateOverlay = document.getElementById('update-overlay');
-
-function showUpdateSpinner() {
-    if (updateOverlay) {
-        updateOverlay.classList.remove('hidden');
-    }
-}
-
-function hideUpdateSpinner() {
-    if (updateOverlay) {
-        updateOverlay.classList.add('hidden');
-    }
-}
-
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').then(reg => {
-      reg.onupdatefound = () => {
-        const installingWorker = reg.installing;
-        if (installingWorker && navigator.serviceWorker.controller) {
-          showUpdateSpinner();
+  let newWorker;
+
+  const updateBanner = document.getElementById('update-banner');
+  const updateButton = document.getElementById('update-button');
+  const closeUpdateBannerButton = document.getElementById('close-update-banner');
+
+  function showUpdateBanner() {
+    if (updateBanner) {
+      updateBanner.classList.remove('hidden');
+      setTimeout(() => updateBanner.classList.add('show'), 10);
+    }
+  }
+
+  function hideUpdateBanner() {
+    if (updateBanner) {
+      updateBanner.classList.remove('show');
+    }
+  }
+  
+  updateButton.addEventListener('click', () => {
+    newWorker.postMessage({ type: 'SKIP_WAITING' });
+    hideUpdateBanner();
+  });
+
+  closeUpdateBannerButton.addEventListener('click', hideUpdateBanner);
+  
+  navigator.serviceWorker.register('/sw.js').then(reg => {
+    reg.addEventListener('updatefound', () => {
+      newWorker = reg.installing;
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          showUpdateBanner();
         }
-      };
-    }).catch(registrationError => {
-      console.log('SW registration failed: ', registrationError);
+      });
     });
 
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      hideUpdateSpinner();
-      Toast.success('Приложение было обновлено!');
-    });
+    if (reg.waiting) {
+        newWorker = reg.waiting;
+        showUpdateBanner();
+    }
+  }).catch(registrationError => {
+    console.log('SW registration failed: ', registrationError);
+  });
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    Toast.success('Приложение было обновлено!');
+    setTimeout(() => {
+        window.location.reload();
+    }, 1000);
   });
 }
