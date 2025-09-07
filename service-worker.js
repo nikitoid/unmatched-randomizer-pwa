@@ -1,5 +1,5 @@
-const CACHE_NAME = 'common-app-pwa-v2';
-const RUNTIME_CACHE = 'runtime-cache-v2';
+const CACHE_NAME = 'common-app-pwa-v1';
+const RUNTIME_CACHE = 'runtime-cache-v1';
 
 // Конфигурация стратегий кеширования
 const CACHE_CONFIG = {
