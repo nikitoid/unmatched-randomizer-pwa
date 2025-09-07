@@ -143,13 +143,11 @@ class App {
         // Toast модуль для системы уведомлений
         {
           name: 'toast',
-          file: 'toast.js',
-          options: {
-            position: 'top-right',
-            maxVisible: 5,
-            defaultDuration: 5000,
-            animationType: 'slide'
-          }
+          path: './js/modules/toast.js',
+          position: 'top-right',
+          maxVisible: 5,
+          defaultDuration: 5000,
+          animationType: 'slide'
         }
       ];
 
@@ -190,9 +188,51 @@ class App {
       this.modules.set('pwa', this.pwaManager);
       this.modules.set('cache-strategy', this.cacheManager);
 
+      // Пробуем загрузить Toast модуль напрямую если ModuleLoader не сработал
+      await this.initToastModuleDirectly();
+
     } catch (error) {
       console.error('App: Legacy module initialization failed:', error);
       throw error;
+    }
+  }
+
+  // Прямая инициализация Toast модуля как запасной вариант
+  async initToastModuleDirectly() {
+    try {
+      // Проверяем, загружен ли уже Toast через ModuleLoader
+      if (this.modules.has('toast')) {
+        console.log('App: Toast module already loaded via ModuleLoader');
+        return;
+      }
+
+      console.log('App: Loading Toast module directly...');
+      
+      // Импортируем модуль напрямую
+      const { default: ToastModule } = await import('./modules/toast.js');
+      
+      // Создаем экземпляр с настройками
+      const toastInstance = new ToastModule('toast', {
+        position: 'top-right',
+        maxVisible: 5,
+        defaultDuration: 5000,
+        animationType: 'slide'
+      });
+
+      // Устанавливаем EventBus
+      toastInstance.setEventBus(this.eventBus || eventBus);
+
+      // Инициализируем модуль
+      await toastInstance.init();
+
+      // Сохраняем в реестре модулей
+      this.modules.set('toast', toastInstance);
+      
+      console.log('App: Toast module loaded and initialized directly');
+      
+    } catch (error) {
+      console.error('App: Failed to load Toast module directly:', error);
+      // Не бросаем ошибку, чтобы не сломать остальную инициализацию
     }
   }
 
@@ -649,9 +689,21 @@ window.getModulesInfo = () => app.getModulesInfo();
 
 // Глобальные функции для демонстрации Toast
 window.toastDemo = {
+  // Вспомогательная функция для получения модуля с диагностикой
+  _getToastModule: () => {
+    const toastModule = app.getModule('toast');
+    if (!toastModule) {
+      console.error('Toast module not found! Available modules:', app.getLoadedModules());
+      console.log('App modules:', app.modules);
+      alert('Toast модуль не загружен. Проверьте консоль для диагностики.');
+      return null;
+    }
+    return toastModule;
+  },
+
   // Показать различные типы toast
   showSuccess: () => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       toastModule.success('Успешно!', {
         message: 'Операция выполнена успешно',
@@ -661,7 +713,7 @@ window.toastDemo = {
   },
 
   showError: () => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       toastModule.error('Ошибка!', {
         message: 'Что-то пошло не так',
@@ -671,7 +723,7 @@ window.toastDemo = {
   },
 
   showWarning: () => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       toastModule.warning('Внимание!', {
         message: 'Проверьте введенные данные',
@@ -681,7 +733,7 @@ window.toastDemo = {
   },
 
   showInfo: () => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       toastModule.info('Информация', {
         message: 'Полезная информация для пользователя',
@@ -691,7 +743,7 @@ window.toastDemo = {
   },
 
   showCustom: () => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       toastModule.custom('Кастомный Toast', {
         message: 'С пользовательским стилем',
@@ -703,7 +755,7 @@ window.toastDemo = {
 
   // Демонстрация HTML контента
   showHtml: () => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       toastModule.show('HTML <b>контент</b>', 'info', {
         message: 'Поддержка <em>HTML</em> разметки <code>включена</code>',
@@ -715,7 +767,7 @@ window.toastDemo = {
 
   // Постоянный toast (не исчезает автоматически)
   showPersistent: () => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       toastModule.show('Постоянный Toast', 'warning', {
         message: 'Этот toast не исчезнет автоматически',
@@ -727,7 +779,7 @@ window.toastDemo = {
 
   // Toast с высоким приоритетом
   showPriority: () => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       toastModule.show('Приоритетный!', 'error', {
         message: 'Этот toast имеет высокий приоритет',
@@ -740,7 +792,7 @@ window.toastDemo = {
 
   // Изменение позиции
   changePosition: (position) => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       toastModule.setPosition(position);
       toastModule.info('Позиция изменена', {
@@ -752,7 +804,7 @@ window.toastDemo = {
 
   // Изменение анимации
   changeAnimation: (animationType) => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       toastModule.options.animationType = animationType;
       toastModule.info('Анимация изменена', {
@@ -764,7 +816,7 @@ window.toastDemo = {
 
   // Очистить все toast
   clearAll: () => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       toastModule.clearAll();
     }
@@ -772,7 +824,7 @@ window.toastDemo = {
 
   // Показать статистику
   showStats: () => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       const stats = toastModule.getStats();
       toastModule.info('Статистика Toast', {
@@ -784,7 +836,7 @@ window.toastDemo = {
 
   // Тест производительности
   performanceTest: () => {
-    const toastModule = app.getModule('toast');
+    const toastModule = window.toastDemo._getToastModule();
     if (toastModule) {
       for (let i = 1; i <= 10; i++) {
         setTimeout(() => {
@@ -795,6 +847,23 @@ window.toastDemo = {
         }, i * 200);
       }
     }
+  },
+
+  // Диагностическая функция
+  diagnose: () => {
+    console.group('🔍 Toast Module Diagnostics');
+    console.log('App instance:', window.app);
+    console.log('Available modules:', window.app ? window.app.getLoadedModules() : 'App not available');
+    console.log('Modules map:', window.app ? window.app.modules : 'App not available');
+    console.log('Toast module:', window.app ? window.app.getModule('toast') : 'App not available');
+    
+    if (window.app && window.app.getModule('toast')) {
+      const toastModule = window.app.getModule('toast');
+      console.log('Toast module info:', toastModule.getInfo ? toastModule.getInfo() : 'No getInfo method');
+      console.log('Toast module stats:', toastModule.getStats ? toastModule.getStats() : 'No getStats method');
+    }
+    
+    console.groupEnd();
   }
 };
 
