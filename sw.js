@@ -1,4 +1,4 @@
-const CACHE_NAME = 'randomatched-v3';
+const CACHE_NAME = 'randomatched-v1';
 const urlsToCache = [
   '/',
   '/index.html',
