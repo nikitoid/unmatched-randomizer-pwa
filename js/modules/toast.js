@@ -47,12 +47,21 @@ function displayToast(message, type) {
     progressBar = toastElement.querySelector('.toast-progress-bar');
     if (progressBar) {
       progressBar.style.animation = `progress ${duration / 1000}s linear forwards`;
+      progressBar.addEventListener('animationend', () => {
+        // Задержка нужна, чтобы избежать "моргания" перед закрытием
+        setTimeout(closeToast, 50);
+      });
     }
   });
 
-  const closeToast = () => {
+  const closeToast = (isSwipe = false) => {
+    // Если закрытие вызвано свайпом, немедленно удаляем таймер
+    if (isSwipe) {
+      clearTimeout(timeoutId);
+    }
+
     toastElement.classList.add("opacity-0");
-    const swipeDirection = Math.sign(currentX - startX);
+    const swipeDirection = Math.sign(currentX - startX) || 1; // По умолчанию вправо, если не свайп
     toastElement.style.transform = `translateX(${swipeDirection * 100}%)`;
 
     const onTransitionEnd = () => {
@@ -80,12 +89,14 @@ function displayToast(message, type) {
     if (isPaused) {
       isPaused = false;
       startTime = Date.now();
-      timeoutId = setTimeout(closeToast, remaining);
+      // Возобновляем таймер только если он не был очищен
+      if (timeoutId) timeoutId = setTimeout(() => progressBar.dispatchEvent(new Event('animationend')), remaining);
       if (progressBar) progressBar.style.animationPlayState = 'running';
     }
   }
 
-  timeoutId = setTimeout(closeToast, duration);
+  // Убираем старый таймер, так как теперь закрытие инициируется событием animationend
+  // timeoutId = setTimeout(closeToast, duration);
 
   let startX = 0;
   let currentX = 0;
@@ -114,7 +125,7 @@ function displayToast(message, type) {
 
     const diffX = currentX - startX;
     if (Math.abs(diffX) > toastElement.offsetWidth / 3) {
-      closeToast();
+      closeToast(true); // Передаем флаг, что это свайп
     } else {
       toastElement.style.transform = 'translateX(0)';
       toastElement.style.opacity = 1;
