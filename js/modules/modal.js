@@ -16,14 +16,14 @@ class Modal {
 
         // Modal container
         this.modalElement = document.createElement('div');
-        this.modalElement.className = 'fixed z-50 transition-transform duration-300 transform';
+        this.modalElement.className = 'fixed z-50 transition-all duration-300 transform';
 
         let modalClasses = '';
         let contentContainerClasses = 'p-6';
 
         switch (this.type) {
             case 'fullscreen':
-                modalClasses = 'inset-0 translate-y-full';
+                modalClasses = 'inset-0 bg-gray-700 translate-y-full';
                 contentContainerClasses = 'p-6 h-full flex flex-col';
                 break;
             case 'bottom-sheet':
@@ -31,7 +31,7 @@ class Modal {
                 break;
             case 'dialog':
             default:
-                modalClasses = 'left-1/2 top-1/2 -translate-x-1/2 bg-gray-700 rounded-lg shadow-lg -translate-y-3/4'; // Start off-screen
+                modalClasses = 'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-gray-700 rounded-lg shadow-lg opacity-0 scale-95';
                 break;
         }
 
@@ -77,37 +77,32 @@ class Modal {
             let transformClasses = '';
              switch (this.type) {
                 case 'fullscreen':
-                    transformClasses = 'translate-y-0';
-                    break;
                 case 'bottom-sheet':
                      transformClasses = 'translate-y-0';
+                     this.modalElement.classList.remove('translate-y-full');
+                     this.modalElement.classList.add(transformClasses);
                     break;
                 case 'dialog':
                 default:
-                    transformClasses = '-translate-y-1/2';
+                    this.modalElement.classList.remove('opacity-0', 'scale-95');
                     break;
             }
-            this.modalElement.classList.remove('translate-y-full', '-translate-y-3/4');
-            this.modalElement.classList.add(...transformClasses.split(' '));
         }, 10);
     }
 
     close() {
         this.overlayElement.classList.add('opacity-0');
         
-        let transformClasses = '';
         switch (this.type) {
             case 'fullscreen':
             case 'bottom-sheet':
-                transformClasses = 'translate-y-full';
+                this.modalElement.classList.add('translate-y-full');
                 break;
             case 'dialog':
             default:
-                 transformClasses = '-translate-y-3/4';
+                 this.modalElement.classList.add('opacity-0', 'scale-95');
                 break;
         }
-        this.modalElement.classList.remove('translate-y-0', '-translate-y-1/2');
-        this.modalElement.classList.add(...transformClasses.split(' '));
 
         setTimeout(() => {
             this.modalElement.remove();

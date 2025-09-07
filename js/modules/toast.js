@@ -12,9 +12,13 @@ class ToastManager {
     }
 
     setOptions(options) {
-        this.config = { ...this.config, ...options };
-        if (this.container) this.container.remove();
-        this.container = this._createContainer();
+        if (this.config.position !== options.position && options.position) {
+             if (this.container) this.container.remove();
+             this.config = { ...this.config, ...options };
+             this.container = this._createContainer();
+        } else {
+            this.config = { ...this.config, ...options };
+        }
         return this;
     }
 
@@ -26,7 +30,7 @@ class ToastManager {
         container = document.createElement('div');
         container.id = `toast-container-${position}`;
         
-        const baseClasses = 'fixed z-50 flex flex-col space-y-2 p-4 w-full max-w-xs sm:w-auto';
+        const baseClasses = 'fixed z-50 flex flex-col space-y-2 p-4 max-w-xs sm:max-w-md w-full sm:w-auto pointer-events-none';
         const positionClasses = {
             'top-left': 'top-0 left-0 items-start',
             'top-right': 'top-0 right-0 items-end',
@@ -61,7 +65,7 @@ class ToastManager {
         const isTop = this.config.position.includes('top');
         const initialTransform = isTop ? '-translate-y-full' : 'translate-y-full';
 
-        toastElement.className = `relative p-4 rounded-lg shadow-lg text-white overflow-hidden transition-all duration-300 transform ${typeColors[type]} ${initialTransform} opacity-0 cursor-pointer`;
+        toastElement.className = `relative p-4 rounded-lg shadow-lg text-white overflow-hidden transition-all duration-300 transform ${typeColors[type]} ${initialTransform} opacity-0 cursor-pointer pointer-events-auto`;
         
         toastElement.innerHTML = `<p>${message}</p><div class="absolute bottom-0 left-0 h-1 bg-black bg-opacity-25" style="width: 100%; transition: width ${this.config.duration}ms linear;"></div>`;
         const progressBar = toastElement.querySelector('div');
@@ -79,6 +83,15 @@ class ToastManager {
         const timeoutId = setTimeout(() => this._close(toastElement), this.config.duration);
         toastElement.dataset.timeoutId = timeoutId;
     }
+    
+    _performCleanup(toastElement) {
+        toastElement.remove();
+        this.visibleToasts = this.visibleToasts.filter(t => t !== toastElement);
+        if (this.queue.length > 0) {
+            const next = this.queue.shift();
+            this.show(next.message, next.type);
+        }
+    }
 
     _close(toastElement) {
         if (!toastElement || !this.visibleToasts.includes(toastElement)) return;
@@ -86,18 +99,16 @@ class ToastManager {
         clearTimeout(toastElement.dataset.timeoutId);
         
         const isTop = this.config.position.includes('top');
-        toastElement.classList.add('opacity-0', isTop ? '-translate-y-full' : 'translate-y-full');
+        toastElement.classList.add('opacity-0');
+        if (isTop) {
+            toastElement.style.transform = 'translateY(-100%)';
+        } else {
+            toastElement.style.transform = 'translateY(100%)';
+        }
 
         const onTransitionEnd = () => {
             toastElement.removeEventListener('transitionend', onTransitionEnd);
-            toastElement.remove();
-            
-            this.visibleToasts = this.visibleToasts.filter(t => t !== toastElement);
-
-            if (this.queue.length > 0) {
-                const next = this.queue.shift();
-                this.show(next.message, next.type);
-            }
+            this._performCleanup(toastElement);
         };
         
         toastElement.addEventListener('transitionend', onTransitionEnd);
@@ -121,12 +132,20 @@ class ToastManager {
         const onDragEnd = (e) => {
             if (!isDragging) return;
             isDragging = false;
+            toastElement.style.transition = 'transform 0.3s, opacity 0.3s';
+
             if (Math.abs(currentX - startX) > 50) {
-                toastElement.style.transition = 'transform 0.3s, opacity 0.3s';
-                toastElement.style.transform = `translateX(${currentX > startX ? '120%' : '-120%'})`;
-                this._close(toastElement);
+                clearTimeout(toastElement.dataset.timeoutId);
+                const swipeDirection = currentX > startX ? '120%' : '-120%';
+                toastElement.style.transform = `translateX(${swipeDirection})`;
+                toastElement.style.opacity = '0';
+                
+                const onSwipeEnd = () => {
+                    toastElement.removeEventListener('transitionend', onSwipeEnd);
+                    this._performCleanup(toastElement);
+                };
+                toastElement.addEventListener('transitionend', onSwipeEnd);
             } else {
-                toastElement.style.transition = 'transform 0.3s';
                 toastElement.style.transform = 'translateX(0)';
             }
         };
