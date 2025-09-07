@@ -4,13 +4,32 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-#update-banner {
-    display: flex;
-    transform: translateY(200%);
-    transition: transform 0.3s ease-in-out;
-    z-index: 100;
+@keyframes slideInFromRight {
+    from {
+        transform: translateX(150%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 
-#update-banner.show {
-    transform: translateY(0);
+@keyframes slideOutToLeft {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(-150%);
+        opacity: 0;
+    }
+}
+
+#update-banner.animate-in {
+    animation: slideInFromRight 0.5s forwards ease-out;
+}
+
+#update-banner.animate-out {
+    animation: slideOutToLeft 0.5s forwards ease-in;
 }
