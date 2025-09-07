@@ -130,37 +130,10 @@ class App {
     try {
       console.log('App: Loading modules...');
       
-      // Определяем модули для загрузки
+      // Определяем модули для загрузки - пока отключаем все автоматические модули
       const modulesToLoad = [
-        {
-          name: 'notification',
-          options: {
-            position: 'top-right',
-            duration: 5000,
-            maxNotifications: 5
-          }
-        },
-        {
-          name: 'theme',
-          options: {
-            themes: ['light', 'dark', 'auto'],
-            defaultTheme: 'auto',
-            autoDetect: true
-          }
-        },
-        {
-          name: 'modal',
-          options: {
-            closeOnOverlay: true,
-            closeOnEscape: true,
-            lockBodyScroll: true,
-            showCloseButton: true,
-            animation: 'fadeIn',
-            animationDuration: 300,
-            maxModals: 5
-          }
-        },
-        // Добавьте другие модули здесь
+        // Модули временно отключены для устранения ошибок 404
+        // Используем простую версию модального окна через simple-modal.js
       ];
 
       // Загружаем модули
