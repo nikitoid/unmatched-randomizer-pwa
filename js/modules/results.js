@@ -208,31 +208,41 @@ function addEventListeners() {
 
       case "reshuffle-hero":
         const playerToReshuffle = button.dataset.player;
-        const currentHeroNames = Object.values(
-          currentGeneration.assignment
-        ).map((h) => h.name);
-        const heroesForReshuffle = heroesInActiveList.filter(
-          (h) => !currentHeroNames.includes(h.name)
-        );
+        const heroNameToReshuffle =
+          currentGeneration.assignment[playerToReshuffle].name;
 
-        if (heroesForReshuffle.length > 0) {
-          const newHero = Generator.shuffle(heroesForReshuffle)[0];
-          const newAssignment = { ...currentGeneration.assignment };
-          newAssignment[playerToReshuffle] = newHero;
-          const heroIndex = currentGeneration.shuffledHeroes.findIndex(
-            (h) =>
-              h.name === currentGeneration.assignment[playerToReshuffle].name
-          );
-          const newShuffledHeroes = [...currentGeneration.shuffledHeroes];
-          if (heroIndex !== -1) newShuffledHeroes[heroIndex] = newHero;
-          updateResults({
-            ...currentGeneration,
-            assignment: newAssignment,
-            shuffledHeroes: newShuffledHeroes,
-          });
-        } else {
-          Toast.warning("Нет свободных героев для замены");
-        }
+        new Modal({
+          type: "dialog",
+          title: "Сменить героя?",
+          content: `Вы уверены, что хотите сменить героя "${heroNameToReshuffle}"?`,
+          confirmText: "Да, сменить",
+          onConfirm: () => {
+            const currentHeroNames = Object.values(
+              currentGeneration.assignment
+            ).map((h) => h.name);
+            const heroesForReshuffle = heroesInActiveList.filter(
+              (h) => !currentHeroNames.includes(h.name)
+            );
+
+            if (heroesForReshuffle.length > 0) {
+              const newHero = Generator.shuffle(heroesForReshuffle)[0];
+              const newAssignment = { ...currentGeneration.assignment };
+              newAssignment[playerToReshuffle] = newHero;
+              const heroIndex = currentGeneration.shuffledHeroes.findIndex(
+                (h) => h.name === heroNameToReshuffle
+              );
+              const newShuffledHeroes = [...currentGeneration.shuffledHeroes];
+              if (heroIndex !== -1) newShuffledHeroes[heroIndex] = newHero;
+              updateResults({
+                ...currentGeneration,
+                assignment: newAssignment,
+                shuffledHeroes: newShuffledHeroes,
+              });
+            } else {
+              Toast.warning("Нет свободных героев для замены");
+            }
+          },
+        }).open();
         break;
 
       case "exclude-these-heroes":
