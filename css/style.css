@@ -67,3 +67,13 @@ body {
     transform: translateX(-101%);
   }
 }
+
+.animate-scale-up {
+  animation: scale-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Фикс для корректной высоты на мобильных устройствах */
+body.h-screen {
+  height: 100vh; /* Фоллбэк для десктопов */
+  height: calc(var(--vh, 1vh) * 100);
+}
