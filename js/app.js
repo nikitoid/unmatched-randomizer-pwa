@@ -1,49 +1,34 @@
 (() => {
-  const ready = () => document.body.classList.contains('ready');
-
-  const registerServiceWorker = async () => {
-    if (!('serviceWorker' in navigator)) return;
-    try {
-      await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-    } catch (err) {
-      console.error('SW registration failed', err);
-    }
+  const onReady = (fn) => {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
   };
 
-  const bindUI = () => {
-    const $theme = document.getElementById('themeToggle');
-    const $settings = document.getElementById('listsSettings');
-    const $gen = document.getElementById('generateBtn');
-    const $last = document.getElementById('lastResultBtn');
-    const $reset = document.getElementById('resetSessionBtn');
+  onReady(() => {
+    const themeToggle = document.getElementById('theme-toggle');
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    const body = document.body;
 
-    $theme?.addEventListener('click', () => {
-      // заглушка
-    });
-    $settings?.addEventListener('click', () => {
-      // заглушка
-    });
-    $gen?.addEventListener('click', () => {
-      // заглушка
-    });
-    $last?.addEventListener('click', () => {
-      // заглушка
-    });
-    $reset?.addEventListener('click', () => {
-      // заглушка
-    });
-  };
+    const setTheme = (theme) => {
+      body.setAttribute('data-theme', theme);
+      if (themeMeta) themeMeta.setAttribute('content', theme === 'dark' ? '#0f0f10' : '#ffffff');
+    };
 
-  const init = async () => {
-    bindUI();
-    await registerServiceWorker();
-  };
+    themeToggle?.addEventListener('click', () => {
+      const next = body.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+      setTheme(next);
+    });
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init, { once: true });
-  } else {
-    init();
+    document.getElementById('generate-btn')?.addEventListener('click', () => {});
+    document.getElementById('last-gen-btn')?.addEventListener('click', () => {});
+    document.getElementById('reset-btn')?.addEventListener('click', () => {});
+    document.getElementById('open-settings')?.addEventListener('click', () => {});
+  });
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    });
   }
 })();
-
-
+ 

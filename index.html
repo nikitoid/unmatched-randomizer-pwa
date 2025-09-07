@@ -1,70 +1,63 @@
 <!doctype html>
-<html lang="ru" class="no-hover no-scroll">
+<html lang="ru">
   <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-    <meta name="theme-color" content="#111827" />
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <meta name="theme-color" content="#0c0c0d">
     <title>Randomatched</title>
 
-    <link rel="manifest" href="./manifest.json" />
-    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="./icons/icon-512.png" />
-    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="favicon.ico" sizes="any">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
 
-    <link rel="stylesheet" href="./style.css" />
+    <link rel="stylesheet" href="style.css">
 
-    <script defer src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script defer src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
   </head>
-  <body class="app">
-    <div id="app" class="layout" x-data="{ theme: 'system' }" x-init="$nextTick(() => document.body.classList.add('ready'))">
-      <header class="topbar">
-        <button id="themeToggle" class="icon-btn" aria-label="Переключить тему" title="Тема">
-          <span class="icon">◐</span>
-        </button>
-        <h1 class="title">Randomatched</h1>
-        <div class="spacer"></div>
-      </header>
+  <body data-theme="light">
+    <header class="app-header" role="banner">
+      <button class="theme-toggle" id="theme-toggle" aria-label="Переключить тему" type="button">
+        <span class="icon" aria-hidden="true">🌗</span>
+      </button>
+      <h1 class="app-title">Randomatched</h1>
+      <div class="header-filler" aria-hidden="true"></div>
+    </header>
 
-      <main class="content">
-        <section class="controls">
-          <label class="select-wrap">
-            <span class="sr-only">Набор героев</span>
-            <select id="setSelect" class="select">
-              <option value="classic">Classic Set</option>
-              <option value="legends">Legends Set</option>
-              <option value="marvel">Marvel Set</option>
-              <option value="custom">Custom Community</option>
-            </select>
-          </label>
-          <button id="listsSettings" class="icon-btn" aria-label="Настройки списков" title="Настройки">
-            <span class="icon">⚙️</span>
+    <main class="app-main" role="main">
+      <section class="controls" aria-label="Панель управления">
+        <div class="controls-row">
+          <label class="visually-hidden" for="hero-set">Набор героев</label>
+          <select id="hero-set" class="select">
+            <option value="" selected disabled>Выберите набор</option>
+            <option value="base">Base Set</option>
+            <option value="buffy">Buffy</option>
+            <option value="jurassic">Jurassic Park</option>
+          </select>
+          <button class="settings-button" id="open-settings" type="button" aria-label="Открыть настройки списков">
+            <span class="icon" aria-hidden="true">⚙️</span>
           </button>
-        </section>
+        </div>
 
-        <section class="actions">
-          <button id="generateBtn" class="primary-btn">Сгенерировать команды</button>
-          <div class="inline-actions">
-            <button id="lastResultBtn" class="secondary-btn">Последняя генерация</button>
-            <button id="resetSessionBtn" class="secondary-btn">Сброс сессии</button>
+        <div class="actions">
+          <button class="btn btn-primary" id="generate-btn" type="button">Сгенерировать команды</button>
+          <div class="secondary-actions">
+            <button class="btn btn-text" id="last-gen-btn" type="button">Последняя генерация</button>
+            <button class="btn btn-text btn-danger" id="reset-btn" type="button">Сброс сессии</button>
           </div>
-        </section>
-      </main>
+        </div>
+      </section>
+    </main>
 
-      <div id="modals" class="modals" aria-live="polite" aria-atomic="true"></div>
-      <div id="toasts" class="toasts" aria-live="assertive" aria-atomic="true"></div>
-    </div>
+    <div id="modal-root" class="modal-root" aria-live="polite" aria-relevant="additions"></div>
+    <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="true"></div>
 
-    <script src="./js/modules/generator.js" type="module"></script>
-    <script src="./js/modules/results.js" type="module"></script>
-    <script src="./js/modules/modal.js" type="module"></script>
-    <script src="./js/modules/storage.js" type="module"></script>
-    <script src="./js/modules/theme.js" type="module"></script>
-    <script src="./js/modules/toast.js" type="module"></script>
-
-    <script defer src="./js/app.js"></script>
+    <script src="js/app.js" defer></script>
+    <script type="module"></script>
+    <script type="module"></script>
   </body>
 </html>
 
