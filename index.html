@@ -1,64 +1,458 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <meta name="theme-color" content="#0c0c0d">
-    <title>Randomatched</title>
-
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="PWA приложение">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Common App">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="msapplication-TileColor" content="#000000">
+    <meta name="msapplication-tap-highlight" content="no">
+    
+    <!-- PWA Meta Tags -->
     <link rel="manifest" href="manifest.json">
-    <link rel="icon" href="favicon.ico" sizes="any">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="icons/icon-512.png">
-
-    <link rel="stylesheet" href="style.css">
-
-    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+    <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="assets/icons/icon-512.png">
+    
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
-  </head>
-  <body data-theme="light">
-    <header class="app-header" role="banner">
-      <button class="theme-toggle" id="theme-toggle" aria-label="Переключить тему" type="button">
-        <span class="icon" aria-hidden="true">🌗</span>
-      </button>
-      <h1 class="app-title">Randomatched</h1>
-      <div class="header-filler" aria-hidden="true"></div>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/styles.css">
+    
+    <title>Common App PWA</title>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-md">
+        <div class="container mx-auto px-4 py-4">
+            <h1 class="text-2xl font-bold text-gray-800">Common App PWA</h1>
+        </div>
     </header>
 
-    <main class="app-main" role="main">
-      <section class="controls" aria-label="Панель управления">
-        <div class="controls-row">
-          <label class="visually-hidden" for="hero-set">Набор героев</label>
-          <select id="hero-set" class="select">
-            <option value="" selected disabled>Выберите набор</option>
-            <option value="base">Base Set</option>
-            <option value="buffy">Buffy</option>
-            <option value="jurassic">Jurassic Park</option>
-          </select>
-          <button class="settings-button" id="open-settings" type="button" aria-label="Открыть настройки списков">
-            <span class="icon" aria-hidden="true">⚙️</span>
-          </button>
-        </div>
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-8">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Добро пожаловать!</h2>
+            <p class="text-gray-600 mb-4">
+                Это базовое PWA приложение с поддержкой различных стратегий кеширования и мобильной адаптации.
+            </p>
+            
+            <!-- PWA Installation Status -->
+            <div id="pwa-status" class="hidden">
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                    <p class="text-blue-800">
+                        Приложение доступно для установки на ваше устройство!
+                    </p>
+                    <button id="install-btn" class="mt-2 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors">
+                        Установить приложение
+                    </button>
+                </div>
+            </div>
 
-        <div class="actions">
-          <button class="btn btn-primary" id="generate-btn" type="button">Сгенерировать команды</button>
-          <div class="secondary-actions">
-            <button class="btn btn-text" id="last-gen-btn" type="button">Последняя генерация</button>
-            <button class="btn btn-text btn-danger" id="reset-btn" type="button">Сброс сессии</button>
-          </div>
+            <!-- Cache Strategy Controls -->
+            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                <h3 class="text-lg font-medium mb-3">Стратегии кеширования</h3>
+                <div class="space-y-2">
+                    <label class="flex items-center">
+                        <input type="radio" name="cache-strategy" value="cache-first" checked class="mr-2">
+                        <span>Cache First (быстрая загрузка)</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="cache-strategy" value="network-first" class="mr-2">
+                        <span>Network First (актуальные данные)</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="cache-strategy" value="stale-while-revalidate" class="mr-2">
+                        <span>Stale While Revalidate (оптимальный)</span>
+                    </label>
+                </div>
+                <button id="update-strategy" class="mt-3 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition-colors">
+                    Применить стратегию
+                </button>
+            </div>
+
+            <!-- Modal Demo Controls -->
+            <div class="mt-6 p-4 bg-gray-50 rounded-lg">
+                <h3 class="text-lg font-medium mb-3">Демонстрация модальных окон</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Центрированные модальные окна -->
+                    <div class="space-y-2">
+                        <h4 class="font-medium text-gray-700">Центрированные</h4>
+                        <button onclick="window.modalDemo.showCenter()" class="w-full bg-blue-500 text-white px-3 py-2 rounded hover:bg-blue-600 transition-colors text-sm">
+                            Показать центрированное
+                        </button>
+                        <button onclick="window.modalDemo.showConfirm()" class="w-full bg-yellow-500 text-white px-3 py-2 rounded hover:bg-yellow-600 transition-colors text-sm">
+                            Диалог подтверждения
+                        </button>
+                        <button onclick="window.modalDemo.showAlert()" class="w-full bg-red-500 text-white px-3 py-2 rounded hover:bg-red-600 transition-colors text-sm">
+                            Предупреждение
+                        </button>
+                    </div>
+                    
+                    <!-- Bottom Sheet модальные окна -->
+                    <div class="space-y-2">
+                        <h4 class="font-medium text-gray-700">Bottom Sheet</h4>
+                        <button onclick="window.modalDemo.showBottomSheet()" class="w-full bg-green-500 text-white px-3 py-2 rounded hover:bg-green-600 transition-colors text-sm">
+                            Показать Bottom Sheet
+                        </button>
+                        <button onclick="window.modalDemo.showBottomSheetMenu()" class="w-full bg-teal-500 text-white px-3 py-2 rounded hover:bg-teal-600 transition-colors text-sm">
+                            Меню действий
+                        </button>
+                    </div>
+                    
+                    <!-- Полноэкранные модальные окна -->
+                    <div class="space-y-2">
+                        <h4 class="font-medium text-gray-700">Полноэкранные</h4>
+                        <button onclick="window.modalDemo.showFullscreen()" class="w-full bg-purple-500 text-white px-3 py-2 rounded hover:bg-purple-600 transition-colors text-sm">
+                            Показать полноэкранное
+                        </button>
+                        <button onclick="window.modalDemo.showFullscreenForm()" class="w-full bg-indigo-500 text-white px-3 py-2 rounded hover:bg-indigo-600 transition-colors text-sm">
+                            Форма в полном экране
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Анимации -->
+                <div class="mt-4 pt-4 border-t border-gray-300">
+                    <h4 class="font-medium text-gray-700 mb-2">Анимации</h4>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="window.modalDemo.showWithAnimation('fadeIn')" class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition-colors">
+                            Fade In
+                        </button>
+                        <button onclick="window.modalDemo.showWithAnimation('slideUp')" class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition-colors">
+                            Slide Up
+                        </button>
+                        <button onclick="window.modalDemo.showWithAnimation('slideFromRight')" class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition-colors">
+                            Slide Right
+                        </button>
+                        <button onclick="window.modalDemo.showWithAnimation('slideFromLeft')" class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition-colors">
+                            Slide Left
+                        </button>
+                        <button onclick="window.modalDemo.showWithAnimation('scale')" class="bg-gray-500 text-white px-3 py-1 rounded text-sm hover:bg-gray-600 transition-colors">
+                            Scale
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- Управление -->
+                <div class="mt-4 pt-4 border-t border-gray-300">
+                    <button onclick="window.modalDemo.hideAll()" class="bg-red-600 text-white px-4 py-2 rounded hover:bg-red-700 transition-colors text-sm">
+                        Закрыть все модальные окна
+                    </button>
+                    <button onclick="window.modalDemo.showInfo()" class="ml-2 bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700 transition-colors text-sm">
+                        Информация о модалях
+                    </button>
+                </div>
+            </div>
+
+            <!-- Network Status -->
+            <div id="network-status" class="mt-4 p-3 rounded-lg">
+                <span class="font-medium">Статус сети: </span>
+                <span id="connection-status" class="text-green-600">Онлайн</span>
+            </div>
         </div>
-      </section>
     </main>
 
-    <div id="modal-root" class="modal-root" aria-live="polite" aria-relevant="additions"></div>
-    <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="true"></div>
+    <!-- Scripts -->
+    <script src="js/modules/pwa.js" type="module"></script>
+    <script src="js/modules/cache-strategy.js" type="module"></script>
+    <script src="js/app.js" type="module"></script>
 
-    <script src="js/app.js" defer></script>
-    <script type="module"></script>
-    <script type="module"></script>
-  </body>
+    <!-- Modal Demo Functions -->
+    <script>
+        // Демонстрационные функции для модальных окон
+        window.modalDemo = {
+            // Получить модуль модального окна
+            getModalModule() {
+                return window.getModule('modal');
+            },
+
+            // Показать центрированное модальное окно
+            showCenter() {
+                const modal = this.getModalModule();
+                if (!modal) return console.error('Modal module not loaded');
+                
+                modal.showCenter(`
+                    <h3 style="margin: 0 0 16px 0; color: #1e293b;">Центрированное модальное окно</h3>
+                    <p style="margin: 0; color: #64748b;">Это пример центрированного модального окна с кнопкой закрытия.</p>
+                `, {
+                    title: 'Демонстрация',
+                    animation: 'fadeIn'
+                });
+            },
+
+            // Показать диалог подтверждения
+            async showConfirm() {
+                const modal = this.getModalModule();
+                if (!modal) return console.error('Modal module not loaded');
+                
+                const result = await modal.confirm(
+                    'Вы уверены, что хотите продолжить? Это действие нельзя будет отменить.',
+                    {
+                        title: 'Подтверждение действия',
+                        confirmText: 'Да, продолжить',
+                        cancelText: 'Отмена',
+                        animation: 'slideUp'
+                    }
+                );
+                
+                if (result) {
+                    modal.alert('Действие подтверждено!', { title: 'Успех', animation: 'fadeIn' });
+                } else {
+                    modal.alert('Действие отменено.', { title: 'Отменено', animation: 'fadeIn' });
+                }
+            },
+
+            // Показать предупреждение
+            async showAlert() {
+                const modal = this.getModalModule();
+                if (!modal) return console.error('Modal module not loaded');
+                
+                await modal.alert(
+                    'Это важное уведомление! Пожалуйста, обратите внимание на эту информацию.',
+                    {
+                        title: '⚠️ Внимание',
+                        confirmText: 'Понятно',
+                        animation: 'scale'
+                    }
+                );
+            },
+
+            // Показать Bottom Sheet
+            showBottomSheet() {
+                const modal = this.getModalModule();
+                if (!modal) return console.error('Modal module not loaded');
+                
+                modal.showBottomSheet(`
+                    <h3 style="margin: 0 0 16px 0; color: #1e293b;">Bottom Sheet</h3>
+                    <p style="margin: 0 0 16px 0; color: #64748b;">
+                        Это модальное окно выезжает снизу экрана, удобно для мобильных устройств.
+                    </p>
+                    <div style="background: #f8fafc; padding: 16px; border-radius: 8px; margin-top: 16px;">
+                        <p style="margin: 0; font-size: 14px; color: #64748b;">
+                            💡 Подсказка: Попробуйте закрыть это окно свайпом вниз или кликом на затемненную область.
+                        </p>
+                    </div>
+                `, {
+                    title: 'Bottom Sheet Demo'
+                });
+            },
+
+            // Показать меню действий в Bottom Sheet
+            showBottomSheetMenu() {
+                const modal = this.getModalModule();
+                if (!modal) return console.error('Modal module not loaded');
+                
+                modal.showBottomSheet(`
+                    <div style="padding: 8px 0;">
+                        <div style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid #e2e8f0;">
+                            <h4 style="margin: 0; color: #1e293b;">Выберите действие</h4>
+                        </div>
+                        <div onclick="this.closest('.modal-overlay').querySelector('.modal-close').click(); window.modalDemo.handleAction('share')" 
+                             style="padding: 16px; border-radius: 8px; cursor: pointer; margin-bottom: 8px; background: #f8fafc; border: 1px solid #e2e8f0; transition: background-color 0.2s;">
+                            📤 Поделиться
+                        </div>
+                        <div onclick="this.closest('.modal-overlay').querySelector('.modal-close').click(); window.modalDemo.handleAction('edit')" 
+                             style="padding: 16px; border-radius: 8px; cursor: pointer; margin-bottom: 8px; background: #f8fafc; border: 1px solid #e2e8f0; transition: background-color 0.2s;">
+                            ✏️ Редактировать
+                        </div>
+                        <div onclick="this.closest('.modal-overlay').querySelector('.modal-close').click(); window.modalDemo.handleAction('delete')" 
+                             style="padding: 16px; border-radius: 8px; cursor: pointer; margin-bottom: 8px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; transition: background-color 0.2s;">
+                            🗑️ Удалить
+                        </div>
+                    </div>
+                `, {
+                    title: 'Меню действий',
+                    showCloseButton: false
+                });
+            },
+
+            // Обработка действий из меню
+            async handleAction(action) {
+                const modal = this.getModalModule();
+                const actions = {
+                    share: 'Функция "Поделиться" выполнена!',
+                    edit: 'Переход в режим редактирования...',
+                    delete: 'Элемент удален!'
+                };
+                
+                await modal.alert(actions[action] || 'Неизвестное действие', {
+                    title: 'Действие выполнено',
+                    animation: 'fadeIn'
+                });
+            },
+
+            // Показать полноэкранное модальное окно
+            showFullscreen() {
+                const modal = this.getModalModule();
+                if (!modal) return console.error('Modal module not loaded');
+                
+                modal.showFullscreen(`
+                    <div style="padding: 40px 20px; text-align: center; height: 100%; display: flex; flex-direction: column; justify-content: center;">
+                        <h2 style="margin: 0 0 24px 0; color: #1e293b; font-size: 2em;">Полноэкранное модальное окно</h2>
+                        <p style="margin: 0 0 32px 0; color: #64748b; font-size: 1.1em; max-width: 600px; margin-left: auto; margin-right: auto;">
+                            Это модальное окно занимает весь экран. Идеально подходит для форм, детальных просмотров или презентаций.
+                        </p>
+                        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 40px; border-radius: 16px; color: white; margin: 20px auto; max-width: 500px;">
+                            <h3 style="margin: 0 0 16px 0;">Особенности полноэкранного режима:</h3>
+                            <ul style="text-align: left; margin: 0; padding-left: 20px;">
+                                <li>Максимальное использование пространства</li>
+                                <li>Иммерсивный пользовательский опыт</li>
+                                <li>Подходит для сложного контента</li>
+                                <li>Отличная производительность на мобильных устройствах</li>
+                            </ul>
+                        </div>
+                    </div>
+                `, {
+                    title: 'Полноэкранная демонстрация',
+                    animation: 'fadeIn'
+                });
+            },
+
+            // Показать форму в полноэкранном режиме
+            showFullscreenForm() {
+                const modal = this.getModalModule();
+                if (!modal) return console.error('Modal module not loaded');
+                
+                modal.showFullscreen(`
+                    <div style="max-width: 600px; margin: 0 auto; padding: 40px 20px;">
+                        <h2 style="margin: 0 0 24px 0; color: #1e293b;">Форма обратной связи</h2>
+                        <form style="space-y: 20px;">
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #374151;">Имя:</label>
+                                <input type="text" placeholder="Введите ваше имя" 
+                                       style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 16px;">
+                            </div>
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #374151;">Email:</label>
+                                <input type="email" placeholder="your@email.com" 
+                                       style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 16px;">
+                            </div>
+                            <div style="margin-bottom: 20px;">
+                                <label style="display: block; margin-bottom: 8px; font-weight: 500; color: #374151;">Сообщение:</label>
+                                <textarea placeholder="Введите ваше сообщение..." rows="5"
+                                          style="width: 100%; padding: 12px; border: 1px solid #d1d5db; border-radius: 6px; font-size: 16px; resize: vertical;"></textarea>
+                            </div>
+                            <div style="flex: 1; display: flex; gap: 12px; justify-content: flex-end; margin-top: 32px;">
+                                <button type="button" onclick="this.closest('.modal-overlay').querySelector('.modal-close').click()"
+                                        style="padding: 12px 24px; background: #6b7280; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
+                                    Отмена
+                                </button>
+                                <button type="button" onclick="window.modalDemo.submitForm(this)"
+                                        style="padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px;">
+                                    Отправить
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                `, {
+                    title: 'Новое сообщение',
+                    animation: 'slideFromRight',
+                    showCloseButton: true
+                });
+            },
+
+            // Обработка отправки формы
+            async submitForm(button) {
+                const modal = this.getModalModule();
+                button.textContent = 'Отправка...';
+                button.disabled = true;
+                
+                // Имитация отправки
+                setTimeout(async () => {
+                    // Закрываем форму
+                    button.closest('.modal-overlay').querySelector('.modal-close').click();
+                    
+                    // Показываем сообщение об успехе
+                    await modal.alert('Сообщение отправлено успешно! Мы свяжемся с вами в ближайшее время.', {
+                        title: '✅ Успех',
+                        confirmText: 'Отлично!',
+                        animation: 'scale'
+                    });
+                }, 1500);
+            },
+
+            // Показать модальное окно с определенной анимацией
+            showWithAnimation(animation) {
+                const modal = this.getModalModule();
+                if (!modal) return console.error('Modal module not loaded');
+                
+                const animations = {
+                    fadeIn: 'Плавное появление',
+                    slideUp: 'Выезд снизу',
+                    slideFromRight: 'Выезд справа',
+                    slideFromLeft: 'Выезд слева',
+                    scale: 'Масштабирование'
+                };
+                
+                modal.showCenter(`
+                    <h3 style="margin: 0 0 16px 0; color: #1e293b;">Анимация: ${animations[animation]}</h3>
+                    <p style="margin: 0; color: #64748b;">
+                        Это модальное окно использует анимацию "${animation}". 
+                        Закройте окно и попробуйте другие анимации!
+                    </p>
+                    <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-top: 16px; text-align: center;">
+                        <code style="background: #e5e7eb; padding: 4px 8px; border-radius: 4px; font-size: 14px;">
+                            animation: '${animation}'
+                        </code>
+                    </div>
+                `, {
+                    title: `Демо анимации: ${animation}`,
+                    animation: animation
+                });
+            },
+
+            // Закрыть все модальные окна
+            hideAll() {
+                const modal = this.getModalModule();
+                if (!modal) return console.error('Modal module not loaded');
+                
+                modal.hideAll();
+            },
+
+            // Показать информацию о модальных окнах
+            async showInfo() {
+                const modal = this.getModalModule();
+                if (!modal) return console.error('Modal module not loaded');
+                
+                const info = modal.getModalsInfo();
+                
+                await modal.alert(`
+                    <h4 style="margin: 0 0 16px 0;">Информация о модульных окнах:</h4>
+                    <ul style="margin: 0; padding-left: 20px; text-align: left;">
+                        <li><strong>Открыто:</strong> ${info.open} модальных окон</li>
+                        <li><strong>В очереди:</strong> ${info.queue} модальных окон</li>
+                        <li><strong>Скролл заблокирован:</strong> ${info.bodyScrollLocked ? 'Да' : 'Нет'}</li>
+                        <li><strong>Текущее:</strong> ${info.currentModal || 'Нет'}</li>
+                    </ul>
+                `, {
+                    title: 'Статус модального модуля',
+                    confirmText: 'Закрыть',
+                    animation: 'fadeIn'
+                });
+            }
+        };
+    </script>
+
+    <!-- Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js')
+                    .then(registration => {
+                        console.log('SW registered: ', registration);
+                    })
+                    .catch(registrationError => {
+                        console.log('SW registration failed: ', registrationError);
+                    });
+            });
+        }
+    </script>
+</body>
 </html>
-
-
