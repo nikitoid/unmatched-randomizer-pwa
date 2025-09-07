@@ -96,6 +96,7 @@ class Modal {
         switch (this.type) {
             case 'fullscreen':
             case 'bottom-sheet':
+                this.modalElement.classList.remove('translate-y-0');
                 this.modalElement.classList.add('translate-y-full');
                 break;
             case 'dialog':
