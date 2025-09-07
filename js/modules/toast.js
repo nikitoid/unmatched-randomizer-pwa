@@ -25,7 +25,7 @@ const maxVisibleToasts = 3;
 function displayToast(message, type) {
   visibleToasts++;
   const toastElement = document.createElement("div");
-  toastElement.className = `toast-notification flex items-center w-full p-4 space-x-4 text-gray-200 bg-gray-800 rounded-lg shadow-lg transform transition-all duration-300 opacity-0 translate-x-full relative overflow-hidden`;
+  toastElement.className = `toast-notification flex items-center w-full p-4 space-x-4 rounded-lg shadow-lg transform transition-all duration-300 opacity-0 translate-x-full relative overflow-hidden`;
 
   toastElement.innerHTML = `
         <div class="icon">${icons[type]}</div>

@@ -3,6 +3,20 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+/* Стили для Toast уведомлений */
+.toast-notification {
+  background-color: #ffffff; /* Светлый фон для светлой темы */
+  color: #1a202c; /* Темный текст для светлой темы */
+  border: 1px solid #e2e8f0; /* Светлая граница */
+}
+
+.dark .toast-notification {
+  background-color: #2d3748; /* Темный фон для темной темы */
+  color: #f7fafc; /* Светлый текст для темной темы */
+  border: 1px solid #4a5568; /* Темная граница */
+}
+
+
 .toast-notification::after {
   content: '';
   position: absolute;
@@ -10,8 +24,12 @@ body {
   left: 0;
   height: 4px;
   width: 100%;
-  background-color: rgba(255, 255, 255, 0.7);
+  background-color: rgba(45, 55, 72, 0.7); /* Цвет прогресс-бара для светлой темы */
   transform: translateX(-100%); /* Start off-screen */
+}
+
+.dark .toast-notification::after {
+  background-color: rgba(255, 255, 255, 0.7); /* Цвет прогресс-бара для темной темы */
 }
 
 .toast-notification.animate-progress::after {
