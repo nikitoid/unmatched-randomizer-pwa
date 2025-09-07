@@ -38,12 +38,78 @@ class SimpleModal {
         max-width: 90vw;
         max-height: 90vh;
         overflow: hidden;
+        transition: all 0.3s ease;
+      }
+      
+      /* Базовая анимация по умолчанию */
+      .simple-modal-overlay .simple-modal-container {
         transform: scale(0.8);
-        transition: transform 0.3s ease;
+        opacity: 0;
       }
       
       .simple-modal-overlay.show .simple-modal-container {
         transform: scale(1);
+        opacity: 1;
+      }
+      
+      /* Анимация fadeIn */
+      .simple-modal-overlay.fade-in .simple-modal-container {
+        transform: scale(0.9);
+        opacity: 0;
+        transition: transform 0.3s ease, opacity 0.3s ease;
+      }
+      
+      .simple-modal-overlay.fade-in.show .simple-modal-container {
+        transform: scale(1);
+        opacity: 1;
+      }
+      
+      /* Анимация slideUp */
+      .simple-modal-overlay.slide-up .simple-modal-container {
+        transform: translateY(50px) scale(0.95);
+        opacity: 0;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+      }
+      
+      .simple-modal-overlay.slide-up.show .simple-modal-container {
+        transform: translateY(0) scale(1);
+        opacity: 1;
+      }
+      
+      /* Анимация slideFromRight */
+      .simple-modal-overlay.slide-right .simple-modal-container {
+        transform: translateX(50px) scale(0.95);
+        opacity: 0;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+      }
+      
+      .simple-modal-overlay.slide-right.show .simple-modal-container {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+      }
+      
+      /* Анимация slideFromLeft */
+      .simple-modal-overlay.slide-left .simple-modal-container {
+        transform: translateX(-50px) scale(0.95);
+        opacity: 0;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+      }
+      
+      .simple-modal-overlay.slide-left.show .simple-modal-container {
+        transform: translateX(0) scale(1);
+        opacity: 1;
+      }
+      
+      /* Анимация scale */
+      .simple-modal-overlay.scale .simple-modal-container {
+        transform: scale(0.3);
+        opacity: 0;
+        transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.3s ease;
+      }
+      
+      .simple-modal-overlay.scale.show .simple-modal-container {
+        transform: scale(1);
+        opacity: 1;
       }
       
       .simple-modal-overlay.center {
@@ -182,9 +248,10 @@ class SimpleModal {
   show(content, options = {}) {
     const modalId = ++this.modalId;
     const type = options.type || 'center';
+    const animation = options.animation || 'fade-in';
     
     const overlay = document.createElement('div');
-    overlay.className = `simple-modal-overlay ${type}`;
+    overlay.className = `simple-modal-overlay ${type} ${animation}`;
     overlay.setAttribute('data-modal-id', modalId);
     
     const container = document.createElement('div');
@@ -296,15 +363,15 @@ class SimpleModal {
   }
 
   showCenter(content, options = {}) {
-    return this.show(content, { ...options, type: 'center' });
+    return this.show(content, { ...options, type: 'center', animation: options.animation || 'fade-in' });
   }
 
   showBottomSheet(content, options = {}) {
-    return this.show(content, { ...options, type: 'bottom-sheet' });
+    return this.show(content, { ...options, type: 'bottom-sheet', animation: options.animation || 'slide-up' });
   }
 
   showFullscreen(content, options = {}) {
-    return this.show(content, { ...options, type: 'fullscreen' });
+    return this.show(content, { ...options, type: 'fullscreen', animation: options.animation || 'fade-in' });
   }
 
   confirm(message, options = {}) {
@@ -314,6 +381,7 @@ class SimpleModal {
         showButtons: true,
         confirmText: options.confirmText || 'Подтвердить',
         cancelText: options.cancelText || 'Отмена',
+        animation: options.animation || 'slide-up',
         onConfirm: () => resolve(true),
         onCancel: () => resolve(false)
       });
@@ -326,6 +394,7 @@ class SimpleModal {
         title: options.title || 'Внимание',
         showButtons: true,
         confirmText: options.confirmText || 'OK',
+        animation: options.animation || 'scale',
         onConfirm: () => resolve(true)
       });
     });
@@ -364,7 +433,8 @@ window.modalDemo = {
       <h3 style="margin: 0 0 16px 0; color: #1e293b;">Центрированное модальное окно</h3>
       <p style="margin: 0; color: #64748b;">Это пример центрированного модального окна с кнопкой закрытия.</p>
     `, {
-      title: 'Демонстрация'
+      title: 'Демонстрация',
+      animation: 'fade-in'
     });
   },
 
@@ -375,14 +445,15 @@ window.modalDemo = {
       {
         title: 'Подтверждение действия',
         confirmText: 'Да, продолжить',
-        cancelText: 'Отмена'
+        cancelText: 'Отмена',
+        animation: 'slide-up'
       }
     );
     
     if (result) {
-      modal.alert('Действие подтверждено!', { title: 'Успех' });
+      modal.alert('Действие подтверждено!', { title: 'Успех', animation: 'scale' });
     } else {
-      modal.alert('Действие отменено.', { title: 'Отменено' });
+      modal.alert('Действие отменено.', { title: 'Отменено', animation: 'fade-in' });
     }
   },
 
@@ -392,7 +463,8 @@ window.modalDemo = {
       'Это важное уведомление! Пожалуйста, обратите внимание на эту информацию.',
       {
         title: '⚠️ Внимание',
-        confirmText: 'Понятно'
+        confirmText: 'Понятно',
+        animation: 'scale'
       }
     );
   },
@@ -410,7 +482,8 @@ window.modalDemo = {
         </p>
       </div>
     `, {
-      title: 'Bottom Sheet Demo'
+      title: 'Bottom Sheet Demo',
+      animation: 'slide-up'
     });
   },
 
@@ -474,7 +547,8 @@ window.modalDemo = {
         </div>
       </div>
     `, {
-      title: 'Полноэкранная демонстрация'
+      title: 'Полноэкранная демонстрация',
+      animation: 'fade-in'
     });
   },
 
@@ -512,7 +586,8 @@ window.modalDemo = {
         </form>
       </div>
     `, {
-      title: 'Новое сообщение'
+      title: 'Новое сообщение',
+      animation: 'slide-right'
     });
   },
 
@@ -531,7 +606,8 @@ window.modalDemo = {
       setTimeout(() => {
         modal.alert('Сообщение отправлено успешно! Мы свяжемся с вами в ближайшее время.', {
           title: '✅ Успех',
-          confirmText: 'Отлично!'
+          confirmText: 'Отлично!',
+          animation: 'scale'
         });
       }, 100);
     }, 1500);
@@ -547,7 +623,18 @@ window.modalDemo = {
       scale: 'Масштабирование'
     };
     
-    modal.showCenter(`
+    // Маппинг названий анимаций на CSS классы
+    const animationClasses = {
+      fadeIn: 'fade-in',
+      slideUp: 'slide-up',
+      slideFromRight: 'slide-right',
+      slideFromLeft: 'slide-left',
+      scale: 'scale'
+    };
+    
+    const cssClass = animationClasses[animation] || 'fade-in';
+    
+    modal.show(`
       <h3 style="margin: 0 0 16px 0; color: #1e293b;">Анимация: ${animations[animation]}</h3>
       <p style="margin: 0; color: #64748b;">
         Это модальное окно использует анимацию "${animation}". 
@@ -555,11 +642,13 @@ window.modalDemo = {
       </p>
       <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin-top: 16px; text-align: center;">
         <code style="background: #e5e7eb; padding: 4px 8px; border-radius: 4px; font-size: 14px;">
-          animation: '${animation}'
+          CSS class: '${cssClass}'
         </code>
       </div>
     `, {
-      title: `Демо анимации: ${animation}`
+      title: `Демо анимации: ${animation}`,
+      animation: cssClass,
+      type: 'center'
     });
   },
 
