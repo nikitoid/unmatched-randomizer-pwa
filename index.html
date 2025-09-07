@@ -52,21 +52,40 @@
             </div>
 
             <!-- Demo UI -->
-            <div class="w-full max-w-md p-6 bg-gray-700 rounded-lg shadow-lg mt-6">
-                <h3 class="text-lg font-semibold mb-4 text-center">Демонстрация UI</h3>
-                <div class="grid grid-cols-2 gap-4">
-                    <button onclick="new Modal({ title: 'Dialog', content: 'Это диалоговое окно.' }).open()" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                        Dialog
-                    </button>
-                    <button onclick="new Modal({ type: 'bottom-sheet', title: 'Bottom Sheet', content: 'Это bottom-sheet модальное окно.' }).open()" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                        Bottom Sheet
-                    </button>
-                     <button onclick="Toast.success('Успешно!')" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                        Toast Success
-                    </button>
-                    <button onclick="Toast.error('Ошибка!')" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
-                        Toast Error
-                    </button>
+            <div class="w-full max-w-md p-6 bg-gray-700 rounded-lg shadow-lg mt-6 space-y-6">
+                <h3 class="text-xl font-semibold mb-4 text-center border-b border-gray-600 pb-2">Демонстрация UI</h3>
+                
+                <div>
+                    <h4 class="font-semibold mb-3 text-center">Модальные окна</h4>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <button onclick="new Modal({ title: 'Dialog', content: 'Это диалоговое окно.' }).open()" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                            Dialog
+                        </button>
+                        <button onclick="new Modal({ type: 'bottom-sheet', title: 'Bottom Sheet', content: 'Это bottom-sheet модальное окно.' }).open()" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                            Bottom Sheet
+                        </button>
+                        <button onclick="new Modal({ type: 'fullscreen', title: 'Fullscreen', content: 'Это полноэкранное модальное окно.' }).open()" class="w-full bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                            Fullscreen
+                        </button>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="font-semibold mb-3 text-center">Toast-уведомления</h4>
+                    <div class="grid grid-cols-2 gap-2">
+                         <button onclick="Toast.success('Успешно!')" class="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                            Success
+                        </button>
+                        <button onclick="Toast.error('Ошибка!')" class="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                            Error
+                        </button>
+                        <button onclick="Toast.info('Информация.')" class="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                            Info
+                        </button>
+                        <button onclick="Toast.warning('Предупреждение.')" class="w-full bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300">
+                            Warning
+                        </button>
+                    </div>
                 </div>
             </div>
         </main>

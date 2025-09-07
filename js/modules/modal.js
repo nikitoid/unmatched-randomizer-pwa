@@ -70,23 +70,26 @@ class Modal {
     }
 
     open() {
-        this.overlayElement.classList.remove('opacity-0');
+        // Небольшая задержка, чтобы браузер успел отрисовать начальное состояние перед анимацией
+        setTimeout(() => {
+            this.overlayElement.classList.remove('opacity-0');
 
-        let transformClasses = '';
-         switch (this.type) {
-            case 'fullscreen':
-                transformClasses = 'translate-y-0';
-                break;
-            case 'bottom-sheet':
-                 transformClasses = 'translate-y-0';
-                break;
-            case 'dialog':
-            default:
-                transformClasses = '-translate-y-1/2';
-                break;
-        }
-        this.modalElement.classList.remove('translate-y-full', '-translate-y-3/4');
-        this.modalElement.classList.add(...transformClasses.split(' '));
+            let transformClasses = '';
+             switch (this.type) {
+                case 'fullscreen':
+                    transformClasses = 'translate-y-0';
+                    break;
+                case 'bottom-sheet':
+                     transformClasses = 'translate-y-0';
+                    break;
+                case 'dialog':
+                default:
+                    transformClasses = '-translate-y-1/2';
+                    break;
+            }
+            this.modalElement.classList.remove('translate-y-full', '-translate-y-3/4');
+            this.modalElement.classList.add(...transformClasses.split(' '));
+        }, 10);
     }
 
     close() {
