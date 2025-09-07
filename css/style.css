@@ -15,9 +15,9 @@ body {
 
 @keyframes progress {
   from {
-    width: 100%;
+    transform: translateX(0%);
   }
   to {
-    width: 0%;
+    transform: translateX(-100%);
   }
 }
