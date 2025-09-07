@@ -1,29 +1,27 @@
 {
   "name": "Randomatched",
   "short_name": "Randomatched",
-  "description": "Unmatched aсиссистент для случайного выбора героев.",
+  "description": "Приложение для случайной генерации героев игры Unmatched.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a202c",
   "theme_color": "#2d3748",
+  "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "assets/icons/icon-192.png",
-      "sizes": "192x192",
+      "src": "icons/icon-192.png",
       "type": "image/png",
-      "purpose": "any"
+      "sizes": "192x192"
     },
     {
-      "src": "assets/icons/icon-512.png",
-      "sizes": "512x512",
+      "src": "icons/icon-512.png",
       "type": "image/png",
-      "purpose": "any"
+      "sizes": "512x512"
     },
     {
-      "src": "assets/icons/apple-touch-icon.png",
-      "sizes": "180x180",
+      "src": "icons/apple-touch-icon.png",
       "type": "image/png",
-      "purpose": "apple touch icon"
+      "sizes": "180x180"
     }
   ]
 }

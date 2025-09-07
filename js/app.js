@@ -1,70 +1,243 @@
-import Modal from './modules/modal.js';
-import Toast from './modules/toast.js';
+// --- Импорт и использование модулей ---
+import Modal from "./modules/modal.js";
+import Toast from "./modules/toast.js";
+import Theme from "./modules/theme.js";
+import Storage from "./modules/storage.js";
+import Generator from "./modules/generator.js";
+import Results from "./modules/results.js";
+import ListManager from "./modules/listManager.js";
 
-window.Modal = Modal;
-window.Toast = Toast;
+// --- Инициализация темы ---
+Theme.init();
 
-if ('serviceWorker' in navigator) {
-  const updateOverlay = document.getElementById('update-overlay');
+// --- Логика обновления Service Worker ---
+function registerServiceWorker() {
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((registration) => {
+          console.log("Service Worker зарегистрирован:", registration);
 
-  function showUpdateSpinner() {
-    if (updateOverlay) {
-      updateOverlay.classList.remove('hidden');
-    }
-  }
-
-  // We might not need to hide it manually as the page will reload
-  function hideUpdateSpinner() {
-    if (updateOverlay) {
-      updateOverlay.classList.add('hidden');
-    }
-  }
-
-  // Check if the page was reloaded for an update.
-  if (sessionStorage.getItem('swUpdate')) {
-    Toast.success('Приложение было обновлено!');
-    sessionStorage.removeItem('swUpdate');
-  }
-
-  console.log('APP: Регистрация Service Worker...');
-  navigator.serviceWorker.register('/sw.js').then(reg => {
-    console.log('APP: Service Worker зарегистрирован.');
-    reg.addEventListener('updatefound', () => {
-      console.log('APP: Обнаружена новая версия Service Worker, начинается установка...');
-      const newWorker = reg.installing;
-      newWorker.addEventListener('statechange', () => {
-        console.log('APP: Состояние нового Service Worker изменилось:', newWorker.state);
-        if (newWorker.state === 'installed') {
-          if (navigator.serviceWorker.controller) {
-            // This is an update
-            console.log('APP: Новая версия установлена, начинаем активацию.');
-            newWorker.postMessage({ type: 'SKIP_WAITING' });
-          } else {
-            // This is the first installation
-            console.log('APP: Service Worker установлен впервые.');
-          }
-        }
-      });
+          // Показываем спиннер при обнаружении нового SW
+          registration.addEventListener("updatefound", () => {
+            console.log("Найден новый Service Worker, начинается установка...");
+            const spinner = document.getElementById("update-spinner");
+            if (spinner) spinner.classList.remove("invisible");
+          });
+        })
+        .catch((error) => {
+          console.log("Ошибка регистрации Service Worker:", error);
+        });
     });
 
-    // Show spinner if a new SW is already installing
-    if (reg.installing) {
-        if (navigator.serviceWorker.controller) {
-            showUpdateSpinner();
-        }
-    }
-    
-  }).catch(registrationError => {
-    console.log('SW registration failed: ', registrationError);
-    hideUpdateSpinner(); // Hide spinner on error
-  });
-
-  let refreshing;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (refreshing) return;
-    console.log('APP: Service Worker был обновлен. Перезагрузка страницы...');
-    sessionStorage.setItem('swUpdate', 'true');
-    window.location.reload();
-    refreshing = true;
-  });
+    // Слушаем событие, когда новый SW берет управление на себя.
+    // Это надежный способ узнать, что обновление завершено.
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      // Убеждаемся, что это не первоначальная установка, а именно обновление
+      if (navigator.serviceWorker.controller) {
+        console.log(
+          "Контроллер Service Worker изменился, обновление завершено."
+        );
+        const spinner = document.getElementById("update-spinner");
+        if (spinner) spinner.classList.add("invisible");
+        Toast.success("Приложение обновлено!");
+      }
+    });
+  }
 }
+
+// --- Глобальное состояние и данные ---
+let heroLists = {};
+
+/**
+ * Обновляет выпадающий список героев на главном экране.
+ */
+function updateHeroSelect() {
+  const heroSelect = document.getElementById("hero-select");
+  heroLists = Storage.loadHeroLists() || {};
+  const activeList = Storage.loadActiveList();
+  const defaultList = Storage.loadDefaultList();
+
+  let targetSelection = activeList;
+  if (!heroLists[targetSelection]) {
+    targetSelection = defaultList;
+    if (!heroLists[targetSelection]) {
+      targetSelection = Object.keys(heroLists)[0];
+    }
+    Storage.saveActiveList(targetSelection);
+  }
+
+  heroSelect.innerHTML = "";
+
+  if (Object.keys(heroLists).length === 0) {
+    const option = document.createElement("option");
+    option.textContent = "Списки не найдены";
+    option.disabled = true;
+    heroSelect.appendChild(option);
+    document.getElementById("generate-teams-btn").disabled = true;
+    return;
+  }
+
+  document.getElementById("generate-teams-btn").disabled = false;
+
+  for (const listName in heroLists) {
+    const option = document.createElement("option");
+    option.value = listName;
+    option.textContent = listName;
+    if (listName === targetSelection) {
+      option.selected = true;
+    }
+    heroSelect.appendChild(option);
+  }
+}
+
+/**
+ * Инициализирует состояние приложения при загрузке.
+ */
+function initializeAppState() {
+  heroLists = Storage.loadHeroLists();
+  let defaultList = Storage.loadDefaultList();
+
+  if (!heroLists || Object.keys(heroLists).length === 0) {
+    const starterHeroes = [
+      "Король Артур",
+      "Алиса",
+      "Медуза",
+      "Синдбад",
+      "Красная Шапочка",
+      "Беовульф",
+      "Дракула",
+      "Человек-невидимка",
+      "Ахиллес",
+      "Кровавая Мэри",
+      "Сунь Укун",
+      "Енанга",
+    ];
+    heroLists = { "Стартовый набор": starterHeroes };
+    defaultList = "Стартовый набор";
+
+    Storage.saveHeroLists(heroLists);
+    Storage.saveDefaultList(defaultList);
+    Storage.saveActiveList(defaultList);
+    Toast.info("Создан стартовый набор героев.");
+  }
+  updateHeroSelect();
+}
+
+// --- Обработчики событий ---
+document.addEventListener("DOMContentLoaded", () => {
+  registerServiceWorker(); // Запускаем логику SW
+
+  const themeToggle = document.getElementById("theme-toggle");
+  const themeIconLight = document.getElementById("theme-icon-light");
+  const themeIconDark = document.getElementById("theme-icon-dark");
+
+  const updateThemeIcons = () => {
+    if (document.documentElement.classList.contains("dark")) {
+      themeIconLight.classList.add("hidden");
+      themeIconDark.classList.remove("hidden");
+    } else {
+      themeIconLight.classList.remove("hidden");
+      themeIconDark.classList.add("hidden");
+    }
+  };
+
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      Theme.toggleTheme();
+      updateThemeIcons();
+    });
+  }
+  updateThemeIcons();
+  window.addEventListener("theme-changed", updateThemeIcons);
+
+  initializeAppState();
+
+  const settingsBtn = document.getElementById("settings-btn");
+  if (settingsBtn) {
+    settingsBtn.addEventListener("click", () => {
+      ListManager.show(Storage.loadHeroLists(), initializeAppState);
+    });
+  }
+
+  const generateBtn = document.getElementById("generate-teams-btn");
+  if (generateBtn) {
+    generateBtn.addEventListener("click", () => {
+      const heroSelect = document.getElementById("hero-select");
+      const selectedListName = heroSelect.value;
+      const heroNamesInList = heroLists[selectedListName];
+
+      if (!heroNamesInList) {
+        Toast.error("Пожалуйста, выберите корректный список.");
+        return;
+      }
+
+      const heroesForGeneration = heroNamesInList.map((name) => ({ name }));
+
+      if (heroesForGeneration.length < 4) {
+        Toast.error(
+          `В списке "${selectedListName}" недостаточно героев для генерации (нужно минимум 4, доступно ${heroesForGeneration.length}).`
+        );
+        return;
+      }
+
+      const generation = Generator.generateAll(heroesForGeneration, []);
+
+      if (generation) {
+        Storage.saveLastGeneration(generation);
+        Toast.success("Команды сгенерированы!");
+
+        const allUniqueHeroNames = [
+          ...new Set(Object.values(heroLists).flat()),
+        ];
+        const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
+
+        Results.show(generation, allUniqueHeroes, initializeAppState);
+      } else {
+        Toast.error("Не удалось сгенерировать команды!");
+      }
+    });
+  }
+
+  const heroSelect = document.getElementById("hero-select");
+  if (heroSelect) {
+    heroSelect.addEventListener("change", (e) => {
+      Storage.saveActiveList(e.target.value);
+    });
+  }
+
+  const lastGenBtn = document.getElementById("last-gen-btn");
+  if (lastGenBtn) {
+    lastGenBtn.addEventListener("click", () => {
+      const lastGen = Storage.loadLastGeneration();
+      if (lastGen) {
+        const currentHeroLists = Storage.loadHeroLists() || {};
+        const allUniqueHeroNames = [
+          ...new Set(Object.values(currentHeroLists).flat()),
+        ];
+        const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
+        Results.show(lastGen, allUniqueHeroes, initializeAppState);
+      } else {
+        Toast.info("Нет данных о последней генерации.");
+      }
+    });
+  }
+
+  const resetBtn = document.getElementById("reset-session-btn");
+  if (resetBtn) {
+    resetBtn.addEventListener("click", () => {
+      new Modal({
+        type: "dialog",
+        title: "Подтверждение",
+        content:
+          "Вы уверены, что хотите сбросить сессию? Все временные списки (с пометкой 'искл.') и последняя генерация будут удалены.",
+        onConfirm: () => {
+          Storage.clearSession(); // Новая логика теперь здесь
+          initializeAppState(); // Обновляем UI
+          Toast.success("Сессия сброшена.");
+        },
+      }).open();
+    });
+  }
+});

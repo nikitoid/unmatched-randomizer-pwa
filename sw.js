@@ -1,77 +1,92 @@
-const CACHE_NAME = 'randomatched-v2';
+// Меняем версию кэша, чтобы спровоцировать обновление
+const CACHE_NAME = "randomatched-cache-v1";
 const urlsToCache = [
-  '/',
-  '/index.html',
-  '/css/style.css',
-  '/js/app.js',
-  '/manifest.json',
-  '/favicon.ico',
-  '/assets/icons/apple-touch-icon.png',
-  '/assets/icons/icon-192.png',
-  '/assets/icons/icon-512.png'
+  "/",
+  "/index.html",
+  "/css/style.css",
+  "/js/app.js",
+  "/manifest.json",
+  "/icons/icon-192.png",
+  "/icons/icon-512.png",
+  "/icons/apple-touch-icon.png",
+  // --- Добавленные модули для кэширования ---
+  "/js/modules/generator.js",
+  "/js/modules/listManager.js",
+  "/js/modules/modal.js",
+  "/js/modules/results.js",
+  "/js/modules/storage.js",
+  "/js/modules/theme.js",
+  "/js/modules/toast.js",
 ];
 
-self.addEventListener('install', event => {
-  console.log('SW: Установка новой версии...', CACHE_NAME);
+// Установка Service Worker и кэширование статических файлов
+self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => {
-        console.log('SW: Кеширование новых ресурсов...');
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
+        console.log("Кэш открыт");
         return cache.addAll(urlsToCache);
       })
-  );
-});
-
-self.addEventListener('fetch', event => {
-  event.respondWith(
-    caches.match(event.request)
-      .then(response => {
-        if (response) {
-          console.log('SW: Ресурс найден в кеше:', event.request.url);
-          return response;
-        }
-        console.log('SW: Ресурс не найден в кеше, загрузка из сети:', event.request.url);
-        const fetchRequest = event.request.clone();
-
-        return fetch(fetchRequest).then(
-          response => {
-            if(!response || response.status !== 200 || response.type !== 'basic') {
-              return response;
-            }
-
-            const responseToCache = response.clone();
-
-            caches.open(CACHE_NAME)
-              .then(cache => {
-                cache.put(event.request, responseToCache);
-              });
-
-            return response;
-          }
+      .then(() => {
+        // --- Ключевое изменение: активируем SW немедленно ---
+        console.log(
+          "Service Worker: пропуск ожидания и немедленная активация."
         );
+        return self.skipWaiting();
       })
-    );
+  );
+  console.log("Service Worker: установлен");
 });
 
-self.addEventListener('activate', event => {
-  console.log('SW: Активация новой версии...', CACHE_NAME);
-  const cacheWhitelist = [CACHE_NAME];
+// Активация Service Worker и удаление старых кэшей
+self.addEventListener("activate", (event) => {
+  console.log("Service Worker: активирован");
   event.waitUntil(
-    caches.keys().then(cacheNames => {
+    caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map(cacheName => {
-          if (cacheWhitelist.indexOf(cacheName) === -1) {
-            console.log('SW: Удаление старого кеша:', cacheName);
+        cacheNames.map((cacheName) => {
+          if (cacheName !== CACHE_NAME) {
+            console.log("Service Worker: удаление старого кэша", cacheName);
             return caches.delete(cacheName);
           }
         })
       );
-    }).then(() => self.clients.claim())
+    })
   );
+  // Принудительно делаем новый SW активным для всех клиентов
+  return self.clients.claim();
 });
 
-self.addEventListener('message', event => {
-  if (event.data && event.data.type === 'SKIP_WAITING') {
-    self.skipWaiting();
-  }
+// Обработка запросов (стратегия "Cache First")
+self.addEventListener("fetch", (event) => {
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      // Если ресурс есть в кэше, возвращаем его
+      if (response) {
+        return response;
+      }
+
+      // В противном случае, делаем запрос к сети
+      return fetch(event.request).then((networkResponse) => {
+        // Проверяем, что ответ корректный
+        if (
+          !networkResponse ||
+          networkResponse.status !== 200 ||
+          networkResponse.type !== "basic"
+        ) {
+          return networkResponse;
+        }
+
+        // Клонируем ответ, так как его можно использовать только один раз
+        const responseToCache = networkResponse.clone();
+
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseToCache);
+        });
+
+        return networkResponse;
+      });
+    })
+  );
 });
