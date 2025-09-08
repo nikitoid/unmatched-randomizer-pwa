@@ -31,69 +31,165 @@
     <!-- Иконка для Apple устройств -->
     <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
 
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      // Конфигурация Tailwind для поддержки темной темы через класс 'dark'
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {},
+        },
+      };
+    </script>
+
     <!-- Пользовательские стили -->
     <link rel="stylesheet" href="css/style.css" />
   </head>
-  <body class="font-sans antialiased h-screen overflow-hidden">
-    <!-- Overlay for menu -->
-    <div id="menu-overlay" class="hidden"></div>
-
-    <!-- Side Menu/Drawer -->
-    <aside id="menu-drawer">
-      <div class="menu-header">
-        <!-- User profile placeholder -->
-        <div class="user-profile">
-          <img src="icons/icon-192.png" alt="User Avatar" />
-          <span>Unmatched User</span>
-        </div>
-      </div>
-      <nav class="menu-nav">
-        <a href="#" id="theme-toggle" class="menu-item">
-          <!-- Moon/Sun Icon -->
-          <svg id="theme-icon-light" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-          <svg id="theme-icon-dark" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
-          <span>Сменить тему</span>
-        </a>
-        <a href="#" id="last-gen-btn" class="menu-item">
-          <!-- History Icon -->
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          <span>Последняя генерация</span>
-        </a>
-        <a href="#" id="reset-session-btn" class="menu-item">
-          <!-- Reset Icon -->
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M4 4l16 16"></path></svg>
-          <span>Сброс сессии</span>
-        </a>
-      </nav>
-    </aside>
-
-    <div id="app-container">
+  <body
+    class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased h-screen overflow-hidden"
+  >
+    <div class="container mx-auto px-4 py-4 h-full flex flex-col">
       <!-- Header -->
-      <header id="app-header">
-        <button id="menu-toggle-btn" class="icon-btn">
-          <!-- Hamburger Icon -->
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+      <header class="flex justify-between items-center mb-4 flex-shrink-0">
+        <button
+          id="theme-toggle"
+          class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
+        >
+          <!-- Sun Icon -->
+          <svg
+            id="theme-icon-light"
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+            ></path>
+          </svg>
+          <!-- Moon Icon -->
+          <svg
+            id="theme-icon-dark"
+            class="w-6 h-6 hidden"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+            ></path>
+          </svg>
         </button>
-        <h1 id="header-title">Randomatched</h1>
-        <div class="header-actions">
-           <div id="update-spinner" class="w-10 h-10 flex items-center justify-center invisible"><svg class="animate-spin h-6 w-6 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg></div>
-          <button id="settings-btn" class="icon-btn">
-            <!-- Settings Icon -->
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-          </button>
+        <h1 class="text-3xl font-bold text-teal-500 dark:text-teal-400">
+          Randomatched
+        </h1>
+        <!-- Контейнер для спиннера обновления -->
+        <div
+          id="update-spinner"
+          class="w-10 h-10 flex items-center justify-center invisible"
+        >
+          <svg
+            class="animate-spin h-6 w-6 text-teal-500"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
         </div>
       </header>
 
       <!-- Main Content -->
-      <main id="main-content">
-        <!-- Lists (e.g., hero lists) or results will be rendered here -->
+      <main
+        class="flex-grow flex flex-col items-center justify-center text-center"
+      >
+        <!-- Hero Selection -->
+        <div class="w-full max-w-sm mb-6">
+          <label for="hero-select" class="sr-only">Выберите героев</label>
+          <div class="flex items-center space-x-2">
+            <select
+              id="hero-select"
+              class="block w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            >
+              <option>Все герои</option>
+              <!-- Другие списки будут добавлены позже -->
+            </select>
+            <button
+              id="settings-btn"
+              class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
+            >
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                ></path>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                ></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Main Action Button -->
+        <button
+          id="generate-teams-btn"
+          class="w-full max-w-sm bg-teal-500 active:bg-teal-600 text-white font-bold py-4 px-6 rounded-lg shadow-md text-xl transition-transform transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75"
+        >
+          Сгенерировать команды
+        </button>
       </main>
 
-      <!-- FAB -->
-      <button id="generate-teams-btn" class="fab">
-        <!-- Generate Icon -->
-        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-      </button>
+      <!-- Footer Actions -->
+      <footer
+        class="flex justify-center items-center space-x-4 py-2 flex-shrink-0"
+      >
+        <button
+          id="last-gen-btn"
+          class="text-sm text-gray-600 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
+        >
+          Последняя генерация
+        </button>
+        <span class="text-gray-400 dark:text-gray-600">|</span>
+        <button
+          id="reset-session-btn"
+          class="text-sm text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 transition-colors"
+        >
+          Сброс сессии
+        </button>
+      </footer>
     </div>
 
     <!-- Контейнер для toast-уведомлений -->

@@ -10,34 +10,6 @@ import ListManager from "./modules/listManager.js";
 // --- Инициализация темы ---
 Theme.init();
 
-// --- Меню ---
-function initializeMenu() {
-  const menuToggleBtn = document.getElementById("menu-toggle-btn");
-  const menuDrawer = document.getElementById("menu-drawer");
-  const menuOverlay = document.getElementById("menu-overlay");
-  const appContainer = document.getElementById("app-container");
-
-  const openMenu = () => {
-    menuDrawer.classList.add("open");
-    menuOverlay.classList.add("visible");
-    appContainer.classList.add("menu-open");
-  };
-
-  const closeMenu = () => {
-    menuDrawer.classList.remove("open");
-    menuOverlay.classList.remove("visible");
-    appContainer.classList.remove("menu-open");
-  };
-
-  if (menuToggleBtn) menuToggleBtn.addEventListener("click", openMenu);
-  if (menuOverlay) menuOverlay.addEventListener("click", closeMenu);
-
-  // Закрывать меню при клике на любой пункт
-  document.querySelectorAll(".menu-item").forEach((item) => {
-    item.addEventListener("click", closeMenu);
-  });
-}
-
 // --- Логика обновления Service Worker ---
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
@@ -79,12 +51,10 @@ function registerServiceWorker() {
 let heroLists = {};
 
 /**
- * Рендерит списки героев в основном контенте.
+ * Обновляет выпадающий список героев на главном экране.
  */
-function renderHeroLists() {
-  const mainContent = document.getElementById("main-content");
-  if (!mainContent) return;
-
+function updateHeroSelect() {
+  const heroSelect = document.getElementById("hero-select");
   heroLists = Storage.loadHeroLists() || {};
   const activeList = Storage.loadActiveList();
   const defaultList = Storage.loadDefaultList();
@@ -98,46 +68,28 @@ function renderHeroLists() {
     Storage.saveActiveList(targetSelection);
   }
 
-  mainContent.innerHTML = ""; // Очищаем содержимое
+  heroSelect.innerHTML = "";
 
   if (Object.keys(heroLists).length === 0) {
-    mainContent.innerHTML = `<div class="placeholder">Списки не найдены. Создайте новый в настройках.</div>`;
+    const option = document.createElement("option");
+    option.textContent = "Списки не найдены";
+    option.disabled = true;
+    heroSelect.appendChild(option);
     document.getElementById("generate-teams-btn").disabled = true;
     return;
   }
 
   document.getElementById("generate-teams-btn").disabled = false;
 
-  const listContainer = document.createElement("div");
-  listContainer.className = "list-container";
-
   for (const listName in heroLists) {
-    const listItem = document.createElement("div");
-    listItem.className = "list-item";
+    const option = document.createElement("option");
+    option.value = listName;
+    option.textContent = listName;
     if (listName === targetSelection) {
-      listItem.classList.add("active");
+      option.selected = true;
     }
-    listItem.dataset.listName = listName;
-
-    listItem.innerHTML = `
-      <div class="list-item-icon">
-        <svg fill="currentColor" viewBox="0 0 20 20"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a1 1 0 011-1h14a1 1 0 110 2H3a1 1 0 01-1-1z"></path></svg>
-      </div>
-      <div class="list-item-content">
-        <div class="list-item-title">${listName}</div>
-        <div class="list-item-subtitle">${heroLists[listName].length} героев</div>
-      </div>
-      <div class="list-item-active-indicator"></div>
-    `;
-
-    listItem.addEventListener("click", () => {
-      Storage.saveActiveList(listName);
-      renderHeroLists(); // Перерисовываем, чтобы обновить активный элемент
-    });
-    listContainer.appendChild(listItem);
+    heroSelect.appendChild(option);
   }
-
-  mainContent.appendChild(listContainer);
 }
 
 /**
@@ -170,13 +122,12 @@ function initializeAppState() {
     Storage.saveActiveList(defaultList);
     Toast.info("Создан стартовый набор героев.");
   }
-  renderHeroLists();
+  updateHeroSelect();
 }
 
 // --- Обработчики событий ---
 document.addEventListener("DOMContentLoaded", () => {
   registerServiceWorker(); // Запускаем логику SW
-  initializeMenu(); // Инициализируем меню
 
   // Проверяем, было ли обновление, и показываем уведомление
   if (sessionStorage.getItem("appUpdated") === "true") {
@@ -219,11 +170,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const generateBtn = document.getElementById("generate-teams-btn");
   if (generateBtn) {
     generateBtn.addEventListener("click", () => {
-      const selectedListName = Storage.loadActiveList();
-      if (!selectedListName) {
-        Toast.error("Активный список не выбран.");
-        return;
-      }
+      const heroSelect = document.getElementById("hero-select");
+      const selectedListName = heroSelect.value;
       const heroNamesInList = heroLists[selectedListName];
 
       if (!heroNamesInList) {
@@ -255,6 +203,13 @@ document.addEventListener("DOMContentLoaded", () => {
       } else {
         Toast.error("Не удалось сгенерировать команды!");
       }
+    });
+  }
+
+  const heroSelect = document.getElementById("hero-select");
+  if (heroSelect) {
+    heroSelect.addEventListener("change", (e) => {
+      Storage.saveActiveList(e.target.value);
     });
   }
 
