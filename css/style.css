@@ -77,3 +77,91 @@ body.h-screen {
   height: 100vh; /* Фоллбэк для десктопов */
   height: calc(var(--vh, 1vh) * 100);
 }
+
+/* --- Стили для управления списками --- */
+
+.create-list-btn {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  width: 56px;
+  height: 56px;
+  background-color: #2d8d8d; /* teal-600 */
+  color: white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease-in-out;
+}
+
+.create-list-btn:active {
+  background-color: #287a7a; /* teal-700 */
+  transform: scale(0.95);
+}
+
+.dark .create-list-btn {
+  background-color: #38b2ac; /* teal-400 */
+}
+
+.dark .create-list-btn:active {
+  background-color: #4fd1c5; /* teal-300 */
+}
+
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 10;
+  min-width: 220px;
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  border: 1px solid #e2e8f0;
+  padding: 8px 0;
+}
+
+.dark .dropdown-menu {
+  background-color: #2d3748;
+  border-color: #4a5568;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  width: 100%;
+  text-align: left;
+  font-size: 1rem;
+  line-height: 1.5rem;
+  color: #2d3748;
+  transition: background-color 0.2s;
+}
+
+.dropdown-item svg {
+  width: 20px;
+  height: 20px;
+}
+
+.dark .dropdown-item {
+  color: #f7fafc;
+}
+
+.dropdown-item:hover {
+  background-color: #f7fafc;
+}
+
+.dark .dropdown-item:hover {
+  background-color: #4a5568;
+}
+
+.dropdown-item-delete {
+  color: #e53e3e; /* red-600 */
+}
+
+.dark .dropdown-item-delete {
+  color: #fc8181; /* red-400 */
+}

@@ -24,7 +24,8 @@ const ListManager = {
     star: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`,
     starFilled: `<svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`,
     back: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>`,
-    add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
+    add: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
+    more: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>`,
   },
 
   show(heroLists, onUpdate) {
@@ -65,14 +66,23 @@ const ListManager = {
 
     if (this.currentView === "manager") {
       const listContainer = target.closest("div[data-list-name]");
+      const listName = listContainer ? listContainer.dataset.listName : null;
+
+      // Close all dropdowns if clicking outside
+      if (!target.closest(".dropdown-container")) {
+        this.closeAllDropdowns();
+      }
+
       if (actionButton) {
-        const action = actionButton.dataset.action;
-        const listName = listContainer ? listContainer.dataset.listName : null;
-        if (action === "create") this.handleCreateList();
-        else if (listName) {
+        if (action === "create") {
+          this.handleCreateList();
+        } else if (action === "toggle-dropdown" && listName) {
+          this.toggleDropdown(listName);
+        } else if (listName) {
           if (action === "set-default") this.handleSetDefault(listName);
           if (action === "rename") this.handleRenameList(listName);
           if (action === "delete") this.handleDeleteList(listName);
+          this.closeAllDropdowns(); // Close dropdown after action
         }
       } else if (listContainer && target.closest('[data-action="edit"]')) {
         this.listToEdit = listContainer.dataset.listName;
@@ -115,19 +125,33 @@ const ListManager = {
         const heroCount = this.heroLists[listName].length;
         const isCopy = this.isCopyRegex.test(listName);
 
+        const dropdownItems = `
+            <button class="dropdown-item" data-action="set-default">
+                ${isDefault ? this.icons.starFilled : this.icons.star}
+                <span>${
+                  isDefault ? "По умолчанию" : "Сделать по умолчанию"
+                }</span>
+            </button>
+            <button class="dropdown-item" data-action="rename">
+                ${this.icons.rename}
+                <span>Переименовать</span>
+            </button>
+            <button class="dropdown-item dropdown-item-delete" data-action="delete">
+                ${this.icons.delete}
+                <span>Удалить</span>
+            </button>
+        `;
+
         const buttonsHTML = isCopy
-          ? `<div class="w-28 flex-shrink-0"></div>` // Заглушка для выравнивания
+          ? `<div class="w-12 flex-shrink-0"></div>` // Placeholder for alignment
           : `
-            <div class="flex items-center space-x-1 flex-shrink-0">
-                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
-                    ${isDefault ? this.icons.starFilled : this.icons.star}
+            <div class="relative dropdown-container">
+                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="toggle-dropdown" title="Дополнительно">
+                    ${this.icons.more}
                 </button>
-                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать">
-                    ${this.icons.rename}
-                </button>
-                <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
-                    ${this.icons.delete}
-                </button>
+                <div class="dropdown-menu hidden">
+                    ${dropdownItems}
+                </div>
             </div>`;
 
         const titleClass = isCopy
@@ -163,10 +187,12 @@ const ListManager = {
       .join("");
 
     return `
-        <div class="space-y-3">${listItems}</div>
-        <button data-action="create" class="mt-6 flex items-center justify-center gap-2 w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">
-            ${this.icons.add} <span>Создать новый список</span>
-        </button>`;
+        <div class="relative h-full">
+            <div class="space-y-3 pb-20">${listItems}</div>
+            <button data-action="create" class="create-list-btn" title="Создать новый список">
+                ${this.icons.add}
+            </button>
+        </div>`;
   },
 
   createEditorHTML() {
@@ -329,6 +355,32 @@ const ListManager = {
         this.render();
       },
     }).open();
+  },
+
+  toggleDropdown(listName) {
+    this.closeAllDropdowns(listName);
+    const listElement = this.container.querySelector(
+      `div[data-list-name="${listName}"]`
+    );
+    if (listElement) {
+      const menu = listElement.querySelector(".dropdown-menu");
+      if (menu) {
+        menu.classList.toggle("hidden");
+      }
+    }
+  },
+
+  closeAllDropdowns(excludeListName = null) {
+    const allMenus = this.container.querySelectorAll(".dropdown-menu");
+    allMenus.forEach((menu) => {
+      const listContainer = menu.closest("div[data-list-name]");
+      if (
+        !excludeListName ||
+        (listContainer && listContainer.dataset.listName !== excludeListName)
+      ) {
+        menu.classList.add("hidden");
+      }
+    });
   },
 };
 
