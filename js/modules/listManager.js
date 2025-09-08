@@ -16,6 +16,8 @@ const ListManager = {
   listToEdit: null,
   isListenerAttached: false,
   isCopyRegex: /\(искл\.( \d+)?\)$/, // Регулярное выражение для обнаружения копий
+  lastScrollY: 0,
+  scrollHandler: null,
 
   // ... (иконки остаются без изменений)
   icons: {
@@ -34,21 +36,28 @@ const ListManager = {
     this.onUpdateCallback = onUpdate;
     this.currentView = "manager";
     this.isListenerAttached = false;
+    this.lastScrollY = 0;
 
     this.modal = new Modal({
       type: "fullscreen",
       title: "Управление списками",
-      content: '<div class="modal-content-wrapper h-full"></div>',
+      content:
+        '<div class="modal-content-wrapper h-full overflow-y-auto"></div>',
       confirmText: null,
       onClose: () => {
         this.onUpdateCallback();
         this.isListenerAttached = false;
+        if (this.container && this.scrollHandler) {
+          this.container.removeEventListener("scroll", this.scrollHandler);
+          this.scrollHandler = null;
+        }
       },
     });
 
     this.modal.open();
     this.container = document.querySelector(".modal-content-wrapper");
     this.attachPersistentListener();
+    this.setupScrollListener();
     this.render();
   },
 
@@ -58,6 +67,27 @@ const ListManager = {
     if (!modalElement) return;
     modalElement.addEventListener("click", this.handleClicks.bind(this));
     this.isListenerAttached = true;
+  },
+
+  setupScrollListener() {
+    if (!this.container) return;
+    this.scrollHandler = this.handleScroll.bind(this);
+    this.container.addEventListener("scroll", this.scrollHandler);
+  },
+
+  handleScroll(e) {
+    const fab = document.querySelector(".create-list-btn");
+    if (!fab) return;
+
+    const currentScrollY = e.target.scrollTop;
+
+    if (currentScrollY > this.lastScrollY && currentScrollY > 10) {
+      fab.classList.add("create-list-btn--hidden");
+    } else {
+      fab.classList.remove("create-list-btn--hidden");
+    }
+
+    this.lastScrollY = currentScrollY <= 0 ? 0 : currentScrollY;
   },
 
   handleClicks(e) {
