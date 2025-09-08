@@ -207,7 +207,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const settingsBtn = document.getElementById("settings-btn");
   if (settingsBtn) {
     settingsBtn.addEventListener("click", () => {
-      ListManager.show(Storage.loadHeroLists(), initializeAppState);
+      ListManager.show(Storage.loadHeroLists(), updateHeroSelect);
     });
   }
 

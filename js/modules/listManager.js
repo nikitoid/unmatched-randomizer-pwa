@@ -141,7 +141,7 @@ const ListManager = {
           : "hover:bg-gray-200 dark:hover:bg-gray-700";
         const disabledDeleteClass = disabledCloudAction
           ? "opacity-50 cursor-not-allowed"
-          : "text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50";
+          : "text-red-600 dark:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50";
 
         const buttonsHTML = isCopy
           ? `<div class="w-28 flex-shrink-0"></div>` // Заглушка для выравнивания
@@ -181,12 +181,15 @@ const ListManager = {
           <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
         `;
 
-        const listContainerClass = `flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm`;
-        const editAction = isCopy ? `data-action="edit"` : ""; // Временные списки всегда можно редактировать оффлайн
+        const listContainerClass = `flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm ${
+          disabledCloudAction ? "opacity-60" : ""
+        }`;
+        const editCursorClass =
+          isCopy || !disabledCloudAction ? "cursor-pointer" : "cursor-default";
 
         if (isCopy) {
           return `
-            <div class="${listContainerClass} cursor-pointer" ${editAction} data-list-name="${listName}">
+            <div class="${listContainerClass} cursor-pointer" data-action="edit" data-list-name="${listName}">
                 <div class="flex-grow">
                     ${contentHTML}
                 </div>
@@ -195,7 +198,7 @@ const ListManager = {
         } else {
           return `
             <div class="${listContainerClass}" data-list-name="${listName}">
-                <div class="flex-grow cursor-pointer" data-action="edit">
+                <div class="flex-grow ${editCursorClass}" data-action="edit">
                     ${contentHTML}
                 </div>
                 ${buttonsHTML}
