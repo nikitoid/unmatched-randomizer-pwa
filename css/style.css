@@ -127,6 +127,17 @@ body.h-screen {
     0 4px 6px -2px rgba(0, 0, 0, 0.05);
   border: 1px solid #e2e8f0;
   padding: 8px 0;
+  opacity: 0;
+  transform-origin: top right;
+  transform: scale(0.95);
+  pointer-events: none;
+  transition: opacity 0.15s ease-out, transform 0.15s ease-out;
+}
+
+.dropdown-menu--open {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
 }
 
 .dark .dropdown-menu {

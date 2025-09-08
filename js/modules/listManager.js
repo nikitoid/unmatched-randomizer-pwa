@@ -178,7 +178,7 @@ const ListManager = {
                     <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="toggle-dropdown" title="Дополнительно">
                         ${this.icons.more}
                     </button>
-                    <div class="dropdown-menu hidden">
+                    <div class="dropdown-menu">
                         ${dropdownItems}
                     </div>
                 </div>
@@ -395,7 +395,7 @@ const ListManager = {
     if (listElement) {
       const menu = listElement.querySelector(".dropdown-menu");
       if (menu) {
-        menu.classList.toggle("hidden");
+        menu.classList.toggle("dropdown-menu--open");
       }
     }
   },
@@ -408,7 +408,7 @@ const ListManager = {
         !excludeListName ||
         (listContainer && listContainer.dataset.listName !== excludeListName)
       ) {
-        menu.classList.add("hidden");
+        menu.classList.remove("dropdown-menu--open");
       }
     });
   },
