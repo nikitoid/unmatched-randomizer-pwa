@@ -85,7 +85,6 @@ const FirebaseModule = {
         Storage.addCloudLists(Object.keys(cloudLists)); // Сохраняем информацию об облачных списках
 
         console.log("Lists synchronized from Firestore.");
-        Toast.info("Списки синхронизированы с облаком.");
         return true;
       } else {
         console.warn("Firestore document not found.");

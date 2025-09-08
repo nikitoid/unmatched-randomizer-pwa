@@ -27,6 +27,7 @@ const ListManager = {
     back: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>`,
     add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
     cloud: `<svg class="w-5 h-5 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>`,
+    check: `<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`,
   },
 
   show(heroLists, onUpdate) {
@@ -78,7 +79,12 @@ const ListManager = {
           if (action === "delete") this.handleDeleteList(listName);
         }
       } else if (listContainer && target.closest('[data-action="edit"]')) {
-        this.listToEdit = listContainer.dataset.listName;
+        const listName = listContainer.dataset.listName;
+        if (Storage.isCloudList(listName) && !FirebaseModule.isOnline) {
+          Toast.warning("Редактирование недоступно без подключения к сети.");
+          return;
+        }
+        this.listToEdit = listName;
         this.currentView = "editor";
         this.render();
       }
@@ -116,6 +122,7 @@ const ListManager = {
     if (success) {
       this.heroLists = Storage.loadHeroLists();
       this.render();
+      Toast.success("Списки синхронизированы с облаком.");
     }
   },
 
@@ -126,6 +133,15 @@ const ListManager = {
         const heroCount = this.heroLists[listName].length;
         const isCopy = this.isCopyRegex.test(listName);
         const isCloud = Storage.isCloudList(listName);
+        const isOffline = !FirebaseModule.isOnline;
+
+        const disabledCloudAction = isCloud && isOffline;
+        const disabledClass = disabledCloudAction
+          ? "opacity-50 cursor-not-allowed"
+          : "hover:bg-gray-200 dark:hover:bg-gray-700";
+        const disabledDeleteClass = disabledCloudAction
+          ? "opacity-50 cursor-not-allowed"
+          : "text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50";
 
         const buttonsHTML = isCopy
           ? `<div class="w-28 flex-shrink-0"></div>` // Заглушка для выравнивания
@@ -134,10 +150,14 @@ const ListManager = {
                 <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
                     ${isDefault ? this.icons.starFilled : this.icons.star}
                 </button>
-                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать">
+                <button class="p-2 rounded-full transition-colors ${disabledClass}" data-action="rename" title="Переименовать" ${
+              disabledCloudAction ? "disabled" : ""
+            }>
                     ${this.icons.rename}
                 </button>
-                <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
+                <button class="p-2 rounded-full transition-colors ${disabledDeleteClass}" data-action="delete" title="Удалить" ${
+              disabledCloudAction ? "disabled" : ""
+            }>
                     ${this.icons.delete}
                 </button>
             </div>`;
@@ -161,9 +181,12 @@ const ListManager = {
           <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
         `;
 
+        const listContainerClass = `flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm`;
+        const editAction = isCopy ? `data-action="edit"` : ""; // Временные списки всегда можно редактировать оффлайн
+
         if (isCopy) {
           return `
-            <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm cursor-pointer" data-list-name="${listName}" data-action="edit">
+            <div class="${listContainerClass} cursor-pointer" ${editAction} data-list-name="${listName}">
                 <div class="flex-grow">
                     ${contentHTML}
                 </div>
@@ -171,7 +194,7 @@ const ListManager = {
             </div>`;
         } else {
           return `
-            <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
+            <div class="${listContainerClass}" data-list-name="${listName}">
                 <div class="flex-grow cursor-pointer" data-action="edit">
                     ${contentHTML}
                 </div>
