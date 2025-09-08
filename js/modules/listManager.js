@@ -74,6 +74,7 @@ const ListManager = {
       }
 
       if (actionButton) {
+        const action = actionButton.dataset.action; // Correctly get action here
         if (action === "create") {
           this.handleCreateList();
         } else if (action === "toggle-dropdown" && listName) {
@@ -126,12 +127,6 @@ const ListManager = {
         const isCopy = this.isCopyRegex.test(listName);
 
         const dropdownItems = `
-            <button class="dropdown-item" data-action="set-default">
-                ${isDefault ? this.icons.starFilled : this.icons.star}
-                <span>${
-                  isDefault ? "По умолчанию" : "Сделать по умолчанию"
-                }</span>
-            </button>
             <button class="dropdown-item" data-action="rename">
                 ${this.icons.rename}
                 <span>Переименовать</span>
@@ -145,12 +140,17 @@ const ListManager = {
         const buttonsHTML = isCopy
           ? `<div class="w-12 flex-shrink-0"></div>` // Placeholder for alignment
           : `
-            <div class="relative dropdown-container">
-                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="toggle-dropdown" title="Дополнительно">
-                    ${this.icons.more}
+            <div class="flex items-center space-x-1 flex-shrink-0">
+                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
+                    ${isDefault ? this.icons.starFilled : this.icons.star}
                 </button>
-                <div class="dropdown-menu hidden">
-                    ${dropdownItems}
+                <div class="relative dropdown-container">
+                    <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="toggle-dropdown" title="Дополнительно">
+                        ${this.icons.more}
+                    </button>
+                    <div class="dropdown-menu hidden">
+                        ${dropdownItems}
+                    </div>
                 </div>
             </div>`;
 
