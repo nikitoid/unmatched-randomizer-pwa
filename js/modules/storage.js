@@ -7,6 +7,7 @@ const HERO_LISTS_KEY = "hero-lists";
 const DEFAULT_LIST_KEY = "default-list-name";
 const ACTIVE_LIST_KEY = "active-list-name";
 const ORIGINAL_LIST_MAP_KEY = "original-list-map"; // Карта для отслеживания оригиналов
+const CLOUD_LISTS_KEY = "cloud-lists"; // Списки, синхронизированные с облаком
 
 const Storage = {
   get(key) {
@@ -75,6 +76,27 @@ const Storage = {
 
   loadActiveList() {
     return this.get(ACTIVE_LIST_KEY);
+  },
+
+  // --- Методы для облачных списков ---
+  addCloudLists(listNames) {
+    const existing = this.getCloudLists();
+    const updated = Array.from(new Set([...existing, ...listNames]));
+    this.set(CLOUD_LISTS_KEY, updated);
+  },
+
+  removeCloudList(listName) {
+    const existing = this.getCloudLists();
+    const updated = existing.filter((name) => name !== listName);
+    this.set(CLOUD_LISTS_KEY, updated);
+  },
+
+  getCloudLists() {
+    return this.get(CLOUD_LISTS_KEY) || [];
+  },
+
+  isCloudList(listName) {
+    return this.getCloudLists().includes(listName);
   },
 
   // --- Методы для карт оригинальных списков ---

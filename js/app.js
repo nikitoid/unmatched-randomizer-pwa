@@ -6,6 +6,7 @@ import Storage from "./modules/storage.js";
 import Generator from "./modules/generator.js";
 import Results from "./modules/results.js";
 import ListManager from "./modules/listManager.js";
+import FirebaseModule from "./modules/firebase.js";
 
 // --- Инициализация темы ---
 Theme.init();
@@ -95,7 +96,10 @@ function updateHeroSelect() {
 /**
  * Инициализирует состояние приложения при загрузке.
  */
-function initializeAppState() {
+async function initializeAppState() {
+  // Инициализация Firebase при старте
+  await FirebaseModule.init();
+
   heroLists = Storage.loadHeroLists();
   let defaultList = Storage.loadDefaultList();
 
@@ -123,6 +127,13 @@ function initializeAppState() {
     Toast.info("Создан стартовый набор героев.");
   }
   updateHeroSelect();
+
+  // После инициализации и загрузки данных из кэша,
+  // проверяем онлайн-статус и синхронизируемся с облаком
+  if (FirebaseModule.isOnline) {
+    await FirebaseModule.syncLists();
+    updateHeroSelect(); // Обновляем select еще раз после синхронизации
+  }
 }
 
 // --- Обработчики событий ---
