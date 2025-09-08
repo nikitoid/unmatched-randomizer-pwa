@@ -1,11 +1,17 @@
-/* global firebase */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  updateDoc,
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js";
+import {
+  getAuth,
+  signInAnonymously,
+} from "https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js";
 import Auth from "./auth.js";
 import Storage from "./storage.js";
 import Toast from "./toast.js";
-
-const { initializeApp } = firebase;
-const { getFirestore, doc, getDoc, updateDoc } = firebase.firestore;
-const { getAuth, signInAnonymously } = firebase.auth;
 
 const firebaseConfig = {
   apiKey: "AIzaSyBSvSbR_NJj7riu0HZPz3nile1X4tuxfsI",
