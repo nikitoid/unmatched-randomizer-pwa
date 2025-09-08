@@ -74,15 +74,26 @@ const FirebaseModule = {
       if (docSnap.exists()) {
         const cloudData = docSnap.data();
         const cloudLists = cloudData.lists || {};
+        const localLists = Storage.loadHeroLists() || {};
 
-        // Получаем локальные списки
-        const localLists = Storage.loadHeroLists();
+        const newCloudListNames = [];
 
-        // Объединяем списки: облачные имеют приоритет
-        const mergedLists = { ...localLists, ...cloudLists };
+        for (const cloudListName in cloudLists) {
+          let finalListName = cloudListName;
+          let counter = 1;
 
-        Storage.saveHeroLists(mergedLists);
-        Storage.addCloudLists(Object.keys(cloudLists)); // Сохраняем информацию об облачных списках
+          // Если список с таким именем уже существует локально, генерируем новое имя
+          while (localLists.hasOwnProperty(finalListName)) {
+            counter++;
+            finalListName = `${cloudListName} (cloud ${counter})`;
+          }
+
+          localLists[finalListName] = cloudLists[cloudListName];
+          newCloudListNames.push(finalListName);
+        }
+
+        Storage.saveHeroLists(localLists);
+        Storage.addCloudLists(newCloudListNames); // Обновляем метаданные
 
         console.log("Lists synchronized from Firestore.");
         return true;
