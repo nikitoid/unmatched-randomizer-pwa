@@ -1,5 +1,5 @@
 // Меняем версию кэша, чтобы спровоцировать обновление
-const CACHE_NAME = "randomatched-cache-v11"; 
+const CACHE_NAME = "randomatched-cache-v12"; 
 const urlsToCache = [
   "/",
   "/index.html",

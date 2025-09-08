@@ -8,6 +8,8 @@ import Results from "./modules/results.js";
 import ListManager from "./modules/listManager.js";
 import FirebaseModule from "./modules/firebase.js";
 
+let isUpdatePending = false; // Флаг для отслеживания обновления SW
+
 // --- Инициализация темы ---
 Theme.init();
 
@@ -20,9 +22,10 @@ function registerServiceWorker() {
         .then((registration) => {
           console.log("Service Worker зарегистрирован:", registration);
 
-          // Показываем спиннер при обнаружении нового SW
+          // Показываем спиннер и устанавливаем флаг при обнаружении нового SW
           registration.addEventListener("updatefound", () => {
             console.log("Найден новый Service Worker, начинается установка...");
+            isUpdatePending = true;
             const spinner = document.getElementById("update-spinner");
             if (spinner) spinner.classList.remove("invisible");
           });
@@ -158,8 +161,8 @@ async function initializeAppState() {
   updateHeroSelect();
 
   // После инициализации и загрузки данных из кэша,
-  // проверяем онлайн-статус и синхронизируемся с облаком
-  if (FirebaseModule.isOnline) {
+  // проверяем онлайн-статус и синхронизируемся с облаком, если нет обновления
+  if (FirebaseModule.isOnline && !isUpdatePending) {
     SyncFeedback.start();
     const success = await FirebaseModule.syncLists();
     if (success) {

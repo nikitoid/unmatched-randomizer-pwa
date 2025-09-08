@@ -182,14 +182,16 @@ const ListManager = {
         `;
 
         const listContainerClass = `flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm ${
-          disabledCloudAction ? "opacity-60" : ""
+          disabledCloudAction ? "opacity-60 cursor-not-allowed" : ""
         }`;
-        const editCursorClass =
-          isCopy || !disabledCloudAction ? "cursor-pointer" : "cursor-default";
+        const editAttributes =
+          isCopy || !disabledCloudAction
+            ? 'data-action="edit" class="flex-grow cursor-pointer"'
+            : 'class="flex-grow"'; // Убираем data-action и курсор
 
         if (isCopy) {
           return `
-            <div class="${listContainerClass} cursor-pointer" data-action="edit" data-list-name="${listName}">
+            <div class="${listContainerClass}" data-action="edit" data-list-name="${listName}">
                 <div class="flex-grow">
                     ${contentHTML}
                 </div>
@@ -198,7 +200,7 @@ const ListManager = {
         } else {
           return `
             <div class="${listContainerClass}" data-list-name="${listName}">
-                <div class="flex-grow ${editCursorClass}" data-action="edit">
+                <div ${editAttributes}>
                     ${contentHTML}
                 </div>
                 ${buttonsHTML}
@@ -285,6 +287,7 @@ const ListManager = {
   },
 
   handleCreateList() {
+    const isOffline = !FirebaseModule.isOnline;
     const content = `
         <p class="text-sm mb-4 text-gray-600 dark:text-gray-400">Введите название и выберите тип списка.</p>
         <input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Например, 'Только маги'">
@@ -293,8 +296,12 @@ const ListManager = {
                 <input type="radio" name="list-type" value="local" class="form-radio h-5 w-5 text-teal-600" checked>
                 <span class="ml-2 text-gray-700 dark:text-gray-200">Локальный</span>
             </label>
-            <label class="flex items-center mt-2">
-                <input type="radio" name="list-type" value="cloud" class="form-radio h-5 w-5 text-teal-600">
+            <label class="flex items-center mt-2 ${
+              isOffline ? "opacity-50 cursor-not-allowed" : ""
+            }">
+                <input type="radio" name="list-type" value="cloud" class="form-radio h-5 w-5 text-teal-600" ${
+              isOffline ? "disabled" : ""
+            }>
                 <span class="ml-2 text-gray-700 dark:text-gray-200">Облачный (требует пароль)</span>
             </label>
         </div>`;
