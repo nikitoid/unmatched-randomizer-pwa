@@ -22,10 +22,9 @@ function registerServiceWorker() {
         .then((registration) => {
           console.log("Service Worker зарегистрирован:", registration);
 
-          // Показываем спиннер и устанавливаем флаг при обнаружении нового SW
+          // Показываем спиннер при обнаружении нового SW
           registration.addEventListener("updatefound", () => {
             console.log("Найден новый Service Worker, начинается установка...");
-            isUpdatePending = true;
             const spinner = document.getElementById("update-spinner");
             if (spinner) spinner.classList.remove("invisible");
           });
@@ -128,10 +127,7 @@ const SyncFeedback = {
 /**
  * Инициализирует состояние приложения при загрузке.
  */
-async function initializeAppState() {
-  // Инициализация Firebase при старте
-  await FirebaseModule.init();
-
+function initializeAppState() {
   heroLists = Storage.loadHeroLists();
   let defaultList = Storage.loadDefaultList();
 
@@ -159,10 +155,15 @@ async function initializeAppState() {
     Toast.info("Создан стартовый набор героев.");
   }
   updateHeroSelect();
+}
 
-  // После инициализации и загрузки данных из кэша,
-  // проверяем онлайн-статус и синхронизируемся с облаком, если нет обновления
-  if (FirebaseModule.isOnline && !isUpdatePending) {
+/**
+ * Инициализирует Firebase и выполняет синхронизацию с облаком.
+ */
+async function initializeFirebaseAndSync() {
+  await FirebaseModule.init();
+
+  if (FirebaseModule.isOnline) {
     SyncFeedback.start();
     const success = await FirebaseModule.syncLists();
     if (success) {
@@ -205,7 +206,14 @@ document.addEventListener("DOMContentLoaded", () => {
   updateThemeIcons();
   window.addEventListener("theme-changed", updateThemeIcons);
 
+  // Сначала инициализируем приложение с локальными данными
   initializeAppState();
+
+  // Затем, когда SW будет готов, инициализируем Firebase и синхронизируемся
+  navigator.serviceWorker.ready.then((registration) => {
+    console.log("Service Worker готов:", registration);
+    initializeFirebaseAndSync();
+  });
 
   const settingsBtn = document.getElementById("settings-btn");
   if (settingsBtn) {
