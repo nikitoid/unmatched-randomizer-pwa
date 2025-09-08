@@ -1,5 +1,5 @@
 // Меняем версию кэша, чтобы спровоцировать обновление
-const CACHE_NAME = "randomatched-cache-v14"; 
+const CACHE_NAME = "randomatched-cache-v7";
 const urlsToCache = [
   "/",
   "/index.html",
@@ -17,8 +17,6 @@ const urlsToCache = [
   "/js/modules/storage.js",
   "/js/modules/theme.js",
   "/js/modules/toast.js",
-  "/js/modules/firebase.js",
-  "/js/modules/auth.js",
 ];
 
 // Установка Service Worker и кэширование статических файлов
@@ -60,15 +58,8 @@ self.addEventListener("activate", (event) => {
   return self.clients.claim();
 });
 
-// Обработка запросов (стратегия "Cache First" с исключением для Firebase)
+// Обработка запросов (стратегия "Cache First")
 self.addEventListener("fetch", (event) => {
-  const requestUrl = new URL(event.request.url);
-
-  // Игнорируем запросы к Firestore API
-  if (requestUrl.hostname === "firestore.googleapis.com") {
-    return;
-  }
-
   event.respondWith(
     caches.match(event.request).then((response) => {
       // Если ресурс есть в кэше, возвращаем его

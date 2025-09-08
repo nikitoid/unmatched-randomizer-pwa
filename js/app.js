@@ -6,9 +6,6 @@ import Storage from "./modules/storage.js";
 import Generator from "./modules/generator.js";
 import Results from "./modules/results.js";
 import ListManager from "./modules/listManager.js";
-import FirebaseModule from "./modules/firebase.js";
-
-let isUpdatePending = false; // Флаг для отслеживания обновления SW
 
 // --- Инициализация темы ---
 Theme.init();
@@ -96,35 +93,6 @@ function updateHeroSelect() {
 }
 
 /**
- * Управляет визуальной обратной связью для кнопки настроек во время синхронизации.
- */
-const SyncFeedback = {
-  settingsBtn: document.getElementById("settings-btn"),
-  originalIcon: null,
-  spinnerIcon: `<svg class="animate-spin h-6 w-6 text-teal-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>`,
-  checkIcon: `<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`,
-
-  start() {
-    if (!this.settingsBtn) return;
-    this.originalIcon = this.settingsBtn.innerHTML;
-    this.settingsBtn.innerHTML = this.spinnerIcon;
-    this.settingsBtn.disabled = true;
-  },
-
-  success() {
-    if (!this.settingsBtn) return;
-    this.settingsBtn.innerHTML = this.checkIcon;
-    setTimeout(() => this.reset(), 1000);
-  },
-
-  reset() {
-    if (!this.settingsBtn) return;
-    this.settingsBtn.innerHTML = this.originalIcon;
-    this.settingsBtn.disabled = false;
-  },
-};
-
-/**
  * Инициализирует состояние приложения при загрузке.
  */
 function initializeAppState() {
@@ -155,22 +123,6 @@ function initializeAppState() {
     Toast.info("Создан стартовый набор героев.");
   }
   updateHeroSelect();
-}
-
-/**
- * Инициализирует Firebase и выполняет синхронизацию с облаком.
- */
-async function initializeFirebaseAndSync() {
-  await FirebaseModule.init();
-
-  if (FirebaseModule.isOnline) {
-    SyncFeedback.start();
-    const success = await FirebaseModule.syncLists();
-    if (success) {
-      updateHeroSelect(); // Обновляем select еще раз после синхронизации
-    }
-    SyncFeedback.success();
-  }
 }
 
 // --- Обработчики событий ---
@@ -206,19 +158,12 @@ document.addEventListener("DOMContentLoaded", () => {
   updateThemeIcons();
   window.addEventListener("theme-changed", updateThemeIcons);
 
-  // Сначала инициализируем приложение с локальными данными
   initializeAppState();
-
-  // Затем, когда SW будет готов, инициализируем Firebase и синхронизируемся
-  navigator.serviceWorker.ready.then((registration) => {
-    console.log("Service Worker готов:", registration);
-    initializeFirebaseAndSync();
-  });
 
   const settingsBtn = document.getElementById("settings-btn");
   if (settingsBtn) {
     settingsBtn.addEventListener("click", () => {
-      ListManager.show(Storage.loadHeroLists(), updateHeroSelect);
+      ListManager.show(Storage.loadHeroLists(), initializeAppState);
     });
   }
 
