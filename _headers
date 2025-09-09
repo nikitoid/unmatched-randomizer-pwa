@@ -1,2 +1,23 @@
+# Service Worker
 /service-worker.js
-Cache-Control: no-cache
+  Cache-Control: no-cache
+
+# Manifest
+/manifest.json
+  Content-Type: application/manifest+json
+  Cache-Control: public, max-age=31536000
+
+# Icons
+/icons/*
+  Cache-Control: public, max-age=31536000
+
+# Static Assets
+/*.css
+  Cache-Control: public, max-age=31536000
+
+/*.js
+  Cache-Control: public, max-age=31536000
+
+# HTML
+/*.html
+  Cache-Control: public, max-age=0, must-revalidate
