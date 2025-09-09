@@ -19,7 +19,6 @@ const ListManager = {
   lastScrollY: 0,
   scrollHandler: null,
 
-  // ... (иконки остаются без изменений)
   icons: {
     rename: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg>`,
     delete: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`,
@@ -28,6 +27,9 @@ const ListManager = {
     back: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>`,
     add: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
     more: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>`,
+    moreHorizontal: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>`,
+    local: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5a2 2 0 012-2h4a2 2 0 012 2v2H8V5z"></path></svg>`,
+    cloud: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path></svg>`,
   },
 
   show(heroLists, onUpdate) {
@@ -104,16 +106,24 @@ const ListManager = {
       }
 
       if (actionButton) {
-        const action = actionButton.dataset.action; // Correctly get action here
+        const action = actionButton.dataset.action;
+        const groupType = actionButton.dataset.groupType;
+        
         if (action === "create") {
           this.handleCreateList();
+        } else if (action === "create-list" && groupType) {
+          this.handleCreateListForGroup(groupType);
         } else if (action === "toggle-dropdown" && listName) {
           this.toggleDropdown(listName);
+        } else if (action === "toggle-group-dropdown" && groupType) {
+          this.toggleGroupDropdown(groupType);
         } else if (listName) {
           if (action === "set-default") this.handleSetDefault(listName);
           if (action === "rename") this.handleRenameList(listName);
           if (action === "delete") this.handleDeleteList(listName);
           this.closeAllDropdowns(); // Close dropdown after action
+        } else if (action === "create-list" && groupType) {
+          this.closeAllDropdowns(null, groupType); // Close group dropdown after action
         }
       } else if (listContainer && target.closest('[data-action="edit"]')) {
         this.listToEdit = listContainer.dataset.listName;
@@ -150,79 +160,144 @@ const ListManager = {
   },
 
   createManagerHTML() {
-    const listItems = Object.keys(this.heroLists)
-      .map((listName) => {
+    // Разделяем списки на локальные и облачные
+    const localLists = Object.keys(this.heroLists).filter(listName => 
+      !this.isCopyRegex.test(listName)
+    );
+    const cloudLists = []; // Пока пустой массив для облачных списков
+
+    const createListGroupHTML = (groupName, lists, groupType) => {
+      if (lists.length === 0 && groupType === 'cloud') {
+        return `
+          <div class="list-group">
+            <div class="list-group-header">
+              <h2 class="list-group-title">${groupName}</h2>
+              <div class="relative dropdown-container">
+                <button class="list-group-menu-btn" data-action="toggle-group-dropdown" data-group-type="${groupType}" title="Дополнительно">
+                  ${this.icons.moreHorizontal}
+                </button>
+                <div class="dropdown-menu">
+                  <button class="dropdown-item" data-action="create-list" data-group-type="${groupType}">
+                    ${this.icons.add}
+                    <span>Создать новый список</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="text-center py-8 text-gray-500 dark:text-gray-400">
+              <p>Пока нет облачных списков</p>
+            </div>
+          </div>`;
+      }
+
+      const listItemsHTML = lists.map(listName => {
         const isDefault = listName === this.defaultList;
         const heroCount = this.heroLists[listName].length;
         const isCopy = this.isCopyRegex.test(listName);
 
         const dropdownItems = `
-            <button class="dropdown-item" data-action="rename">
-                ${this.icons.rename}
-                <span>Переименовать</span>
-            </button>
-            <button class="dropdown-item dropdown-item-delete" data-action="delete">
-                ${this.icons.delete}
-                <span>Удалить</span>
-            </button>
+          <button class="dropdown-item" data-action="rename">
+            ${this.icons.rename}
+            <span>Переименовать</span>
+          </button>
+          <button class="dropdown-item dropdown-item-delete" data-action="delete">
+            ${this.icons.delete}
+            <span>Удалить</span>
+          </button>
         `;
 
+        const iconType = groupType === 'local' ? 'local' : 'cloud';
+        const iconClass = groupType === 'local' ? 'local' : 'cloud';
+
         const buttonsHTML = isCopy
-          ? `<div class="w-12 flex-shrink-0"></div>` // Placeholder for alignment
+          ? `<div class="w-12 flex-shrink-0"></div>`
           : `
             <div class="flex items-center space-x-1 flex-shrink-0">
-                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
-                    ${isDefault ? this.icons.starFilled : this.icons.star}
+              <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
+                ${isDefault ? this.icons.starFilled : this.icons.star}
+              </button>
+              <div class="relative dropdown-container">
+                <button class="list-item-menu-btn" data-action="toggle-dropdown" title="Дополнительно">
+                  ${this.icons.more}
                 </button>
-                <div class="relative dropdown-container">
-                    <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="toggle-dropdown" title="Дополнительно">
-                        ${this.icons.more}
-                    </button>
-                    <div class="dropdown-menu">
-                        ${dropdownItems}
-                    </div>
+                <div class="dropdown-menu">
+                  ${dropdownItems}
                 </div>
+              </div>
             </div>`;
 
         const titleClass = isCopy
           ? "text-gray-500 dark:text-gray-400"
-          : "text-gray-800 dark:text-gray-100";
+          : "text-white";
         const subtitle = isCopy
           ? `${heroCount} героев (временный)`
           : `${heroCount} героев`;
 
         const contentHTML = `
-          <p class="font-semibold text-lg ${titleClass}">${listName}</p>
-          <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
+          <div class="list-item-content">
+            <h3 class="list-item-title ${titleClass}">${listName}</h3>
+            <p class="list-item-subtitle">${subtitle}</p>
+          </div>
         `;
 
         if (isCopy) {
           return `
-            <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm cursor-pointer" data-list-name="${listName}" data-action="edit">
-                <div class="flex-grow">
-                    ${contentHTML}
-                </div>
-                ${buttonsHTML}
+            <div class="list-item" data-list-name="${listName}" data-action="edit">
+              <div class="list-item-icon ${iconClass}">
+                ${this.icons[iconType]}
+              </div>
+              ${contentHTML}
+              ${buttonsHTML}
             </div>`;
         } else {
           return `
-            <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
-                <div class="flex-grow cursor-pointer" data-action="edit">
-                    ${contentHTML}
-                </div>
-                ${buttonsHTML}
+            <div class="list-item" data-list-name="${listName}">
+              <div class="list-item-icon ${iconClass}">
+                ${this.icons[iconType]}
+              </div>
+              <div class="flex-grow cursor-pointer" data-action="edit">
+                ${contentHTML}
+              </div>
+              ${buttonsHTML}
             </div>`;
         }
-      })
-      .join("");
+      }).join('');
+
+      return `
+        <div class="list-group">
+          <div class="list-group-header">
+            <h2 class="list-group-title">${groupName}</h2>
+            <div class="relative dropdown-container">
+              <button class="list-group-menu-btn" data-action="toggle-group-dropdown" data-group-type="${groupType}" title="Дополнительно">
+                ${this.icons.moreHorizontal}
+              </button>
+              <div class="dropdown-menu">
+                <button class="dropdown-item" data-action="create-list" data-group-type="${groupType}">
+                  ${this.icons.add}
+                  <span>Создать новый список</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-2">
+            ${listItemsHTML}
+          </div>
+        </div>`;
+    };
+
+    const localGroupHTML = createListGroupHTML('Локальные', localLists, 'local');
+    const cloudGroupHTML = createListGroupHTML('Облачные', cloudLists, 'cloud');
 
     return `
-        <div class="relative h-full">
-            <div class="space-y-3 pb-20">${listItems}</div>
-            <button data-action="create" class="create-list-btn" title="Создать новый список">
-                ${this.icons.add}
-            </button>
-        </div>`;
+      <div class="relative h-full">
+        <div class="pb-20">
+          ${localGroupHTML}
+          ${cloudGroupHTML}
+        </div>
+        <button data-action="create" class="create-list-btn" title="Создать новый список">
+          ${this.icons.add}
+        </button>
+      </div>`;
   },
 
   createEditorHTML() {
@@ -274,11 +349,16 @@ const ListManager = {
   },
 
   handleCreateList() {
+    this.handleCreateListForGroup('local');
+  },
+
+  handleCreateListForGroup(groupType) {
+    const groupName = groupType === 'local' ? 'локальный' : 'облачный';
     const content = `
-        <p class="text-sm mb-2 text-gray-600 dark:text-gray-400">Введите название для нового списка героев.</p>
+        <p class="text-sm mb-2 text-gray-600 dark:text-gray-400">Введите название для нового ${groupName} списка героев.</p>
         <input type="text" id="new-list-name-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" placeholder="Например, 'Только маги'">`;
     new Modal({
-      title: "Создать новый список",
+      title: `Создать новый ${groupName} список`,
       content: content,
       onConfirm: () => {
         const input = document.getElementById("new-list-name-input");
@@ -293,7 +373,7 @@ const ListManager = {
         if (newName && !this.heroLists[newName]) {
           this.heroLists[newName] = [];
           Storage.saveHeroLists(this.heroLists);
-          Toast.success(`Список "${newName}" создан.`);
+          Toast.success(`${groupName.charAt(0).toUpperCase() + groupName.slice(1)} список "${newName}" создан.`);
           this.listToEdit = newName;
           this.currentView = "editor";
           this.render();
@@ -400,14 +480,30 @@ const ListManager = {
     }
   },
 
-  closeAllDropdowns(excludeListName = null) {
+  toggleGroupDropdown(groupType) {
+    this.closeAllDropdowns();
+    const groupElement = this.container.querySelector(
+      `button[data-group-type="${groupType}"]`
+    );
+    if (groupElement) {
+      const menu = groupElement.closest(".dropdown-container").querySelector(".dropdown-menu");
+      if (menu) {
+        menu.classList.toggle("dropdown-menu--open");
+      }
+    }
+  },
+
+  closeAllDropdowns(excludeListName = null, excludeGroupType = null) {
     const allMenus = this.container.querySelectorAll(".dropdown-menu");
     allMenus.forEach((menu) => {
       const listContainer = menu.closest("div[data-list-name]");
-      if (
-        !excludeListName ||
-        (listContainer && listContainer.dataset.listName !== excludeListName)
-      ) {
+      const groupButton = menu.closest(".dropdown-container").querySelector("button[data-group-type]");
+      
+      const shouldClose = 
+        (!excludeListName || !listContainer || listContainer.dataset.listName !== excludeListName) &&
+        (!excludeGroupType || !groupButton || groupButton.dataset.groupType !== excludeGroupType);
+        
+      if (shouldClose) {
         menu.classList.remove("dropdown-menu--open");
       }
     });
