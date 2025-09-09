@@ -1,6 +1,6 @@
 // Service Worker для Randomatched PWA
 // Версия кэша для обновления при изменении файлов
-const CACHE_VERSION = 'v1.0.1';
+const CACHE_VERSION = 'v1.0.2';
 const CACHE_NAME = `randomatched-cache-${CACHE_VERSION}`;
 
 // Файлы для кэширования при установке
