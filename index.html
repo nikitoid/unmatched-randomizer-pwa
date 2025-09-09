@@ -1,184 +1,203 @@
 <!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Randomatched - PWA приложение для рандомизации">
-    <meta name="theme-color" content="#6750a4">
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="Randomatched">
-    <meta name="msapplication-TileColor" content="#6750a4">
-    <meta name="msapplication-config" content="/browserconfig.xml">
-    
+<html lang="ru" class="dark">
+  <!-- Тема по умолчанию, будет управляться JS -->
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>Randomatched</title>
+
+    <!-- Скрипт для корректной работы vh на мобильных устройствах -->
+    <script>
+      function setVh() {
+        document.documentElement.style.setProperty(
+          "--vh",
+          `${window.innerHeight * 0.01}px`
+        );
+      }
+      window.addEventListener("resize", setVh);
+      window.addEventListener("orientationchange", setVh);
+      setVh();
+    </script>
+
     <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json">
-    
-    <!-- Favicon and Icons -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
-    <link rel="icon" type="image/png" sizes="512x512" href="/icons/icon-512.png">
-    
-    <!-- TailwindCSS -->
+    <link rel="manifest" href="manifest.json" />
+
+    <!-- Theme Color для мобильных браузеров -->
+    <meta name="theme-color" content="#1a202c" />
+
+    <!-- Иконка для Apple устройств -->
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        primary: {
-                            50: '#f3f0ff',
-                            100: '#e9e5ff',
-                            200: '#d6ceff',
-                            300: '#b8a6ff',
-                            400: '#9c7bff',
-                            500: '#8b5cf6',
-                            600: '#7c3aed',
-                            700: '#6d28d9',
-                            800: '#5b21b6',
-                            900: '#4c1d95',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    
-    <!-- Alpine.js -->
-    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    
-    <!-- Material Icons -->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-    
-    <!-- Custom Styles -->
-    <link rel="stylesheet" href="/style.css">
-    
-    <title>Randomatched</title>
-</head>
-<body class="bg-surface text-on-surface font-roboto">
-    <!-- Header -->
-    <header class="bg-primary-600 text-white shadow-lg">
-        <div class="container mx-auto px-4 py-4">
-            <div class="flex items-center justify-between">
-                <h1 class="text-2xl font-bold">Randomatched</h1>
-                <button 
-                    class="material-icons text-white hover:bg-primary-700 p-2 rounded-full transition-colors"
-                    @click="toggleTheme"
-                    aria-label="Переключить тему"
-                >
-                    <span x-text="isDark ? 'light_mode' : 'dark_mode'"></span>
-                </button>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="container mx-auto px-4 py-8">
-        <div class="max-w-4xl mx-auto">
-            <!-- Welcome Section -->
-            <section class="text-center mb-12">
-                <h2 class="text-4xl font-bold text-primary-600 mb-4">
-                    Добро пожаловать в Randomatched
-                </h2>
-                <p class="text-lg text-on-surface-variant max-w-2xl mx-auto">
-                    PWA приложение для рандомизации с поддержкой офлайн режима и современным дизайном
-                </p>
-            </section>
-
-            <!-- Features Grid -->
-            <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
-                <div class="bg-surface-container p-6 rounded-xl shadow-sm border border-outline-variant">
-                    <div class="material-icons text-primary-600 text-4xl mb-4">shuffle</div>
-                    <h3 class="text-xl font-semibold mb-2">Рандомизация</h3>
-                    <p class="text-on-surface-variant">Мощные алгоритмы для случайного выбора элементов</p>
-                </div>
-                
-                <div class="bg-surface-container p-6 rounded-xl shadow-sm border border-outline-variant">
-                    <div class="material-icons text-primary-600 text-4xl mb-4">offline_bolt</div>
-                    <h3 class="text-xl font-semibold mb-2">Офлайн режим</h3>
-                    <p class="text-on-surface-variant">Работает без интернета благодаря Service Worker</p>
-                </div>
-                
-                <div class="bg-surface-container p-6 rounded-xl shadow-sm border border-outline-variant">
-                    <div class="material-icons text-primary-600 text-4xl mb-4">palette</div>
-                    <h3 class="text-xl font-semibold mb-2">Адаптивный дизайн</h3>
-                    <p class="text-on-surface-variant">Material Design 3 с поддержкой темной темы</p>
-                </div>
-            </section>
-
-            <!-- Action Buttons -->
-            <section class="text-center">
-                <button 
-                    class="bg-primary-600 text-white px-8 py-4 rounded-full font-medium hover:bg-primary-700 transition-colors shadow-lg"
-                    @click="startRandomization"
-                >
-                    <span class="material-icons mr-2 align-middle">play_arrow</span>
-                    Начать рандомизацию
-                </button>
-            </section>
-        </div>
-    </main>
-
-    <!-- Footer -->
-    <footer class="bg-surface-container mt-16">
-        <div class="container mx-auto px-4 py-8">
-            <div class="text-center text-on-surface-variant">
-                <p>&copy; 2024 Randomatched. PWA приложение.</p>
-            </div>
-        </div>
-    </footer>
-
-    <!-- Alpine.js Data -->
-    <script>
-        document.addEventListener('alpine:init', () => {
-            Alpine.data('app', () => ({
-                isDark: false,
-                
-                init() {
-                    // Проверяем сохраненную тему
-                    const savedTheme = localStorage.getItem('theme');
-                    if (savedTheme) {
-                        this.isDark = savedTheme === 'dark';
-                    } else {
-                        // Автоопределение темы системы
-                        this.isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                    }
-                    this.applyTheme();
-                },
-                
-                toggleTheme() {
-                    this.isDark = !this.isDark;
-                    this.applyTheme();
-                    localStorage.setItem('theme', this.isDark ? 'dark' : 'light');
-                },
-                
-                applyTheme() {
-                    document.documentElement.setAttribute('data-theme', this.isDark ? 'dark' : 'light');
-                },
-                
-                startRandomization() {
-                    // Заглушка для будущей функциональности
-                    alert('Функция рандомизации будет добавлена в следующих версиях!');
-                }
-            }));
-        });
+      // Конфигурация Tailwind для поддержки темной темы через класс 'dark'
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {},
+        },
+      };
     </script>
 
-    <!-- Service Worker Registration -->
-    <script>
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/service-worker.js')
-                    .then((registration) => {
-                        console.log('SW registered: ', registration);
-                    })
-                    .catch((registrationError) => {
-                        console.log('SW registration failed: ', registrationError);
-                    });
-            });
-        }
-    </script>
-</body>
+    <!-- Пользовательские стили -->
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
+  <body
+    class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased h-screen overflow-hidden"
+  >
+    <div class="container mx-auto px-4 py-4 h-full flex flex-col">
+      <!-- Header -->
+      <header class="flex justify-between items-center mb-4 flex-shrink-0">
+        <button
+          id="theme-toggle"
+          class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
+        >
+          <!-- Sun Icon -->
+          <svg
+            id="theme-icon-light"
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+            ></path>
+          </svg>
+          <!-- Moon Icon -->
+          <svg
+            id="theme-icon-dark"
+            class="w-6 h-6 hidden"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+            ></path>
+          </svg>
+        </button>
+        <h1 class="text-3xl font-bold text-teal-500 dark:text-teal-400">
+          Randomatched
+        </h1>
+        <!-- Контейнер для спиннера обновления -->
+        <div
+          id="update-spinner"
+          class="w-10 h-10 flex items-center justify-center invisible"
+        >
+          <svg
+            class="animate-spin h-6 w-6 text-teal-500"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              class="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              stroke-width="4"
+            ></circle>
+            <path
+              class="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+        </div>
+      </header>
+
+      <!-- Main Content -->
+      <main
+        class="flex-grow flex flex-col items-center justify-center text-center"
+      >
+        <!-- Hero Selection -->
+        <div class="w-full max-w-sm mb-6">
+          <label for="hero-select" class="sr-only">Выберите героев</label>
+          <div class="flex items-center space-x-2">
+            <select
+              id="hero-select"
+              class="block w-full bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg py-3 px-4 focus:outline-none focus:ring-2 focus:ring-teal-500"
+            >
+              <option>Все герои</option>
+              <!-- Другие списки будут добавлены позже -->
+            </select>
+            <button
+              id="settings-btn"
+              class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
+            >
+              <svg
+                class="w-6 h-6"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                ></path>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                ></path>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Main Action Button -->
+        <button
+          id="generate-teams-btn"
+          class="w-full max-w-sm bg-teal-500 active:bg-teal-600 text-white font-bold py-4 px-6 rounded-lg shadow-md text-xl transition-transform transform active:scale-95 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75"
+        >
+          Сгенерировать команды
+        </button>
+      </main>
+
+      <!-- Footer Actions -->
+      <footer
+        class="flex justify-center items-center space-x-4 py-2 flex-shrink-0"
+      >
+        <button
+          id="last-gen-btn"
+          class="text-sm text-gray-600 dark:text-gray-400 hover:text-teal-500 dark:hover:text-teal-400 transition-colors"
+        >
+          Последняя генерация
+        </button>
+        <span class="text-gray-400 dark:text-gray-600">|</span>
+        <button
+          id="reset-session-btn"
+          class="text-sm text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 transition-colors"
+        >
+          Сброс сессии
+        </button>
+      </footer>
+    </div>
+
+    <!-- Контейнер для toast-уведомлений -->
+    <div
+      id="toast-container"
+      class="fixed bottom-5 right-5 z-[100] flex flex-col items-end space-y-3 w-full max-w-xs"
+    ></div>
+
+    <script type="module" src="js/app.js"></script>
+  </body>
 </html>

@@ -1,56 +1,27 @@
 {
   "name": "Randomatched",
   "short_name": "Randomatched",
-  "description": "PWA приложение для рандомизации с поддержкой офлайн режима",
+  "description": "Приложение для случайной генерации героев игры Unmatched.",
   "start_url": "/",
   "display": "standalone",
+  "background_color": "#1a202c",
+  "theme_color": "#2d3748",
   "orientation": "portrait-primary",
-  "theme_color": "#6750a4",
-  "background_color": "#ffffff",
-  "scope": "/",
-  "lang": "ru",
-  "dir": "ltr",
-  "categories": ["utilities", "productivity"],
   "icons": [
     {
-      "src": "/icons/icon-192.png",
-      "sizes": "192x192",
+      "src": "icons/icon-192.png",
       "type": "image/png",
-      "purpose": "maskable"
+      "sizes": "192x192"
     },
     {
-      "src": "/icons/icon-512.png",
-      "sizes": "512x512",
+      "src": "icons/icon-512.png",
       "type": "image/png",
-      "purpose": "maskable"
+      "sizes": "512x512"
     },
     {
-      "src": "/icons/apple-touch-icon.png",
-      "sizes": "180x180",
+      "src": "icons/apple-touch-icon.png",
       "type": "image/png",
-      "purpose": "any"
+      "sizes": "180x180"
     }
-  ],
-  "shortcuts": [
-    {
-      "name": "Зарандомить",
-      "short_name": "Зарандомить",
-      "description": "Запустить быструю рандомизацию",
-      "url": "/?action=randomize",
-      "icons": [
-        {
-          "src": "/icons/icon-192.png",
-          "sizes": "192x192"
-        }
-      ]
-    }
-  ],
-  "related_applications": [],
-  "prefer_related_applications": false,
-  "edge_side_panel": {
-    "preferred_width": 400
-  },
-  "launch_handler": {
-    "client_mode": "navigate-existing"
-  }
+  ]
 }
