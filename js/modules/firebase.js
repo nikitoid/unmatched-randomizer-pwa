@@ -24,37 +24,26 @@ export function initFirebase() {
       ? window.process.env.FIREBASE_CONFIG
       : null);
 
-  // Временная прямая конфигурация для локального тестирования (закомментировать при деплое)
-  const localFirebaseConfig = {
-    apiKey: "AIzaSyBSvSbR_NJj7riu0HZPz3nile1X4tuxfsI",
-    authDomain: "unmatched-randomizer.firebaseapp.com",
-    projectId: "unmatched-randomizer",
-    storageBucket: "unmatched-randomizer.firebasestorage.app",
-    messagingSenderId: "168086799887",
-    appId: "1:168086799887:web:3c8af51f935999b7d6c57a",
-    measurementId: "G-GEQPMK68B0",
-  };
-
-  let firebaseConfig = null;
-
-  if (firebaseConfigRaw) {
-    try {
-      firebaseConfig = JSON.parse(firebaseConfigRaw);
-    } catch (error) {
-      console.error("Failed to parse Firebase config:", error);
-      return null;
-    }
-  } else {
-    // Используем локальную конфигурацию для тестирования
-    firebaseConfig = localFirebaseConfig;
-    console.log("Using local Firebase configuration for testing");
+  if (!firebaseConfigRaw) {
+    console.warn("Firebase config not found. Cloud features will be disabled.");
+    return null;
   }
 
-  // Используем compat-версии SDK, как указано в roadmap
-  firebaseApp = window.firebase.initializeApp(firebaseConfig);
-  firebaseDatabase = window.firebase.database();
+  try {
+    const firebaseConfig = JSON.parse(firebaseConfigRaw);
 
-  console.log("Firebase initialized successfully.");
+    // Используем compat-версии SDK, как указано в roadmap
+    firebaseApp = window.firebase.initializeApp(firebaseConfig);
+    firebaseDatabase = window.firebase.database();
 
-  return { app: firebaseApp, database: firebaseDatabase };
+    console.log("Firebase initialized successfully.");
+
+    return { app: firebaseApp, database: firebaseDatabase };
+  } catch (error) {
+    console.error(
+      "Failed to parse Firebase config or initialize Firebase:",
+      error
+    );
+    return null;
+  }
 }
