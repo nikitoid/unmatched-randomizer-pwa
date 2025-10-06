@@ -48,8 +48,8 @@ function createResultsHTML(generation) {
             ${playersHTML}
         </div>
         <div class="grid grid-cols-2 gap-3 mt-6 text-sm">
-            <button data-action="reshuffle-teams" class="w-full font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95 secondary-action-btn">Перемешать команды</button>
-            <button data-action="reshuffle-heroes" class="w-full font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95 secondary-action-btn">Перемешать героев</button>
+            <button data-action="reshuffle-teams" class="w-full bg-gray-600 active:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать команды</button>
+            <button data-action="reshuffle-heroes" class="w-full bg-gray-600 active:bg-gray-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать героев</button>
             <button data-action="exclude-these-heroes" class="w-full bg-red-600 active:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Исключить этих героев</button>
             <button data-action="reshuffle-all" class="w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">Перемешать всё</button>
         </div>
@@ -208,41 +208,31 @@ function addEventListeners() {
 
       case "reshuffle-hero":
         const playerToReshuffle = button.dataset.player;
-        const heroNameToReshuffle =
-          currentGeneration.assignment[playerToReshuffle].name;
+        const currentHeroNames = Object.values(
+          currentGeneration.assignment
+        ).map((h) => h.name);
+        const heroesForReshuffle = heroesInActiveList.filter(
+          (h) => !currentHeroNames.includes(h.name)
+        );
 
-        new Modal({
-          type: "dialog",
-          title: "Сменить героя?",
-          content: `Вы уверены, что хотите сменить героя "${heroNameToReshuffle}"?`,
-          confirmText: "Да, сменить",
-          onConfirm: () => {
-            const currentHeroNames = Object.values(
-              currentGeneration.assignment
-            ).map((h) => h.name);
-            const heroesForReshuffle = heroesInActiveList.filter(
-              (h) => !currentHeroNames.includes(h.name)
-            );
-
-            if (heroesForReshuffle.length > 0) {
-              const newHero = Generator.shuffle(heroesForReshuffle)[0];
-              const newAssignment = { ...currentGeneration.assignment };
-              newAssignment[playerToReshuffle] = newHero;
-              const heroIndex = currentGeneration.shuffledHeroes.findIndex(
-                (h) => h.name === heroNameToReshuffle
-              );
-              const newShuffledHeroes = [...currentGeneration.shuffledHeroes];
-              if (heroIndex !== -1) newShuffledHeroes[heroIndex] = newHero;
-              updateResults({
-                ...currentGeneration,
-                assignment: newAssignment,
-                shuffledHeroes: newShuffledHeroes,
-              });
-            } else {
-              Toast.warning("Нет свободных героев для замены");
-            }
-          },
-        }).open();
+        if (heroesForReshuffle.length > 0) {
+          const newHero = Generator.shuffle(heroesForReshuffle)[0];
+          const newAssignment = { ...currentGeneration.assignment };
+          newAssignment[playerToReshuffle] = newHero;
+          const heroIndex = currentGeneration.shuffledHeroes.findIndex(
+            (h) =>
+              h.name === currentGeneration.assignment[playerToReshuffle].name
+          );
+          const newShuffledHeroes = [...currentGeneration.shuffledHeroes];
+          if (heroIndex !== -1) newShuffledHeroes[heroIndex] = newHero;
+          updateResults({
+            ...currentGeneration,
+            assignment: newAssignment,
+            shuffledHeroes: newShuffledHeroes,
+          });
+        } else {
+          Toast.warning("Нет свободных героев для замены");
+        }
         break;
 
       case "exclude-these-heroes":

@@ -9,19 +9,6 @@
     />
     <title>Randomatched</title>
 
-    <!-- Скрипт для корректной работы vh на мобильных устройствах -->
-    <script>
-      function setVh() {
-        document.documentElement.style.setProperty(
-          "--vh",
-          `${window.innerHeight * 0.01}px`
-        );
-      }
-      window.addEventListener("resize", setVh);
-      window.addEventListener("orientationchange", setVh);
-      setVh();
-    </script>
-
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json" />
 
@@ -47,60 +34,48 @@
     <link rel="stylesheet" href="css/style.css" />
   </head>
   <body
-    class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-20 font-sans antialiased h-screen overflow-hidden"
+    class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased h-screen overflow-hidden"
   >
     <div class="container mx-auto px-4 py-4 h-full flex flex-col">
       <!-- Header -->
       <header class="flex justify-between items-center mb-4 flex-shrink-0">
-        <div class="flex items-center space-x-2">
-          <!-- Оборачиваем тему индикатор в div -->
-          <button
-            id="theme-toggle"
-            class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
+        <button
+          id="theme-toggle"
+          class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500"
+        >
+          <!-- Sun Icon -->
+          <svg
+            id="theme-icon-light"
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            <!-- Sun Icon -->
-            <svg
-              id="theme-icon-light"
-              class="w-6 h-6"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
-              ></path>
-            </svg>
-            <!-- Moon Icon -->
-            <svg
-              id="theme-icon-dark"
-              class="w-6 h-6 hidden"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 012 21a9.03 9.003 0 008.354-5.646z"
-              ></path>
-            </svg>
-          </button>
-          <!-- Индикатор статуса сети -->
-          <div
-            id="network-status"
-            class="flex items-center text-sm"
-            title="Статус подключения к облаку"
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+            ></path>
+          </svg>
+          <!-- Moon Icon -->
+          <svg
+            id="theme-icon-dark"
+            class="w-6 h-6 hidden"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
           >
-            <span id="network-status-icon">☁️</span>
-            <span id="network-status-text" class="ml-1">Проверка...</span>
-          </div>
-        </div>
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+            ></path>
+          </svg>
+        </button>
         <h1 class="text-3xl font-bold text-teal-500 dark:text-teal-400">
           Randomatched
         </h1>
@@ -126,7 +101,7 @@
             <path
               class="opacity-75"
               fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
             ></path>
           </svg>
         </div>
@@ -197,7 +172,7 @@
         <span class="text-gray-400 dark:text-gray-600">|</span>
         <button
           id="reset-session-btn"
-          class="text-sm text-gray-600 dark:text-gray-400 hover:text-red-50 dark:hover:text-red-500 transition-colors"
+          class="text-sm text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-500 transition-colors"
         >
           Сброс сессии
         </button>
@@ -209,20 +184,6 @@
       id="toast-container"
       class="fixed bottom-5 right-5 z-[100] flex flex-col items-end space-y-3 w-full max-w-xs"
     ></div>
-
-    <!-- Firebase -->
-    <script type="module">
-      // Загрузка переменных окружения для Netlify
-      if (window.netlify) {
-        window.process = {
-          env: {
-            ...window.netlify.env,
-          },
-        };
-      }
-    </script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
 
     <script type="module" src="js/app.js"></script>
   </body>

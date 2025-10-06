@@ -7,8 +7,6 @@ const HERO_LISTS_KEY = "hero-lists";
 const DEFAULT_LIST_KEY = "default-list-name";
 const ACTIVE_LIST_KEY = "active-list-name";
 const ORIGINAL_LIST_MAP_KEY = "original-list-map"; // Карта для отслеживания оригиналов
-const CLOUD_LISTS_CACHE_KEY = "cloud-lists-cache";
-const SYNC_QUEUE_KEY = "firebase_sync_queue";
 
 const Storage = {
   get(key) {
@@ -124,24 +122,6 @@ const Storage = {
     this.remove(ORIGINAL_LIST_MAP_KEY);
     this.remove(LAST_GEN_KEY);
     console.log("Сессия очищена, временные списки удалены.");
-  },
-
-  // --- Методы для работы с кэшем облачных списков ---
-  cacheCloudLists(lists) {
-    this.set(CLOUD_LISTS_CACHE_KEY, lists);
-  },
-
-  loadCloudListsFromCache() {
-    return this.get(CLOUD_LISTS_CACHE_KEY) || {};
-  },
-
-  // --- Методы для работы с очередью синхронизации ---
-  getSyncQueue() {
-    return this.get(SYNC_QUEUE_KEY) || [];
-  },
-
-  saveSyncQueue(queue) {
-    this.set(SYNC_QUEUE_KEY, queue);
   },
 };
 
