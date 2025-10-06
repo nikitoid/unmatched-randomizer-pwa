@@ -5,6 +5,8 @@ import Toast from "./toast.js";
 /**
  * Модуль для управления списками героев.
  */
+import CloudListManager from "./cloud-list-manager.js"; // Импорт CloudListManager
+
 const ListManager = {
   // --- Состояние модуля ---
   modal: null,
@@ -16,6 +18,7 @@ const ListManager = {
   listToEdit: null,
   isListenerAttached: false,
   isCopyRegex: /\(искл\.( \d+)?\)$/, // Регулярное выражение для обнаружения копий
+  cloudListManager: null, // Экземпляр CloudListManager
 
   // ... (иконки остаются без изменений)
   icons: {
@@ -27,10 +30,15 @@ const ListManager = {
     add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
   },
 
-  show(heroLists, onUpdate) {
+  show(heroLists, onUpdate, cloudListManager = null) {
+    // Добавляем cloudListManager как опциональный параметр
     this.heroLists = { ...heroLists };
     this.defaultList = Storage.loadDefaultList();
     this.onUpdateCallback = onUpdate;
+    this.cloudListManager = cloudListManager; // Сохраняем экземпляр CloudListManager
+    if (this.cloudListManager) {
+      this.cloudListManager.init(); // Инициализируем CloudListManager
+    }
     this.currentView = "manager";
     this.isListenerAttached = false;
 
@@ -70,12 +78,40 @@ const ListManager = {
         const listName = listContainer ? listContainer.dataset.listName : null;
         if (action === "create") this.handleCreateList();
         else if (listName) {
+          // Проверяем, можно ли выполнить действие для облачного списка
+          if (this.isCloudList(listName)) {
+            if (!this.cloudListManager.offlineManager.checkConnection()) {
+              Toast.error(
+                `Невозможно выполнить действие. Нет подключения к облаку для списка "${listName}".`
+              );
+              return;
+            }
+          }
+
           if (action === "set-default") this.handleSetDefault(listName);
-          if (action === "rename") this.handleRenameList(listName);
-          if (action === "delete") this.handleDeleteList(listName);
+          if (action === "rename") {
+            if (!this.canRenameList(listName)) {
+              Toast.error(`Невозможно переименовать список "${listName}".`);
+              return;
+            }
+            this.handleRenameList(listName);
+          }
+          if (action === "delete") {
+            if (!this.canDeleteList(listName)) {
+              Toast.error(`Невозможно удалить список "${listName}".`);
+              return;
+            }
+            this.handleDeleteList(listName);
+          }
         }
       } else if (listContainer && target.closest('[data-action="edit"]')) {
-        this.listToEdit = listContainer.dataset.listName;
+        const listName = listContainer.dataset.listName;
+        // Проверяем, можно ли открыть редактор
+        if (!this.canEditList(listName)) {
+          Toast.error(`Невозможно открыть редактор для списка "${listName}".`);
+          return;
+        }
+        this.listToEdit = listName;
         this.currentView = "editor";
         this.render();
       }
@@ -114,33 +150,79 @@ const ListManager = {
         const isDefault = listName === this.defaultList;
         const heroCount = this.heroLists[listName].length;
         const isCopy = this.isCopyRegex.test(listName);
+        const isCloud = this.isCloudList(listName);
+        const canEdit = this.canEditList(listName);
+        const canRename = this.canRenameList(listName);
+        const canDelete = this.canDeleteList(listName);
 
-        const buttonsHTML = isCopy
-          ? `<div class="w-28 flex-shrink-0"></div>` // Заглушка для выравнивания
-          : `
+        // Формируем HTML для кнопок действий
+        let buttonsHTML = "";
+        if (isCopy) {
+          buttonsHTML = `<div class="w-28 flex-shrink-0"></div>`; // Заглушка для выравнивания
+        } else {
+          const isButtonDisabled = !canEdit;
+          const buttonClassBase = "p-2 rounded-full transition-colors";
+          const buttonClassEnabled = "hover:bg-gray-200 dark:hover:bg-gray-700";
+          const buttonClassDisabled = "opacity-50 cursor-not-allowed";
+
+          const setDefaultButtonClass = `${buttonClassBase} ${
+            isDefault ? "" : buttonClassEnabled
+          } ${isButtonDisabled ? buttonClassDisabled : ""}`;
+          const renameButtonClass = `${buttonClassBase} ${buttonClassEnabled} ${
+            !canRename || isButtonDisabled ? buttonClassDisabled : ""
+          }`;
+          const deleteButtonClass = `${buttonClassBase} text-gray-50 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 ${
+            !canDelete || isButtonDisabled ? buttonClassDisabled : ""
+          }`;
+
+          buttonsHTML = `
             <div class="flex items-center space-x-1 flex-shrink-0">
-                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
+                <button class="${setDefaultButtonClass}" data-action="set-default" title="Сделать по умолчанию" ${
+            isButtonDisabled ? "disabled" : ""
+          }>
                     ${isDefault ? this.icons.starFilled : this.icons.star}
                 </button>
-                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать">
+                <button class="${renameButtonClass}" data-action="rename" title="Переименовать" ${
+            !canRename || isButtonDisabled ? "disabled" : ""
+          }>
                     ${this.icons.rename}
                 </button>
-                <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
+                <button class="${deleteButtonClass}" data-action="delete" title="Удалить" ${
+            !canDelete || isButtonDisabled ? "disabled" : ""
+          }>
                     ${this.icons.delete}
                 </button>
             </div>`;
+        }
 
-        const titleClass = isCopy
-          ? "text-gray-500 dark:text-gray-400"
-          : "text-gray-800 dark:text-gray-100";
-        const subtitle = isCopy
-          ? `${heroCount} героев (временный)`
-          : `${heroCount} героев`;
+        // Формируем классы для заголовка и подписи
+        let titleClass = "";
+        let subtitle = "";
+
+        if (isCopy) {
+          titleClass = "text-gray-500 dark:text-gray-400";
+          subtitle = `${heroCount} героев (временный)`;
+        } else if (isCloud) {
+          titleClass = "text-blue-500 dark:text-blue-400"; // Цвет для облачных списков
+          subtitle = `${heroCount} героев (облако)`;
+        } else {
+          titleClass = "text-gray-800 dark:text-gray-10"; // Цвет для локальных списков
+          subtitle = `${heroCount} героев`;
+        }
+
+        // Добавляем индикатор облака, если это облачный список
+        const cloudIcon = this.getCloudListStatusIcon(listName);
+        const displayName = `${listName} ${cloudIcon}`;
+
+        // Определяем, можно ли редактировать список (переходить к редактору)
+        const isEditActionAllowed = canEdit;
 
         return `
             <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
-                <div class="flex-grow cursor-pointer" data-action="edit">
-                    <p class="font-semibold text-lg ${titleClass}">${listName}</p>
+                <div class="flex-grow ${
+                  isEditActionAllowed ? "cursor-pointer" : "cursor-default"
+                }" ${isEditActionAllowed ? 'data-action="edit"' : ""}>
+                    <p class="font-semibold text-lg ${titleClass}">${displayName}</p>
                     <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
                 </div>
                 ${buttonsHTML}
@@ -315,6 +397,53 @@ const ListManager = {
         this.render();
       },
     }).open();
+  },
+  // --- Методы для интеграции с облачными списками ---
+  isCloudList(listName) {
+    return this.cloudListManager && this.cloudListManager.isCloudList(listName);
+  },
+
+  isCloudListEditable(listName) {
+    // Облачный список редактируем, если есть соединение
+    return (
+      this.isCloudList(listName) &&
+      this.cloudListManager.offlineManager.checkConnection()
+    );
+  },
+
+  getCloudListStatusIcon(listName) {
+    // Возвращает иконку статуса синхронизации для облачного списка
+    // Пока просто возвращаю иконку облака
+    if (this.isCloudList(listName)) {
+      const isConnected =
+        this.cloudListManager.offlineManager.checkConnection();
+      const iconColor = isConnected ? "text-blue-500" : "text-gray-500"; // Синий если онлайн, серый если оффлайн
+      return `<span class="${iconColor}" title="${
+        isConnected ? "Синхронизировано" : "Офлайн"
+      }">☁️</span>`;
+    }
+    return "";
+  },
+
+  canEditList(listName) {
+    // Проверяет, можно ли редактировать список (локальный или облачный с подключением)
+    if (this.isCopyRegex.test(listName)) return false; // Временные списки не редактируются
+    if (this.isCloudList(listName)) return this.isCloudListEditable(listName);
+    return true; // Локальные списки редактируются всегда, если не временные
+  },
+
+  canRenameList(listName) {
+    // Проверяет, можно ли переименовать список
+    if (this.isCopyRegex.test(listName)) return false; // Временные списки не переименовываются
+    if (this.isCloudList(listName)) return this.isCloudListEditable(listName);
+    return true; // Локальные списки переименовываются всегда, если не временные
+  },
+
+  canDeleteList(listName) {
+    // Проверяет, можно ли удалить список
+    if (this.isCopyRegex.test(listName)) return false; // Временные списки не удаляются
+    if (this.isCloudList(listName)) return this.isCloudListEditable(listName);
+    return true; // Локальные списки удаляются всегда, если не временные
   },
 };
 
