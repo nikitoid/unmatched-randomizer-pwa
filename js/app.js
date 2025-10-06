@@ -7,6 +7,47 @@ import Generator from "./modules/generator.js";
 import Results from "./modules/results.js";
 import ListManager from "./modules/listManager.js";
 
+import { initFirebase } from "./modules/firebase.js";
+import FirebaseManager from "./modules/firebase-manager.js";
+import OfflineManager from "./modules/offline-manager.js";
+import CloudListManager from "./modules/cloud-list-manager.js";
+
+// --- Инициализация Firebase ---
+const firebaseInstances = initFirebase();
+let firebaseManager = null;
+let offlineManager = null;
+let cloudListManager = null;
+
+if (firebaseInstances) {
+  firebaseManager = new FirebaseManager(firebaseInstances.database);
+  offlineManager = new OfflineManager(firebaseManager);
+  offlineManager.init(); // Инициализируем OfflineManager
+  cloudListManager = new CloudListManager(firebaseManager, offlineManager);
+
+  // --- Обновление индикатора статуса сети ---
+  function updateNetworkStatusIndicator(isConnected) {
+    const statusElement = document.getElementById("network-status-text");
+    const iconElement = document.getElementById("network-status-icon");
+    if (!statusElement || !iconElement) return;
+
+    if (isConnected) {
+      statusElement.textContent = "Синхронизировано";
+      statusElement.className = "ml-1 text-green-500"; // Зеленый цвет при подключении
+      iconElement.innerHTML = "☁️"; // Обычная иконка облака
+    } else {
+      statusElement.textContent = "Офлайн";
+      statusElement.className = "ml-1 text-gray-500"; // Серый цвет при отключении
+      iconElement.innerHTML = "☁️"; // Иконка облака с предупреждением
+    }
+  }
+
+  // Инициализируем состояние при загрузке
+  updateNetworkStatusIndicator(offlineManager.checkConnection());
+
+  // Подписываемся на изменения статуса в OfflineManager
+  offlineManager.onStatusChange(updateNetworkStatusIndicator);
+}
+
 // --- Инициализация темы ---
 Theme.init();
 
@@ -163,7 +204,11 @@ document.addEventListener("DOMContentLoaded", () => {
   const settingsBtn = document.getElementById("settings-btn");
   if (settingsBtn) {
     settingsBtn.addEventListener("click", () => {
-      ListManager.show(Storage.loadHeroLists(), initializeAppState);
+      ListManager.show(
+        Storage.loadHeroLists(),
+        initializeAppState,
+        cloudListManager
+      );
     });
   }
 
