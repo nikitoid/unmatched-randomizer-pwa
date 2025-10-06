@@ -1,2 +1,5 @@
-/service-worker.js
-Cache-Control: no-cache
+/*
+  Access-Control-Allow-Origin: *
+
+/sw.js
+  Cache-Control: no-cache

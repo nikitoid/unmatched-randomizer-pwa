@@ -1,11 +1,12 @@
 // Меняем версию кэша, чтобы спровоцировать обновление
-const CACHE_NAME = "randomatched-cache-v9";
+const CACHE_NAME = "randomatched-cache-v10";
 const urlsToCache = [
   "/",
   "/index.html",
   "/css/style.css",
   "/js/app.js",
   "/manifest.json",
+  "/favicon.ico",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/apple-touch-icon.png",
@@ -17,6 +18,11 @@ const urlsToCache = [
   "/js/modules/storage.js",
   "/js/modules/theme.js",
   "/js/modules/toast.js",
+  // --- Добавленные модули Firebase ---
+  "/js/firebase-config.js",
+  "/js/modules/firebase.js",
+  "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js",
+  "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js",
 ];
 
 // Установка Service Worker и кэширование статических файлов
