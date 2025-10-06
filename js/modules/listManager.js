@@ -27,7 +27,8 @@ const ListManager = {
     star: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`,
     starFilled: `<svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`,
     back: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>`,
-    add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
+    add: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
+    more: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>`,
   },
 
   show(heroLists, onUpdate, cloudListManager = null) {
@@ -41,21 +42,28 @@ const ListManager = {
     }
     this.currentView = "manager";
     this.isListenerAttached = false;
+    this.lastScrollY = 0;
 
     this.modal = new Modal({
       type: "fullscreen",
       title: "Управление списками",
-      content: '<div class="modal-content-wrapper h-full"></div>',
+      content:
+        '<div class="modal-content-wrapper h-full overflow-y-auto"></div>',
       confirmText: null,
       onClose: () => {
         this.onUpdateCallback();
         this.isListenerAttached = false;
+        if (this.container && this.scrollHandler) {
+          this.container.removeEventListener("scroll", this.scrollHandler);
+          this.scrollHandler = null;
+        }
       },
     });
 
     this.modal.open();
     this.container = document.querySelector(".modal-content-wrapper");
     this.attachPersistentListener();
+    this.setupScrollListener();
     this.render();
   },
 
@@ -67,12 +75,40 @@ const ListManager = {
     this.isListenerAttached = true;
   },
 
+  setupScrollListener() {
+    if (!this.container) return;
+    this.scrollHandler = this.handleScroll.bind(this);
+    this.container.addEventListener("scroll", this.scrollHandler);
+  },
+
+  handleScroll(e) {
+    const fab = document.querySelector(".create-list-btn");
+    if (!fab) return;
+
+    const currentScrollY = e.target.scrollTop;
+
+    if (currentScrollY > this.lastScrollY && currentScrollY > 10) {
+      fab.classList.add("create-list-btn--hidden");
+    } else {
+      fab.classList.remove("create-list-btn--hidden");
+    }
+
+    this.lastScrollY = currentScrollY <= 0 ? 0 : currentScrollY;
+  },
+
   handleClicks(e) {
     const target = e.target;
     const actionButton = target.closest("button[data-action]");
 
     if (this.currentView === "manager") {
       const listContainer = target.closest("div[data-list-name]");
+      const listName = listContainer ? listContainer.dataset.listName : null;
+
+      // Close all dropdowns if clicking outside
+      if (!target.closest(".dropdown-container")) {
+        this.closeAllDropdowns();
+      }
+
       if (actionButton) {
         const action = actionButton.dataset.action;
         const listName = listContainer ? listContainer.dataset.listName : null;
@@ -217,7 +253,21 @@ const ListManager = {
         // Определяем, можно ли редактировать список (переходить к редактору)
         const isEditActionAllowed = canEdit;
 
-        return `
+        const contentHTML = `
+          <p class="font-semibold text-lg ${titleClass}">${listName}</p>
+          <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
+        `;
+
+        if (isCopy) {
+          return `
+            <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm cursor-pointer" data-list-name="${listName}" data-action="edit">
+                <div class="flex-grow">
+                    ${contentHTML}
+                </div>
+                ${buttonsHTML}
+            </div>`;
+        } else {
+          return `
             <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
                 <div class="flex-grow ${
                   isEditActionAllowed ? "cursor-pointer" : "cursor-default"
@@ -227,14 +277,17 @@ const ListManager = {
                 </div>
                 ${buttonsHTML}
             </div>`;
+        }
       })
       .join("");
 
     return `
-        <div class="space-y-3">${listItems}</div>
-        <button data-action="create" class="mt-6 flex items-center justify-center gap-2 w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">
-            ${this.icons.add} <span>Создать новый список</span>
-        </button>`;
+        <div class="relative h-full">
+            <div class="space-y-3 pb-20">${listItems}</div>
+            <button data-action="create" class="create-list-btn" title="Создать новый список">
+                ${this.icons.add}
+            </button>
+        </div>`;
   },
 
   createEditorHTML() {

@@ -73,16 +73,16 @@ function registerServiceWorker() {
     });
 
     // Слушаем событие, когда новый SW берет управление на себя.
-    // Это надежный способ узнать, что обновление завершено.
+    // Это инициирует перезагрузку для применения обновления.
     navigator.serviceWorker.addEventListener("controllerchange", () => {
       // Убеждаемся, что это не первоначальная установка, а именно обновление
       if (navigator.serviceWorker.controller) {
         console.log(
-          "Контроллер Service Worker изменился, обновление завершено."
+          "Контроллер Service Worker изменился, инициирую перезагрузку."
         );
-        const spinner = document.getElementById("update-spinner");
-        if (spinner) spinner.classList.add("invisible");
-        Toast.success("Приложение обновлено!");
+        // Устанавливаем флаг, чтобы показать уведомление после перезагрузки
+        sessionStorage.setItem("appUpdated", "true");
+        window.location.reload();
       }
     });
   }
@@ -169,6 +169,12 @@ function initializeAppState() {
 // --- Обработчики событий ---
 document.addEventListener("DOMContentLoaded", () => {
   registerServiceWorker(); // Запускаем логику SW
+
+  // Проверяем, было ли обновление, и показываем уведомление
+  if (sessionStorage.getItem("appUpdated") === "true") {
+    Toast.success("Приложение обновлено!");
+    sessionStorage.removeItem("appUpdated");
+  }
 
   const themeToggle = document.getElementById("theme-toggle");
   const themeIconLight = document.getElementById("theme-icon-light");
