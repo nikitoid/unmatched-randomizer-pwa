@@ -6,6 +6,7 @@ import Storage from "./modules/storage.js";
 import Generator from "./modules/generator.js";
 import Results from "./modules/results.js";
 import ListManager from "./modules/listManager.js";
+import { firebaseManager } from "./modules/firebase.js";
 
 // --- Инициализация темы ---
 Theme.init();
@@ -126,7 +127,23 @@ function initializeAppState() {
 }
 
 // --- Обработчики событий ---
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
+  try {
+    // Динамически импортируем Firebase SDK, загруженный через CDN
+    const firebaseApp = await import(
+      "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js"
+    );
+    const firestore = await import(
+      "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js"
+    );
+
+    // Инициализируем Firebase с загруженными модулями
+    firebaseManager.init(firebaseApp, firestore);
+  } catch (error) {
+    console.error("Не удалось загрузить Firebase SDK:", error);
+    Toast.error("Ошибка загрузки облачных сервисов.");
+  }
+
   registerServiceWorker(); // Запускаем логику SW
 
   const themeToggle = document.getElementById("theme-toggle");
