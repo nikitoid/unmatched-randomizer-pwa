@@ -133,6 +133,25 @@ function initializeAppState() {
   updateHeroSelect();
 }
 
+/**
+ * Обрабатывает обновление облачных списков.
+ * @param {CustomEvent} event - Событие, содержащее { detail: { cloudLists } }.
+ */
+function handleCloudListsUpdate(event) {
+  const { cloudLists } = event.detail;
+  const localLists = Storage.loadHeroLists() || {};
+
+  // Простое слияние: облачные данные перезаписывают локальные с теми же именами.
+  // В будущем можно реализовать более сложную логику.
+  const mergedLists = { ...localLists, ...cloudLists };
+
+  // Сохраняем, но без повторной синхронизации с облаком.
+  Storage.saveHeroLists(mergedLists, true);
+  heroLists = mergedLists; // Обновляем глобальное состояние
+  updateHeroSelect(); // Обновляем UI
+  Toast.info("Облачные списки синхронизированы.");
+}
+
 // --- Обработчики событий ---
 document.addEventListener("DOMContentLoaded", async () => {
   try {
@@ -146,6 +165,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     // Инициализируем Firebase с загруженными модулями
     firebaseManager.init(firebaseApp, firestore);
+    // Запускаем прослушивание облачных списков
+    firebaseManager.fetchAllCloudLists();
   } catch (error) {
     console.error("Не удалось загрузить Firebase SDK:", error);
     Toast.error("Ошибка загрузки облачных сервисов.");
@@ -175,6 +196,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
   updateThemeIcons();
   window.addEventListener("theme-changed", updateThemeIcons);
+
+  // Подписываемся на событие обновления облачных списков
+  window.addEventListener("cloud-lists-updated", handleCloudListsUpdate);
 
   initializeAppState();
 

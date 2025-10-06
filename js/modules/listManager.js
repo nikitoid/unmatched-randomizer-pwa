@@ -1,6 +1,7 @@
 import Modal from "./modal.js";
 import Storage from "./storage.js";
 import Toast from "./toast.js";
+import { firebaseManager } from "./firebase.js";
 
 /**
  * Модуль для управления списками героев.
@@ -26,6 +27,7 @@ const ListManager = {
     back: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>`,
     add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
     cloud: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>`,
+    upload: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V16a4 4 0 01-4 4H7z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16v-4m0 0l-3 3m3-3l3 3"></path></svg>`,
   },
 
   show(heroLists, onUpdate) {
@@ -74,6 +76,7 @@ const ListManager = {
           if (action === "set-default") this.handleSetDefault(listName);
           if (action === "rename") this.handleRenameList(listName);
           if (action === "delete") this.handleDeleteList(listName);
+          if (action === "upload") this.handleUploadToCloud(listName);
         }
       } else if (listContainer && target.closest('[data-action="edit"]')) {
         this.listToEdit = listContainer.dataset.listName;
@@ -113,6 +116,8 @@ const ListManager = {
     const listItems = Object.keys(this.heroLists)
       .map((listName) => {
         const listData = this.heroLists[listName];
+        if (!listData) return ""; // Пропускаем рендер, если данных нет
+
         const isDefault = listName === this.defaultList;
         const heroCount = listData.heroes.length;
         const isCopy = this.isCopyRegex.test(listName);
@@ -122,20 +127,23 @@ const ListManager = {
           ? `<div class="w-28 flex-shrink-0"></div>` // Заглушка для выравнивания
           : `
              <div class="flex items-center space-x-1 flex-shrink-0">
-                 <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
-                     ${isDefault ? this.icons.starFilled : this.icons.star}
-                 </button>
-                 <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать" ${
-                   isCloud ? "disabled" : ""
-                 }>
-                     ${this.icons.rename}
-                 </button>
-                 <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить" ${
-                   isCloud ? "disabled" : ""
-                 }>
-                     ${this.icons.delete}
-                 </button>
-             </div>`;
+                  <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
+                      ${isDefault ? this.icons.starFilled : this.icons.star}
+                  </button>
+                  <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
+                    isCloud ? "hidden" : ""
+                  }" data-action="upload" title="Загрузить в облако">
+                      ${this.icons.upload}
+                  </button>
+                  <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать" ${
+                    isCloud ? "disabled" : ""
+                  }>
+                      ${this.icons.rename}
+                  </button>
+                  <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
+                      ${this.icons.delete}
+                  </button>
+              </div>`;
 
         const titleClass = isCopy
           ? "text-gray-500 dark:text-gray-400"
@@ -304,16 +312,25 @@ const ListManager = {
   },
 
   handleDeleteList(listName) {
+    const listData = this.heroLists[listName];
+    if (!listData) return;
+
     if (this.isCopyRegex.test(listName)) {
       Toast.error("Временные списки не могут быть удалены отсюда.");
       return;
     }
-    if (listName === this.defaultList) {
-      Toast.warning("Нельзя удалить список, который установлен по умолчанию.");
+    if (listName === this.defaultList && listData.type === "local") {
+      Toast.warning(
+        "Нельзя удалить локальный список, который установлен по умолчанию."
+      );
       return;
     }
-    if (Object.keys(this.heroLists).length <= 1) {
-      Toast.error("Нельзя удалить последний список.");
+    if (
+      Object.values(this.heroLists).filter((list) => list.type === "local")
+        .length <= 1 &&
+      listData.type === "local"
+    ) {
+      Toast.error("Нельзя удалить последний локальный список.");
       return;
     }
 
@@ -321,16 +338,45 @@ const ListManager = {
       title: "Подтверждение",
       content: `Вы уверены, что хотите удалить список "${listName}"?`,
       confirmText: "Удалить",
-      onConfirm: () => {
+      onConfirm: async () => {
+        if (listData.type === "cloud") {
+          const success = await firebaseManager.deleteCloudList(listData.id);
+          if (!success) {
+            Toast.error(
+              "Ошибка удаления облачного списка. Проверьте соединение."
+            );
+            return;
+          }
+        }
+
         if (Storage.loadActiveList() === listName) {
           Storage.remove("active-list-name");
         }
         delete this.heroLists[listName];
-        Storage.saveHeroLists(this.heroLists);
+        Storage.saveHeroLists(this.heroLists, true); // Пропускаем синхронизацию, т.к. удалили вручную
         Toast.success(`Список "${listName}" удален.`);
         this.render();
       },
     }).open();
+  },
+
+  async handleUploadToCloud(listName) {
+    const listData = this.heroLists[listName];
+    if (!listData || listData.type !== "local") return;
+
+    Toast.info(`Загрузка списка "${listName}" в облако...`);
+    const newId = await firebaseManager.uploadList(listName, listData);
+
+    if (newId) {
+      // Обновляем локальную копию: меняем тип и добавляем ID
+      this.heroLists[listName].type = "cloud";
+      this.heroLists[listName].id = newId;
+      Storage.saveHeroLists(this.heroLists, true); // Сохраняем без обратной синхронизации
+      Toast.success(`Список "${listName}" успешно загружен в облако.`);
+      this.render();
+    } else {
+      Toast.error("Ошибка загрузки. Проверьте консоль и соединение с сетью.");
+    }
   },
 };
 

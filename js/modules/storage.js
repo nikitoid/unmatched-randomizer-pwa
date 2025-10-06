@@ -6,6 +6,8 @@ const LAST_GEN_KEY = "last-generation";
 const HERO_LISTS_KEY = "hero-lists";
 const DEFAULT_LIST_KEY = "default-list-name";
 const ACTIVE_LIST_KEY = "active-list-name";
+import { firebaseManager } from "./firebase.js";
+
 const ORIGINAL_LIST_MAP_KEY = "original-list-map"; // Карта для отслеживания оригиналов
 
 const Storage = {
@@ -53,7 +55,22 @@ const Storage = {
   },
 
   // --- Методы для управления списками ---
-  saveHeroLists(lists) {
+  saveHeroLists(lists, skipSync = false) {
+    if (!skipSync) {
+      const oldLists = this.loadHeroLists() || {};
+      for (const listName in lists) {
+        const oldList = oldLists[listName];
+        const newList = lists[listName];
+        // Если список облачный и состав героев изменился, синхронизируем
+        if (
+          newList.type === "cloud" &&
+          oldList &&
+          JSON.stringify(oldList.heroes) !== JSON.stringify(newList.heroes)
+        ) {
+          firebaseManager.syncList(newList.id, newList);
+        }
+      }
+    }
     this.set(HERO_LISTS_KEY, lists);
   },
 
