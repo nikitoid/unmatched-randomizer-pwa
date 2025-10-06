@@ -95,11 +95,13 @@ function updateHeroSelect() {
 
 /**
  * Инициализирует состояние приложения при загрузке.
+ * Миграция не требуется, сразу работаем с новым форматом.
  */
 function initializeAppState() {
   heroLists = Storage.loadHeroLists();
   let defaultList = Storage.loadDefaultList();
 
+  // Если списков нет, создаем стартовый набор.
   if (!heroLists || Object.keys(heroLists).length === 0) {
     const starterHeroes = [
       "Король Артур",
@@ -115,14 +117,19 @@ function initializeAppState() {
       "Сунь Укун",
       "Енанга",
     ];
-    heroLists = { "Стартовый набор": starterHeroes };
+    // Сразу создаем в новом формате.
+    heroLists = {
+      "Стартовый набор": { heroes: starterHeroes, type: "local" },
+    };
     defaultList = "Стартовый набор";
 
+    // Сохраняем.
     Storage.saveHeroLists(heroLists);
     Storage.saveDefaultList(defaultList);
     Storage.saveActiveList(defaultList);
     Toast.info("Создан стартовый набор героев.");
   }
+
   updateHeroSelect();
 }
 
@@ -183,14 +190,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     generateBtn.addEventListener("click", () => {
       const heroSelect = document.getElementById("hero-select");
       const selectedListName = heroSelect.value;
-      const heroNamesInList = heroLists[selectedListName];
+      const listData = heroLists[selectedListName];
 
-      if (!heroNamesInList) {
+      if (!listData || !listData.heroes) {
         Toast.error("Пожалуйста, выберите корректный список.");
         return;
       }
 
-      const heroesForGeneration = heroNamesInList.map((name) => ({ name }));
+      const heroesForGeneration = listData.heroes.map((name) => ({ name }));
 
       if (heroesForGeneration.length < 4) {
         Toast.error(
@@ -206,7 +213,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         Toast.success("Команды сгенерированы!");
 
         const allUniqueHeroNames = [
-          ...new Set(Object.values(heroLists).flat()),
+          ...new Set(
+            Object.values(heroLists)
+              .map((list) => list.heroes)
+              .flat()
+          ),
         ];
         const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
 
@@ -231,7 +242,11 @@ document.addEventListener("DOMContentLoaded", async () => {
       if (lastGen) {
         const currentHeroLists = Storage.loadHeroLists() || {};
         const allUniqueHeroNames = [
-          ...new Set(Object.values(currentHeroLists).flat()),
+          ...new Set(
+            Object.values(currentHeroLists)
+              .map((list) => list.heroes)
+              .flat()
+          ),
         ];
         const allUniqueHeroes = allUniqueHeroNames.map((name) => ({ name }));
         Results.show(lastGen, allUniqueHeroes, initializeAppState);

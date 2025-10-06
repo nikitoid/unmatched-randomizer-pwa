@@ -25,6 +25,7 @@ const ListManager = {
     starFilled: `<svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`,
     back: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>`,
     add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
+    cloud: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>`,
   },
 
   show(heroLists, onUpdate) {
@@ -111,24 +112,30 @@ const ListManager = {
   createManagerHTML() {
     const listItems = Object.keys(this.heroLists)
       .map((listName) => {
+        const listData = this.heroLists[listName];
         const isDefault = listName === this.defaultList;
-        const heroCount = this.heroLists[listName].length;
+        const heroCount = listData.heroes.length;
         const isCopy = this.isCopyRegex.test(listName);
+        const isCloud = listData.type === "cloud";
 
         const buttonsHTML = isCopy
           ? `<div class="w-28 flex-shrink-0"></div>` // Заглушка для выравнивания
           : `
-            <div class="flex items-center space-x-1 flex-shrink-0">
-                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
-                    ${isDefault ? this.icons.starFilled : this.icons.star}
-                </button>
-                <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать">
-                    ${this.icons.rename}
-                </button>
-                <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
-                    ${this.icons.delete}
-                </button>
-            </div>`;
+             <div class="flex items-center space-x-1 flex-shrink-0">
+                 <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
+                     ${isDefault ? this.icons.starFilled : this.icons.star}
+                 </button>
+                 <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать" ${
+                   isCloud ? "disabled" : ""
+                 }>
+                     ${this.icons.rename}
+                 </button>
+                 <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить" ${
+                   isCloud ? "disabled" : ""
+                 }>
+                     ${this.icons.delete}
+                 </button>
+             </div>`;
 
         const titleClass = isCopy
           ? "text-gray-500 dark:text-gray-400"
@@ -140,8 +147,15 @@ const ListManager = {
         return `
             <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
                 <div class="flex-grow cursor-pointer" data-action="edit">
-                    <p class="font-semibold text-lg ${titleClass}">${listName}</p>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
+                    <div class="flex items-center gap-2">
+                      ${
+                        isCloud
+                          ? `<span title="Облачный список">${this.icons.cloud}</span>`
+                          : ""
+                      }
+                      <p class="font-semibold text-lg ${titleClass}">${listName}</p>
+                    </div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 ml-7">${subtitle}</p>
                 </div>
                 ${buttonsHTML}
             </div>`;
@@ -156,7 +170,7 @@ const ListManager = {
   },
 
   createEditorHTML() {
-    const heroNames = this.heroLists[this.listToEdit] || [];
+    const heroNames = this.heroLists[this.listToEdit]?.heroes || [];
     const heroText = heroNames.join("\n");
     const isCopy = this.isCopyRegex.test(this.listToEdit);
     const backButtonText = isCopy ? "Закрыть редактор" : "Назад к спискам";
@@ -184,8 +198,10 @@ const ListManager = {
       .map((name) => name.trim())
       .filter((name) => name);
 
-    this.heroLists[this.listToEdit] = newHeroNames;
-    Storage.saveHeroLists(this.heroLists);
+    if (this.heroLists[this.listToEdit]) {
+      this.heroLists[this.listToEdit].heroes = newHeroNames;
+      Storage.saveHeroLists(this.heroLists);
+    }
     Toast.success(`Список "${this.listToEdit}" сохранен.`);
 
     this.currentView = "manager";
@@ -221,7 +237,7 @@ const ListManager = {
         }
 
         if (newName && !this.heroLists[newName]) {
-          this.heroLists[newName] = [];
+          this.heroLists[newName] = { heroes: [], type: "local" };
           Storage.saveHeroLists(this.heroLists);
           Toast.success(`Список "${newName}" создан.`);
           this.listToEdit = newName;
