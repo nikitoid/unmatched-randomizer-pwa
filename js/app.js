@@ -11,41 +11,106 @@ import { firebaseManager } from "./modules/firebase.js";
 // --- Инициализация темы ---
 Theme.init();
 
-// --- Логика обновления Service Worker ---
-function registerServiceWorker() {
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker
-        .register("/sw.js")
-        .then((registration) => {
-          console.log("Service Worker зарегистрирован:", registration);
+// --- Логика PWA и Service Worker ---
 
-          // Показываем спиннер при обнаружении нового SW
-          registration.addEventListener("updatefound", () => {
-            console.log("Найден новый Service Worker, начинается установка...");
-            const spinner = document.getElementById("update-spinner");
-            if (spinner) spinner.classList.remove("invisible");
-          });
-        })
-        .catch((error) => {
-          console.log("Ошибка регистрации Service Worker:", error);
-        });
-    });
+/**
+ * Инициализирует Service Worker и управляет его жизненным циклом,
+ * гарантируя запуск Firebase только после полной готовности приложения.
+ */
+function initializePWA() {
+  if (!("serviceWorker" in navigator)) {
+    console.warn(
+      "[App] Service Worker не поддерживается. Запускаем Firebase напрямую."
+    );
+    initFirebase();
+    return;
+  }
 
-    // Слушаем событие, когда новый SW берет управление на себя.
-    // Это надежный способ узнать, что обновление завершено.
-    navigator.serviceWorker.addEventListener("controllerchange", () => {
-      // Убеждаемся, что это не первоначальная установка, а именно обновление
-      if (navigator.serviceWorker.controller) {
+  // Флаг для предотвращения многократной перезагрузки
+  let refreshing = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (refreshing) return;
+    console.log(
+      "[App] Контроллер изменился. Перезагрузка для применения обновлений."
+    );
+    refreshing = true;
+    window.location.reload();
+  });
+
+  // Функция, которая будет вызвана, когда мы уверены, что можно запускать Firebase
+  const onReady = () => {
+    console.log("[App] Приложение готово. Запускаем Firebase.");
+    initFirebase();
+  };
+
+  navigator.serviceWorker
+    .register("/sw.js")
+    .then((registration) => {
+      console.log("[App] Service Worker зарегистрирован.", registration);
+
+      // Если есть ожидающий SW, значит, обновление уже скачано и ждет.
+      // skipWaiting() в sw.js вызовет 'controllerchange', и страница перезагрузится.
+      if (registration.waiting) {
+        console.log("[App] Обнаружен ожидающий SW. Ожидание активации...");
+        const spinner = document.getElementById("update-spinner");
+        if (spinner) spinner.classList.remove("invisible");
+        return; // Ничего не делаем, ждем перезагрузки
+      }
+
+      // Если есть устанавливающийся SW, подписываемся на его состояние.
+      if (registration.installing) {
+        const installingWorker = registration.installing;
         console.log(
-          "Контроллер Service Worker изменился, обновление завершено."
+          "[App] Обнаружен устанавливающийся SW. Ожидание установки..."
         );
         const spinner = document.getElementById("update-spinner");
-        if (spinner) spinner.classList.add("invisible");
-        Toast.success("Приложение обновлено!");
+        if (spinner) spinner.classList.remove("invisible");
+
+        installingWorker.addEventListener("statechange", () => {
+          // Когда он перейдет в состояние 'installed', он станет 'waiting'.
+          // Наша логика `skipWaiting()` вызовет 'controllerchange' и перезагрузку.
+          if (installingWorker.state === "installed") {
+            console.log("[App] Новый SW установлен и ожидает активации.");
+          }
+        });
+        return;
       }
+
+      // Если нет ни waiting, ни installing, и есть активный SW,
+      // мы можем быть не уверены, последняя ли это версия.
+      // Запускаем принудительную проверку обновлений.
+      if (registration.active) {
+        console.log(
+          "[App] Активный SW найден. Принудительная проверка обновлений..."
+        );
+        registration.update().then((newRegistration) => {
+          // Если после проверки появился `installing` или `waiting` worker,
+          // значит, нашлось обновление. Логика выше обработает его.
+          if (newRegistration.installing || newRegistration.waiting) {
+            console.log("[App] После проверки найдено обновление.");
+          } else {
+            // Если и после проверки обновлений нет, мы на 100% уверены,
+            // что работаем с последней версией.
+            console.log("[App] После проверки обновлений не найдено.");
+            onReady();
+          }
+        });
+      } else {
+        // Этот случай возможен при самой первой загрузке, когда нет активного SW.
+        // Просто ждем, пока текущий `installing` SW станет активным.
+        // `controllerchange` вызовет перезагрузку, и при следующей загрузке
+        // мы попадем в ветку `if (registration.active)`.
+      }
+    })
+    .catch((error) => {
+      console.error(
+        "[App] Ошибка регистрации Service Worker. Запускаем Firebase как fallback.",
+        error
+      );
+      // В случае ошибки регистрации SW, все равно запускаем Firebase,
+      // чтобы приложение работало хотя бы онлайн.
+      initFirebase();
     });
-  }
 }
 
 // --- Глобальное состояние и данные ---
@@ -95,7 +160,6 @@ function updateHeroSelect() {
 
 /**
  * Инициализирует состояние приложения при загрузке.
- * Миграция не требуется, сразу работаем с новым форматом.
  */
 function initializeAppState() {
   heroLists = Storage.loadHeroLists();
@@ -117,13 +181,11 @@ function initializeAppState() {
       "Сунь Укун",
       "Енанга",
     ];
-    // Сразу создаем в новом формате.
     heroLists = {
       "Стартовый набор": { heroes: starterHeroes, type: "local" },
     };
     defaultList = "Стартовый набор";
 
-    // Сохраняем.
     Storage.saveHeroLists(heroLists);
     Storage.saveDefaultList(defaultList);
     Storage.saveActiveList(defaultList);
@@ -135,27 +197,23 @@ function initializeAppState() {
 
 /**
  * Обрабатывает обновление облачных списков.
- * @param {CustomEvent} event - Событие, содержащее { detail: { cloudLists } }.
  */
 function handleCloudListsUpdate(event) {
   const { cloudLists } = event.detail;
   const localLists = Storage.loadHeroLists() || {};
-
-  // Простое слияние: облачные данные перезаписывают локальные с теми же именами.
-  // В будущем можно реализовать более сложную логику.
   const mergedLists = { ...localLists, ...cloudLists };
-
-  // Сохраняем, но без повторной синхронизации с облаком.
   Storage.saveHeroLists(mergedLists, true);
-  heroLists = mergedLists; // Обновляем глобальное состояние
-  updateHeroSelect(); // Обновляем UI
+  heroLists = mergedLists;
+  updateHeroSelect();
   Toast.info("Облачные списки синхронизированы.");
 }
 
-// --- Обработчики событий ---
-document.addEventListener("DOMContentLoaded", async () => {
+/**
+ * Инициализирует Firebase и начинает прослушивание облачных данных.
+ */
+async function initFirebase() {
   try {
-    // Динамически импортируем Firebase SDK, загруженный через CDN
+    console.log("[App] Попытка инициализации Firebase...");
     const firebaseApp = await import(
       "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js"
     );
@@ -163,16 +221,21 @@ document.addEventListener("DOMContentLoaded", async () => {
       "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js"
     );
 
-    // Инициализируем Firebase с загруженными модулями
     firebaseManager.init(firebaseApp, firestore);
-    // Запускаем прослушивание облачных списков
     firebaseManager.fetchAllCloudLists();
+    console.log("[App] Firebase инициализирован и слушает данные.");
   } catch (error) {
-    console.error("Не удалось загрузить Firebase SDK:", error);
+    console.error(
+      "[App] Не удалось загрузить или инициализировать Firebase SDK:",
+      error
+    );
     Toast.error("Ошибка загрузки облачных сервисов.");
   }
+}
 
-  registerServiceWorker(); // Запускаем логику SW
+// --- Основной поток выполнения ---
+document.addEventListener("DOMContentLoaded", () => {
+  initializeAppState();
 
   const themeToggle = document.getElementById("theme-toggle");
   const themeIconLight = document.getElementById("theme-icon-light");
@@ -197,10 +260,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   updateThemeIcons();
   window.addEventListener("theme-changed", updateThemeIcons);
 
-  // Подписываемся на событие обновления облачных списков
   window.addEventListener("cloud-lists-updated", handleCloudListsUpdate);
 
-  initializeAppState();
+  initializePWA();
 
   const settingsBtn = document.getElementById("settings-btn");
   if (settingsBtn) {
@@ -289,8 +351,8 @@ document.addEventListener("DOMContentLoaded", async () => {
         content:
           "Вы уверены, что хотите сбросить сессию? Все временные списки (с пометкой 'искл.') и последняя генерация будут удалены.",
         onConfirm: () => {
-          Storage.clearSession(); // Новая логика теперь здесь
-          initializeAppState(); // Обновляем UI
+          Storage.clearSession();
+          initializeAppState();
           Toast.success("Сессия сброшена.");
         },
       }).open();
