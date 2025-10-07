@@ -212,6 +212,20 @@ function handleCloudListsUpdate(event) {
  * Инициализирует Firebase и начинает прослушивание облачных данных.
  */
 async function initFirebase() {
+  // Немедленно выходим, если нет сети
+  if (!navigator.onLine) {
+    console.log(
+      "[App] Нет подключения к сети. Инициализация Firebase отложена."
+    );
+    return;
+  }
+
+  // Предотвращаем повторную инициализацию
+  if (firebaseManager.isInitialized()) {
+    console.log("[App] Firebase уже был инициализирован.");
+    return;
+  }
+
   try {
     console.log("[App] Попытка инициализации Firebase...");
     const firebaseApp = await import(
@@ -261,6 +275,19 @@ document.addEventListener("DOMContentLoaded", () => {
   window.addEventListener("theme-changed", updateThemeIcons);
 
   window.addEventListener("cloud-lists-updated", handleCloudListsUpdate);
+
+  // --- Обработка статуса сети ---
+  window.addEventListener("online", () => {
+    console.log("[App] Сеть восстановлена. Попытка запустить Firebase.");
+    Toast.info("Подключение к сети восстановлено.", 2000);
+    initFirebase();
+  });
+
+  window.addEventListener("offline", () => {
+    console.log("[App] Сеть потеряна. Работа в оффлайн-режиме.");
+    Toast.warn("Подключение к сети потеряно.", 2000);
+  });
+  // --- Конец обработки статуса сети ---
 
   initializePWA();
 

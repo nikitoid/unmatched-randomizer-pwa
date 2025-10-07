@@ -1,5 +1,5 @@
-const APP_SHELL_CACHE_NAME = "app-shell-v2";
-const DATA_CACHE_NAME = "data-cache-v2";
+const APP_SHELL_CACHE_NAME = "app-shell-v3";
+const DATA_CACHE_NAME = "data-cache-v3";
 
 // Список всех локальных ресурсов, составляющих "оболочку" приложения (App Shell)
 const appShellFiles = [
@@ -99,15 +99,35 @@ self.addEventListener("fetch", (event) => {
         }
 
         // Если ресурса в кэше нет, идем в сеть
-        return fetch(event.request).then((networkResponse) => {
-          // Открываем кэш App Shell для кэширования статики (включая CDN)
-          return caches.open(APP_SHELL_CACHE_NAME).then((cache) => {
-            // Кэшируем новый ресурс и возвращаем его
-            // Важно: мы кэшируем и локальные ресурсы, и внешние (например, Tailwind CDN)
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
+        // Если ресурса в кэше нет, идем в сеть
+        return fetch(event.request)
+          .then((networkResponse) => {
+            // Проверяем, что ответ корректный, перед кэшированием
+            if (
+              !networkResponse ||
+              networkResponse.status !== 200 ||
+              networkResponse.type !== "basic"
+            ) {
+              // Не кэшируем некорректные или сторонние ответы, которые не хотим сохранять
+              return networkResponse;
+            }
+
+            // Открываем кэш App Shell для кэширования статики
+            return caches.open(APP_SHELL_CACHE_NAME).then((cache) => {
+              cache.put(event.request, networkResponse.clone());
+              return networkResponse;
+            });
+          })
+          .catch(() => {
+            // Если fetch не удался (например, нет сети), просто ничего не возвращаем.
+            // Браузер обработает это как стандартную сетевую ошибку.
+            // Это предотвращает ошибку "Uncaught (in promise) TypeError: Failed to fetch".
+            console.warn(
+              `[SW] Не удалось загрузить из сети: ${event.request.url}`
+            );
+            // Возвращаем пустой ответ или можно вернуть специальную оффлайн-страницу
+            // return new Response("<h1>Вы оффлайн</h1>", { headers: { "Content-Type": "text/html" } });
           });
-        });
       })
     );
   }

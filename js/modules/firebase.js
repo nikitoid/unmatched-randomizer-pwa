@@ -49,6 +49,14 @@ class FirebaseManager {
   }
 
   /**
+   * Проверяет, был ли уже инициализирован Firebase.
+   * @returns {boolean}
+   */
+  isInitialized() {
+    return !!this.app;
+  }
+
+  /**
    * Проверяет, есть ли подключение к сети.
    * @returns {boolean}
    */
