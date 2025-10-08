@@ -278,14 +278,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Обработка статуса сети ---
   window.addEventListener("online", () => {
-    console.log("[App] Сеть восстановлена. Попытка запустить Firebase.");
+    console.log("[App] Сеть восстановлена.");
     Toast.info("Подключение к сети восстановлено.", 2000);
-    initFirebase();
+    // Если Firebase еще не был запущен, инициализируем его.
+    // Если уже был, просто включаем сеть.
+    if (!firebaseManager.isInitialized()) {
+      initFirebase();
+    } else {
+      firebaseManager.goOnline();
+    }
   });
 
   window.addEventListener("offline", () => {
     console.log("[App] Сеть потеряна. Работа в оффлайн-режиме.");
     Toast.warn("Подключение к сети потеряно.", 2000);
+    firebaseManager.goOffline();
   });
   // --- Конец обработки статуса сети ---
 

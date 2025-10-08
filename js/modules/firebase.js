@@ -160,6 +160,39 @@ class FirebaseManager {
       }
     );
   }
+
+  /**
+   * Отключает сеть для Firestore и уведомляет приложение.
+   */
+  goOffline() {
+    if (!this.db || !this.firestoreFunctions) return;
+    const { disableNetwork } = this.firestoreFunctions;
+    disableNetwork(this.db);
+    console.log("[Firebase] Сеть для Firestore отключена.");
+    this.broadcastNetworkStatus(false);
+  }
+
+  /**
+   * Включает сеть для Firestore и уведомляет приложение.
+   */
+  goOnline() {
+    if (!this.db || !this.firestoreFunctions) return;
+    const { enableNetwork } = this.firestoreFunctions;
+    enableNetwork(this.db);
+    console.log("[Firebase] Сеть для Firestore включена.");
+    this.broadcastNetworkStatus(true);
+  }
+
+  /**
+   * Отправляет событие об изменении статуса сети.
+   * @param {boolean} isOnline - Текущий статус сети.
+   */
+  broadcastNetworkStatus(isOnline) {
+    const event = new CustomEvent("network-status-changed", {
+      detail: { isOnline },
+    });
+    window.dispatchEvent(event);
+  }
 }
 
 /**
