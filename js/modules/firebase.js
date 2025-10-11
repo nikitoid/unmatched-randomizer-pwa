@@ -107,6 +107,27 @@ class FirebaseManager {
   }
 
   /**
+   * Переименовывает облачный список в Firestore.
+   * @param {string} listId - ID документа в Firestore.
+   * @param {string} newName - Новое имя списка.
+   * @returns {Promise<boolean>} - true в случае успеха.
+   */
+  async renameCloudList(listId, newName) {
+    if (!this.db || !this.isOnline()) return false;
+    try {
+      const { doc, updateDoc } = this.firestoreFunctions;
+      const listRef = doc(this.db, "lists", listId);
+      await updateDoc(listRef, {
+        name: newName,
+      });
+      return true;
+    } catch (error) {
+      console.error("Ошибка переименования облачного списка:", error);
+      return false;
+    }
+  }
+
+  /**
    * Удаляет облачный список из Firestore.
    * @param {string} listId - ID документа в Firestore.
    * @returns {Promise<boolean>} - true в случае успеха.
@@ -132,26 +153,31 @@ class FirebaseManager {
     onSnapshot(
       collection(this.db, "lists"),
       (querySnapshot) => {
-        const cloudLists = {};
+        const cloudLists = new Map(); // Используем Map для надежности
         querySnapshot.forEach((doc) => {
           const data = doc.data();
-          // Проверяем, что в документе есть и имя, и герои
           if (data.name && data.heroes) {
-            cloudLists[data.name] = {
+            cloudLists.set(doc.id, {
               id: doc.id,
+              name: data.name, // Явно сохраняем имя
               heroes: data.heroes,
               type: "cloud",
-            };
+            });
           } else {
             console.warn(
-              `Документ с ID ${doc.id} в Firestore имеет неверную структуру и был проигнорирован.`
+              `Документ с ID ${doc.id} в Firestore имеет неверную структуру.`
             );
           }
         });
 
-        // Отправляем событие с новыми данными
+        // Конвертируем Map в объект для обратной совместимости с остальным кодом
+        const cloudListsObject = {};
+        cloudLists.forEach((list) => {
+          cloudListsObject[list.name] = list;
+        });
+
         const event = new CustomEvent("cloud-lists-updated", {
-          detail: { cloudLists },
+          detail: { cloudLists: cloudListsObject, source: "cloud" },
         });
         window.dispatchEvent(event);
       },

@@ -126,11 +126,16 @@ function updateHeroSelect() {
   const defaultList = Storage.loadDefaultList();
 
   let targetSelection = activeList;
-  if (!heroLists[targetSelection]) {
+
+  // Если активный список не существует или сессия "чистая" (нет активного списка)
+  if (!targetSelection || !heroLists[targetSelection]) {
+    // Пытаемся использовать список по умолчанию
     targetSelection = defaultList;
+    // Если и его нет, берем первый попавшийся
     if (!heroLists[targetSelection]) {
       targetSelection = Object.keys(heroLists)[0];
     }
+    // Сохраняем новый выбор, чтобы он стал активным
     Storage.saveActiveList(targetSelection);
   }
 
@@ -199,13 +204,61 @@ function initializeAppState() {
  * Обрабатывает обновление облачных списков.
  */
 function handleCloudListsUpdate(event) {
-  const { cloudLists } = event.detail;
+  const { cloudLists, source } = event.detail;
   const localLists = Storage.loadHeroLists() || {};
+  let changed = false;
+
+  // --- Синхронизация переименований и удалений ---
+  const localCloudLists = Object.entries(localLists).filter(
+    ([, data]) => data.type === "cloud"
+  );
+
+  // Создаем Map из облачных списков для быстрого поиска по ID
+  const cloudListMap = new Map(
+    Object.values(cloudLists).map((list) => [list.id, list])
+  );
+
+  for (const [localName, localData] of localCloudLists) {
+    const cloudMatch = cloudListMap.get(localData.id);
+
+    if (cloudMatch) {
+      // Список существует в облаке. Проверяем, не изменилось ли имя.
+      if (localName !== cloudMatch.name) {
+        delete localLists[localName]; // Удаляем запись со старым именем
+        changed = true;
+        if (source !== "local") {
+          Toast.info(
+            `Список "${localName}" переименован в "${cloudMatch.name}".`
+          );
+        }
+      }
+    } else {
+      // Списка больше нет в облаке, делаем его локальным
+      localData.type = "local";
+      delete localData.id;
+      changed = true;
+      if (source !== "local") {
+        Toast.info(`Список "${localName}" удален из облака и стал локальным.`);
+      }
+    }
+  }
+
   const mergedLists = { ...localLists, ...cloudLists };
+
   Storage.saveHeroLists(mergedLists, true);
   heroLists = mergedLists;
   updateHeroSelect();
-  Toast.info("Облачные списки синхронизированы.");
+
+  // Отправляем событие для ListManager, если он открыт
+  const listManagerUpdateEvent = new CustomEvent("lists-updated", {
+    detail: { lists: mergedLists },
+  });
+  window.dispatchEvent(listManagerUpdateEvent);
+
+  // Уведомляем о синхронизации только если не было других уведомлений
+  if (!changed && source !== "local") {
+    Toast.info("Облачные списки синхронизированы.");
+  }
 }
 
 /**

@@ -125,14 +125,15 @@ const Storage = {
 
     this.saveHeroLists(newHeroLists);
 
-    // Если новый активный список не существует (был удален), сбросить на дефолтный или первый
+    // Если новый активный список (или его родитель) больше не существует,
+    // устанавливаем в качестве активного список по умолчанию.
     if (!newHeroLists[newActiveList]) {
-      const defaultList = this.loadDefaultList();
-      if (newHeroLists[defaultList]) {
-        newActiveList = defaultList;
-      } else {
-        newActiveList = Object.keys(newHeroLists)[0];
-      }
+      newActiveList = this.loadDefaultList();
+    }
+    // Если и списка по умолчанию нет, берем первый попавшийся.
+    // Эта ситуация маловероятна, но это защита от пустого active-list-name.
+    if (!newHeroLists[newActiveList]) {
+      newActiveList = Object.keys(newHeroLists)[0];
     }
 
     this.saveActiveList(newActiveList);
