@@ -1,4 +1,4 @@
-const APP_SHELL_CACHE_NAME = "app-shell-v7";
+const APP_SHELL_CACHE_NAME = "app-shell-v8";
 const DATA_CACHE_NAME = "data-cache-v7";
 
 // Список всех локальных ресурсов, составляющих "оболочку" приложения (App Shell)
