@@ -222,14 +222,24 @@ function handleCloudListsUpdate(event) {
     const cloudMatch = cloudListMap.get(localData.id);
 
     if (cloudMatch) {
-      // Список существует в облаке. Проверяем, не изменилось ли имя.
+      // Список существует в облаке. Проверяем изменения.
+      const localHeroes = JSON.stringify(localData.heroes);
+      const cloudHeroes = JSON.stringify(cloudMatch.heroes);
+
       if (localName !== cloudMatch.name) {
-        delete localLists[localName]; // Удаляем запись со старым именем
+        // Случай 1: Список был переименован
+        delete localLists[localName];
         changed = true;
         if (source !== "local") {
           Toast.info(
             `Список "${localName}" переименован в "${cloudMatch.name}".`
           );
+        }
+      } else if (localHeroes !== cloudHeroes) {
+        // Случай 2: Состав списка был изменен
+        changed = true;
+        if (source !== "local") {
+          Toast.info(`Список "${cloudMatch.name}" был обновлен в облаке.`);
         }
       }
     } else {
