@@ -373,20 +373,6 @@ const ListManager = {
       Toast.error("Временные списки не могут быть удалены отсюда.");
       return;
     }
-    if (listName === this.defaultList && listData.type === "local") {
-      Toast.warning(
-        "Нельзя удалить локальный список, который установлен по умолчанию."
-      );
-      return;
-    }
-    if (
-      Object.values(this.heroLists).filter((list) => list.type === "local")
-        .length <= 1 &&
-      listData.type === "local"
-    ) {
-      Toast.error("Нельзя удалить последний локальный список.");
-      return;
-    }
 
     new Modal({
       title: "Подтверждение",
@@ -406,10 +392,27 @@ const ListManager = {
         if (Storage.loadActiveList() === listName) {
           Storage.remove("active-list-name");
         }
+        const wasDefault = listName === this.defaultList;
         delete this.heroLists[listName];
-        Storage.saveHeroLists(this.heroLists, true); // Пропускаем синхронизацию, т.к. удалили вручную
-        Toast.success(`Список "${listName}" удален.`);
-        this.render();
+
+        // Если удалили список по умолчанию, назначаем новый
+        if (wasDefault && Object.keys(this.heroLists).length > 0) {
+          const newDefault = Object.keys(this.heroLists)[0];
+          this.defaultList = newDefault;
+          Storage.saveDefaultList(newDefault);
+        }
+
+        // Если это был последний список, вызываем колбэк для восстановления состояния
+        if (Object.keys(this.heroLists).length === 0) {
+          Storage.saveHeroLists({}, true);
+          Toast.success(`Список "${listName}" удален. Создан стартовый набор.`);
+          this.onUpdateCallback(); // Это вызовет initializeAppState
+          this.modal.close(); // Закрываем модалку, так как app.js перерисует все
+        } else {
+          Storage.saveHeroLists(this.heroLists, true);
+          Toast.success(`Список "${listName}" удален.`);
+          this.render();
+        }
       },
     }).open();
   },
