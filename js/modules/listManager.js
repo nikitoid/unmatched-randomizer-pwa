@@ -415,72 +415,71 @@ const ListManager = {
       return;
     }
 
-    const confirmDelete = async () => {
-      if (Storage.loadActiveList() === listName) {
-        Storage.saveActiveList(this.defaultList);
-      }
-      const wasDefault = listName === this.defaultList;
-      delete this.heroLists[listName];
+    const isCloud = listData.type === "cloud";
+    const title = isCloud ? "Удалить из облака?" : "Удалить локальный список?";
+    const content = isCloud
+      ? `Список <strong>"${listName}"</strong> будет удален из облака, но останется на этом устройстве как локальный. Продолжить?`
+      : `Вы уверены, что хотите удалить локальный список <strong>"${listName}"</strong>? Это действие необратимо.`;
 
-      if (wasDefault && Object.keys(this.heroLists).length > 0) {
-        const newDefault = Object.keys(this.heroLists)[0];
-        this.defaultList = newDefault;
-        Storage.saveDefaultList(newDefault);
-      }
-
-      if (Object.keys(this.heroLists).length === 0) {
-        Storage.saveHeroLists({}, true);
-        Toast.success(`Список "${listName}" удален. Создан стартовый набор.`);
-        this.onUpdateCallback();
-        this.modal.close();
-      } else {
-        Storage.saveHeroLists(this.heroLists, true);
-        Toast.success(`Список "${listName}" удален.`);
-        this.render();
-      }
-    };
-
-    if (listData.type === "cloud") {
-      const content = `
-        <p class="mb-2">Это действие необратимо. Чтобы подтвердить удаление, введите название списка: <strong>${listName}</strong></p>
-        <input type="text" id="delete-confirm-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-red-500" autocomplete="off">`;
-
-      new Modal({
-        title: "Удалить облачный список?",
-        content: content,
-        confirmText: "Удалить",
-        onConfirm: async () => {
-          const input = document.getElementById("delete-confirm-input");
-          if (input.value !== listName) {
-            Toast.error("Название введено неверно.");
-            return;
-          }
+    new Modal({
+      title: title,
+      content: content,
+      confirmText: "Удалить",
+      onConfirm: async () => {
+        if (isCloud) {
+          // --- Логика для облачных списков ---
           const success = await firebaseManager.deleteCloudList(listData.id);
           if (success) {
-            Toast.info("Облачный список удален.");
-            // Немедленно обновляем UI, не дожидаясь onSnapshot
-            await confirmDelete();
+            // Превращаем в локальный список
+            this.heroLists[listName].type = "local";
+            delete this.heroLists[listName].id;
+            Storage.saveHeroLists(this.heroLists, true);
+            this.render(); // Сразу обновляем UI
+
+            // Показываем Toast после того, как модальное окно закроется
+            setTimeout(() => {
+              Toast.success(
+                `Список "${listName}" удален из облака и стал локальным.`
+              );
+            }, 300); // Задержка равна времени анимации модального окна
           } else {
-            Toast.error("Ошибка удаления облачного списка.");
+            Toast.error("Ошибка удаления из облака. Проверьте соединение.");
           }
-        },
-      }).open();
-    } else {
-      // Стандартное подтверждение для локальных списков
-      new Modal({
-        title: "Подтверждение",
-        content: `Вы уверены, что хотите удалить список "${listName}"?`,
-        confirmText: "Удалить",
-        onConfirm: confirmDelete,
-      }).open();
-    }
+        } else {
+          // --- Логика для локальных списков (без изменений) ---
+          if (Storage.loadActiveList() === listName) {
+            Storage.saveActiveList(this.defaultList);
+          }
+          const wasDefault = listName === this.defaultList;
+          delete this.heroLists[listName];
+
+          if (wasDefault && Object.keys(this.heroLists).length > 0) {
+            const newDefault = Object.keys(this.heroLists)[0];
+            this.defaultList = newDefault;
+            Storage.saveDefaultList(newDefault);
+          }
+
+          if (Object.keys(this.heroLists).length === 0) {
+            Storage.saveHeroLists({}, true);
+            Toast.success(
+              `Список "${listName}" удален. Создан стартовый набор.`
+            );
+            this.onUpdateCallback();
+            this.modal.close();
+          } else {
+            Storage.saveHeroLists(this.heroLists, true);
+            Toast.success(`Список "${listName}" удален.`);
+            this.render();
+          }
+        }
+      },
+    }).open();
   },
 
   async handleUploadToCloud(listName) {
     const listData = this.heroLists[listName];
     if (!listData || listData.type !== "local") return;
 
-    Toast.info(`Загрузка списка "${listName}" в облако...`);
     const newId = await firebaseManager.uploadList(listName, listData);
 
     if (newId) {

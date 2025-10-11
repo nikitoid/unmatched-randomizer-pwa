@@ -247,8 +247,10 @@ function handleCloudListsUpdate(event) {
       localData.type = "local";
       delete localData.id;
       changed = true;
+      // Уведомление теперь показывается только в listManager для мгновенной обратной связи.
+      // Здесь просто молча синхронизируем состояние.
       if (source !== "local") {
-        Toast.info(`Список "${localName}" удален из облака и стал локальным.`);
+        console.log(`Список "${localName}" удален из облака и стал локальным.`);
       }
     }
   }
@@ -265,10 +267,8 @@ function handleCloudListsUpdate(event) {
   });
   window.dispatchEvent(listManagerUpdateEvent);
 
-  // Уведомляем о синхронизации только если не было других уведомлений
-  if (!changed && source !== "local") {
-    Toast.info("Облачные списки синхронизированы.");
-  }
+  // Уведомление "Облачные списки синхронизированы" убрано по требованию.
+  // Пользователь видит изменения в реальном времени, этого достаточно.
 }
 
 /**
