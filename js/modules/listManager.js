@@ -171,7 +171,7 @@ const ListManager = {
               <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="toggle-menu" title="Действия">
                 ${this.icons.dots}
               </button>
-              <div id="menu-${listName}" class="context-menu w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700">
+              <div id="menu-${listName}" class="context-menu w-56 bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700">
                 <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 ${
                   isCloud ? "hidden" : ""
                 }" data-action="upload">
@@ -240,16 +240,19 @@ const ListManager = {
     const menu = document.getElementById(`menu-${listName}`);
     if (!menu) return;
 
-    const shouldShow =
-      forceShow !== undefined ? forceShow : !menu.classList.contains("show");
+    // Используем requestAnimationFrame для надежного запуска анимации
+    requestAnimationFrame(() => {
+      const shouldShow =
+        forceShow !== undefined ? forceShow : !menu.classList.contains("show");
 
-    if (shouldShow) {
-      menu.classList.add("show");
-      this.activeMenu = listName;
-    } else {
-      menu.classList.remove("show");
-      this.activeMenu = null;
-    }
+      if (shouldShow) {
+        menu.classList.add("show");
+        this.activeMenu = listName;
+      } else {
+        menu.classList.remove("show");
+        this.activeMenu = null;
+      }
+    });
   },
 
   createEditorHTML() {
