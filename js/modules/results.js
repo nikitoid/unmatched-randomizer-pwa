@@ -95,7 +95,7 @@ function handleExclusion(heroesToExclude) {
 
   if (isCopy) {
     // --- Изменяем существующую копию ---
-    const currentHeroes = heroLists[activeListName] || [];
+    const currentHeroes = heroLists[activeListName]?.heroes || [];
     const newHeroList = currentHeroes.filter(
       (name) => !heroesToExclude.includes(name)
     );
@@ -107,14 +107,14 @@ function handleExclusion(heroesToExclude) {
       return { success: false };
     }
 
-    heroLists[activeListName] = newHeroList;
+    heroLists[activeListName].heroes = newHeroList;
     Storage.saveHeroLists(heroLists);
     Toast.success(`Герои исключены из списка "${activeListName}".`);
     if (onListUpdateCallback) onListUpdateCallback();
     return { success: true };
   } else {
     // --- Создаем новую копию ---
-    const originalHeroList = heroLists[activeListName];
+    const originalHeroList = heroLists[activeListName]?.heroes;
     if (!originalHeroList) {
       Toast.error(`Список "${activeListName}" не найден.`);
       return { success: false };
@@ -135,7 +135,7 @@ function handleExclusion(heroesToExclude) {
       activeListName,
       heroLists
     );
-    heroLists[newListName] = newHeroList;
+    heroLists[newListName] = { heroes: newHeroList, type: "local" };
     originalMap[newListName] = activeListName; // Запоминаем оригинал
 
     Storage.saveHeroLists(heroLists);
@@ -164,7 +164,7 @@ function addEventListeners() {
 
     const activeListName = Storage.loadActiveList();
     const heroLists = Storage.loadHeroLists() || {};
-    const heroesInActiveList = (heroLists[activeListName] || []).map(
+    const heroesInActiveList = (heroLists[activeListName]?.heroes || []).map(
       (name) => ({ name })
     );
 

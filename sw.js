@@ -1,5 +1,5 @@
-const APP_SHELL_CACHE_NAME = "app-shell-v4";
-const DATA_CACHE_NAME = "data-cache-v4";
+const APP_SHELL_CACHE_NAME = "app-shell-v6";
+const DATA_CACHE_NAME = "data-cache-v5";
 
 // Список всех локальных ресурсов, составляющих "оболочку" приложения (App Shell)
 const appShellFiles = [

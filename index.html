@@ -32,6 +32,19 @@
 
     <!-- Пользовательские стили -->
     <link rel="stylesheet" href="css/style.css" />
+
+    <style>
+      .context-menu {
+        position: absolute;
+        display: none;
+        z-index: 10;
+        right: 0;
+        transform: translateY(0.5rem);
+      }
+      .context-menu.show {
+        display: block;
+      }
+    </style>
   </head>
   <body
     class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200 font-sans antialiased h-screen overflow-hidden"

@@ -17,6 +17,7 @@ const ListManager = {
   listToEdit: null,
   isListenerAttached: false,
   isCopyRegex: /\(искл\.( \d+)?\)$/, // Регулярное выражение для обнаружения копий
+  activeMenu: null, // Отслеживание активного меню
 
   // ... (иконки остаются без изменений)
   icons: {
@@ -27,7 +28,9 @@ const ListManager = {
     back: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>`,
     add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
     cloud: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>`,
-    upload: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-4-4V7a4 4 0 014-4h.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V16a4 4 0 01-4 4H7z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16v-4m0 0l-3 3m3-3l3 3"></path></svg>`,
+    upload: `<svg class="w-5 h-5" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>`,
+    user: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>`,
+    dots: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01"></path></svg>`,
   },
 
   show(heroLists, onUpdate) {
@@ -64,24 +67,41 @@ const ListManager = {
 
   handleClicks(e) {
     const target = e.target;
-    const actionButton = target.closest("button[data-action]");
+    const actionButton = target.closest("[data-action]");
 
     if (this.currentView === "manager") {
       const listContainer = target.closest("div[data-list-name]");
+      const listName = listContainer ? listContainer.dataset.listName : null;
+
+      // Закрываем открытое меню, если клик был вне его
+      if (this.activeMenu && !target.closest(".context-menu-container")) {
+        this.toggleContextMenu(this.activeMenu, false);
+        this.activeMenu = null;
+      }
+
+      const editArea = target.closest('[data-action="edit"]');
+
+      if (editArea && !target.closest("button")) {
+        const listContainer = editArea.closest("[data-list-name]");
+        if (listContainer) {
+          this.listToEdit = listContainer.dataset.listName;
+          this.currentView = "editor";
+          this.render();
+          return;
+        }
+      }
+
       if (actionButton) {
         const action = actionButton.dataset.action;
-        const listName = listContainer ? listContainer.dataset.listName : null;
         if (action === "create") this.handleCreateList();
-        else if (listName) {
+        else if (action === "toggle-menu") {
+          this.toggleContextMenu(listName);
+        } else if (listName) {
           if (action === "set-default") this.handleSetDefault(listName);
-          if (action === "rename") this.handleRenameList(listName);
-          if (action === "delete") this.handleDeleteList(listName);
-          if (action === "upload") this.handleUploadToCloud(listName);
+          else if (action === "rename") this.handleRenameList(listName);
+          else if (action === "delete") this.handleDeleteList(listName);
+          else if (action === "upload") this.handleUploadToCloud(listName);
         }
-      } else if (listContainer && target.closest('[data-action="edit"]')) {
-        this.listToEdit = listContainer.dataset.listName;
-        this.currentView = "editor";
-        this.render();
       }
     } else if (this.currentView === "editor") {
       if (actionButton) {
@@ -116,34 +136,49 @@ const ListManager = {
     const listItems = Object.keys(this.heroLists)
       .map((listName) => {
         const listData = this.heroLists[listName];
-        if (!listData) return ""; // Пропускаем рендер, если данных нет
+        if (!listData) return "";
 
         const isDefault = listName === this.defaultList;
         const heroCount = listData.heroes.length;
         const isCopy = this.isCopyRegex.test(listName);
         const isCloud = listData.type === "cloud";
 
-        const buttonsHTML = isCopy
-          ? `<div class="w-28 flex-shrink-0"></div>` // Заглушка для выравнивания
+        const contextMenuHTML = isCopy
+          ? ""
           : `
-             <div class="flex items-center space-x-1 flex-shrink-0">
-                  <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
-                      ${isDefault ? this.icons.starFilled : this.icons.star}
-                  </button>
-                  <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors ${
-                    isCloud ? "hidden" : ""
-                  }" data-action="upload" title="Загрузить в облако">
-                      ${this.icons.upload}
-                  </button>
-                  <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="rename" title="Переименовать" ${
-                    isCloud ? "disabled" : ""
-                  }>
-                      ${this.icons.rename}
-                  </button>
-                  <button class="p-2 rounded-full text-gray-500 hover:text-red-500 hover:bg-red-100 dark:hover:bg-red-900/50 transition-colors" data-action="delete" title="Удалить">
-                      ${this.icons.delete}
-                  </button>
-              </div>`;
+            <div class="relative context-menu-container">
+              <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="toggle-menu" title="Действия">
+                ${this.icons.dots}
+              </button>
+              <div id="menu-${listName}" class="context-menu w-48 bg-white dark:bg-gray-800 rounded-md shadow-lg border dark:border-gray-700">
+                <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  isCloud ? "hidden" : ""
+                }" data-action="upload">
+                  ${this.icons.upload} Выгрузить в облако
+                </a>
+                <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 ${
+                  isCloud ? "cursor-not-allowed text-gray-400" : ""
+                }" data-action="rename">
+                  ${this.icons.rename} Переименовать
+                </a>
+                <div class="my-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+                <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50" data-action="delete">
+                  ${this.icons.delete} Удалить
+                </a>
+              </div>
+            </div>
+          `;
+
+        const buttonsHTML = isCopy
+          ? `<div class="w-20 flex-shrink-0"></div>`
+          : `
+            <div class="flex items-center space-x-1 flex-shrink-0">
+              <button class="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" data-action="set-default" title="Сделать по умолчанию">
+                ${isDefault ? this.icons.starFilled : this.icons.star}
+              </button>
+              ${contextMenuHTML}
+            </div>
+          `;
 
         const titleClass = isCopy
           ? "text-gray-500 dark:text-gray-400"
@@ -154,18 +189,16 @@ const ListManager = {
 
         return `
             <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
-                <div class="flex-grow cursor-pointer" data-action="edit">
-                    <div class="flex items-center gap-2">
-                      ${
-                        isCloud
-                          ? `<span title="Облачный список">${this.icons.cloud}</span>`
-                          : ""
-                      }
-                      <p class="font-semibold text-lg ${titleClass}">${listName}</p>
-                    </div>
-                    <p class="text-sm text-gray-500 dark:text-gray-400 ml-7">${subtitle}</p>
+              <div class="flex-grow cursor-pointer" data-action="edit">
+                <div class="flex items-center gap-2">
+                  <span title="${
+                    isCloud ? "Облачный список" : "Локальный список"
+                  }">${isCloud ? this.icons.cloud : this.icons.user}</span>
+                  <p class="font-semibold text-lg ${titleClass}">${listName}</p>
                 </div>
-                ${buttonsHTML}
+                <p class="text-sm text-gray-500 dark:text-gray-400 ml-7">${subtitle}</p>
+              </div>
+              ${buttonsHTML}
             </div>`;
       })
       .join("");
@@ -175,6 +208,27 @@ const ListManager = {
         <button data-action="create" class="mt-6 flex items-center justify-center gap-2 w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">
             ${this.icons.add} <span>Создать новый список</span>
         </button>`;
+  },
+
+  toggleContextMenu(listName, forceShow) {
+    if (this.activeMenu && this.activeMenu !== listName) {
+      const oldMenu = document.getElementById(`menu-${this.activeMenu}`);
+      if (oldMenu) oldMenu.classList.remove("show");
+    }
+
+    const menu = document.getElementById(`menu-${listName}`);
+    if (!menu) return;
+
+    const shouldShow =
+      forceShow !== undefined ? forceShow : !menu.classList.contains("show");
+
+    if (shouldShow) {
+      menu.classList.add("show");
+      this.activeMenu = listName;
+    } else {
+      menu.classList.remove("show");
+      this.activeMenu = null;
+    }
   },
 
   createEditorHTML() {
