@@ -11,6 +11,20 @@ import { firebaseManager } from "./modules/firebase.js";
 // --- Инициализация темы ---
 Theme.init();
 
+// --- Динамическая высота viewport ---
+/**
+ * Устанавливает CSS-переменную --vh, равную 1% от высоты видимой области.
+ * Это решает проблему с '100vh' на мобильных устройствах при появлении/скрытии UI браузера.
+ */
+function setVh() {
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty("--vh", `${vh}px`);
+}
+
+// Устанавливаем значение при загрузке и при изменении размера окна
+window.addEventListener("resize", setVh);
+setVh();
+
 // --- Логика PWA и Service Worker ---
 
 /**
