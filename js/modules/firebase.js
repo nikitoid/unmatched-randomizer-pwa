@@ -1,4 +1,5 @@
 import { firebaseConfig } from "../firebase-config.js";
+import Toast from "./toast.js";
 
 /**
  * @class FirebaseManager
@@ -15,6 +16,8 @@ class FirebaseManager {
     /** @type {import("firebase/firestore").Firestore | null} */
     this.db = null;
     this.firestoreFunctions = null;
+    /** @type {import("firebase/firestore").Unsubscribe | null} */
+    this.unsubscribe = null; // Для отписки от слушателя
   }
 
   /**
@@ -25,26 +28,22 @@ class FirebaseManager {
    */
   init(firebaseApp, firestore) {
     if (this.app) {
-      console.warn("Firebase уже инициализирован.");
-      return;
+      return; // Уже инициализирован
     }
 
     try {
       this.app = firebaseApp.initializeApp(firebaseConfig);
       this.db = firestore.getFirestore(this.app);
-      this.firestoreFunctions = firestore; // Сохраняем функции firestore
-      console.log("Firebase успешно инициализирован.");
+      this.firestoreFunctions = firestore;
+      // console.log("Firebase успешно инициализирован.");
 
-      // --- Блок для локальной разработки ---
-      // Подключаемся к эмулятору Firestore, если работаем на localhost.
       if (window.location.hostname === "localhost") {
         firestore.connectFirestoreEmulator(this.db, "localhost", 8080);
         console.log("Подключен эмулятор Firestore.");
       }
-      // --- Конец блока для локальной разработки ---
     } catch (error) {
       console.error("Ошибка инициализации Firebase:", error);
-      // Здесь можно добавить логику для обработки ошибок, например, показать Toast
+      Toast.error("Не удалось инициализировать облачные функции.");
     }
   }
 
@@ -145,21 +144,55 @@ class FirebaseManager {
   }
 
   /**
+   * Подключается к Firestore и начинает слушать изменения.
+   */
+  connect() {
+    if (!this.isOnline()) {
+      Toast.info("Нет подключения к сети. Облачные списки недоступны.");
+      return;
+    }
+    if (!this.app || !this.db) {
+      console.error(
+        "Firebase не инициализирован. Вызовите init() перед connect()."
+      );
+      return;
+    }
+    if (this.unsubscribe) {
+      console.warn("Слушатель Firestore уже активен.");
+      return;
+    }
+    this.subscribeToChanges();
+    console.log("[Firebase] Соединение установлено и данные слушаются.");
+  }
+
+  /**
+   * Отключается от Firestore, прекращая слушать изменения.
+   */
+  disconnect() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+      this.unsubscribe = null;
+      console.log("Слушатель Firestore отключен.");
+    }
+  }
+
+  /**
    * Подписывается на изменения в коллекции 'lists' и уведомляет приложение.
    */
-  fetchAllCloudLists() {
+  subscribeToChanges() {
     if (!this.db) return;
     const { collection, onSnapshot } = this.firestoreFunctions;
-    onSnapshot(
+
+    this.unsubscribe = onSnapshot(
       collection(this.db, "lists"),
       (querySnapshot) => {
-        const cloudLists = new Map(); // Используем Map для надежности
+        const cloudLists = new Map();
         querySnapshot.forEach((doc) => {
           const data = doc.data();
           if (data.name && data.heroes) {
             cloudLists.set(doc.id, {
               id: doc.id,
-              name: data.name, // Явно сохраняем имя
+              name: data.name,
               heroes: data.heroes,
               type: "cloud",
             });
@@ -170,7 +203,6 @@ class FirebaseManager {
           }
         });
 
-        // Конвертируем Map в объект для обратной совместимости с остальным кодом
         const cloudListsObject = {};
         cloudLists.forEach((list) => {
           cloudListsObject[list.name] = list;
@@ -183,41 +215,11 @@ class FirebaseManager {
       },
       (error) => {
         console.error("Ошибка при получении облачных списков:", error);
+        Toast.error("Ошибка синхронизации с облаком.");
+        this.disconnect(); // Отключаемся при ошибке
       }
     );
-  }
-
-  /**
-   * Отключает сеть для Firestore и уведомляет приложение.
-   */
-  goOffline() {
-    if (!this.db || !this.firestoreFunctions) return;
-    const { disableNetwork } = this.firestoreFunctions;
-    disableNetwork(this.db);
-    console.log("[Firebase] Сеть для Firestore отключена.");
-    this.broadcastNetworkStatus(false);
-  }
-
-  /**
-   * Включает сеть для Firestore и уведомляет приложение.
-   */
-  goOnline() {
-    if (!this.db || !this.firestoreFunctions) return;
-    const { enableNetwork } = this.firestoreFunctions;
-    enableNetwork(this.db);
-    console.log("[Firebase] Сеть для Firestore включена.");
-    this.broadcastNetworkStatus(true);
-  }
-
-  /**
-   * Отправляет событие об изменении статуса сети.
-   * @param {boolean} isOnline - Текущий статус сети.
-   */
-  broadcastNetworkStatus(isOnline) {
-    const event = new CustomEvent("network-status-changed", {
-      detail: { isOnline },
-    });
-    window.dispatchEvent(event);
+    console.log("Слушатель Firestore активирован.");
   }
 }
 

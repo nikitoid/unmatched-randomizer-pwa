@@ -49,9 +49,11 @@ const ListManager = {
         this.onUpdateCallback();
         this.isListenerAttached = false;
         window.removeEventListener("lists-updated", this.handleExternalUpdate);
+        firebaseManager.disconnect(); // Отключаемся от Firebase
       },
     });
 
+    firebaseManager.connect(); // Подключаемся к Firebase
     this.modal.open();
     this.container = document.querySelector(".modal-content-wrapper");
     this.attachPersistentListener();
@@ -376,8 +378,8 @@ const ListManager = {
             newName
           );
           if (success) {
-            Toast.success("Запрос на переименование отправлен.");
-            // Локальное переименование произойдет автоматически через onSnapshot
+            // Запрос успешно отправлен, но toast не показываем,
+            // так как app.js покажет итоговый результат.
           } else {
             Toast.error("Ошибка переименования в облаке.");
           }
@@ -440,11 +442,11 @@ const ListManager = {
             this.render(); // Сразу обновляем UI
 
             // Показываем Toast после того, как модальное окно закроется
-            setTimeout(() => {
+            /* setTimeout(() => {
               Toast.success(
                 `Список "${listName}" удален из облака и стал локальным.`
               );
-            }, 300); // Задержка равна времени анимации модального окна
+            }, 300); */ // Задержка равна времени анимации модального окна
           } else {
             Toast.error("Ошибка удаления из облака. Проверьте соединение.");
           }

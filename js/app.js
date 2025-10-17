@@ -53,7 +53,7 @@ function initializePWA() {
 
   // Функция, которая будет вызвана, когда мы уверены, что можно запускать Firebase
   const onReady = () => {
-    console.log("[App] Приложение готово. Запускаем Firebase.");
+    // console.log("[App] Приложение готово. Запускаем Firebase.");
     initFirebase();
   };
 
@@ -292,7 +292,7 @@ function handleCloudListsUpdate(event) {
       // Уведомление теперь показывается только в listManager для мгновенной обратной связи.
       // Здесь просто молча синхронизируем состояние.
       if (source !== "local") {
-        console.log(`Список "${localName}" удален из облака и стал локальным.`);
+        Toast.info(`Список "${localName}" удален из облака и стал локальным.`);
       }
     }
   }
@@ -334,7 +334,7 @@ async function initFirebase() {
   }
 
   try {
-    console.log("[App] Попытка инициализации Firebase...");
+    // console.log("[App] Попытка инициализации Firebase...");
     const firebaseApp = await import(
       "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js"
     );
@@ -344,8 +344,8 @@ async function initFirebase() {
 
     firebaseManager.init(firebaseApp, firestore);
     updateSettingsIcon("loading"); // Показываем загрузку при первом запуске
-    firebaseManager.fetchAllCloudLists();
-    console.log("[App] Firebase инициализирован и слушает данные.");
+    // firebaseManager.fetchAllCloudLists(); // Больше не требуется, логика перенесена
+    // console.log("[App] Firebase инициализирован и слушает данные.");
   } catch (error) {
     console.error(
       "[App] Не удалось загрузить или инициализировать Firebase SDK:",
