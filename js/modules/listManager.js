@@ -18,6 +18,7 @@ const ListManager = {
   isListenerAttached: false,
   isCopyRegex: /\(искл\.( \d+)?\)$/, // Регулярное выражение для обнаружения копий
   activeMenu: null, // Отслеживание активного меню
+  lastScrollTop: 0, // Для логики FAB
 
   // ... (иконки остаются без изменений)
   icons: {
@@ -171,6 +172,7 @@ const ListManager = {
     }
     this.container.innerHTML = html;
     this.updateStatusIndicator(); // Устанавливаем начальное состояние индикатора
+    this.initFabScroll(); // Инициализируем логику для FAB
   },
 
   createManagerHTML() {
@@ -230,14 +232,18 @@ const ListManager = {
 
         return `
             <div class="flex items-center bg-gray-50 dark:bg-gray-800 p-3 rounded-lg shadow-sm" data-list-name="${listName}">
-              <div class="flex-grow cursor-pointer" data-action="edit">
+              <div class="flex-grow cursor-pointer min-w-0" data-action="edit">
                 <div class="flex items-center gap-2">
                   <span title="${
                     isCloud ? "Облачный список" : "Локальный список"
-                  }">${isCloud ? this.icons.cloud : this.icons.user}</span>
-                  <p class="font-semibold text-lg ${titleClass}">${listName}</p>
+                  }" class="flex-shrink-0">${
+          isCloud ? this.icons.cloud : this.icons.user
+        }</span>
+                  <div class="min-w-0">
+                    <p class="font-semibold text-lg ${titleClass} truncate" style="word-break: break-word; white-space: normal;">${listName}</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">${subtitle}</p>
+                  </div>
                 </div>
-                <p class="text-sm text-gray-500 dark:text-gray-400 ml-7">${subtitle}</p>
               </div>
               ${buttonsHTML}
             </div>`;
@@ -245,10 +251,41 @@ const ListManager = {
       .join("");
 
     return `
-        <div class="space-y-3">${listItems}</div>
-        <button data-action="create" class="mt-6 flex items-center justify-center gap-2 w-full bg-teal-500 active:bg-teal-600 text-white font-bold py-3 px-4 rounded-lg transition-transform transform active:scale-95">
-            ${this.icons.add} <span>Создать новый список</span>
+        <div id="list-manager-content" class="space-y-3 pb-20">${listItems}</div>
+        <button id="fab-create-list" data-action="create" class="fab">
+            ${this.icons.add}
         </button>`;
+  },
+
+  /**
+   * Инициализирует логику скрытия/показа FAB при прокрутке.
+   */
+  initFabScroll() {
+    const content = document.getElementById("list-manager-content");
+    const fab = document.getElementById("fab-create-list");
+    if (!content || !fab) return;
+
+    // Обертка для прокручиваемого содержимого модального окна
+    const scrollableContainer = content.closest(".modal-content");
+    if (!scrollableContainer) return;
+
+    this.lastScrollTop = scrollableContainer.scrollTop;
+
+    scrollableContainer.addEventListener(
+      "scroll",
+      () => {
+        let st = scrollableContainer.scrollTop;
+        if (st > this.lastScrollTop) {
+          // Прокрутка вниз
+          fab.classList.add("fab-hidden");
+        } else {
+          // Прокрутка вверх
+          fab.classList.remove("fab-hidden");
+        }
+        this.lastScrollTop = st <= 0 ? 0 : st; // Для корректной работы с iOS
+      },
+      { passive: true }
+    );
   },
 
   toggleContextMenu(listName, forceShow) {

@@ -38,3 +38,39 @@ body {
 .status-disconnected {
   background-color: #f56565; /* red-500 */
 }
+
+/* --- Стили для плавающей кнопки (FAB) --- */
+.fab {
+  position: absolute;
+  bottom: 1.5rem; /* 24px */
+  right: 1.5rem; /* 24px */
+  width: 4rem; /* 64px */
+  height: 4rem; /* 64px */
+  background-color: #14b8a6; /* teal-500 */
+  color: white;
+  border-radius: 9999px; /* круглая */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  transition: transform 0.2s ease-out, opacity 0.2s ease-out;
+  transform: scale(1);
+  opacity: 1;
+  z-index: 20; /* Выше чем контент */
+}
+
+.fab:active {
+  background-color: #0d9488; /* teal-600 */
+  transform: scale(0.95);
+}
+
+.fab svg {
+  width: 2rem; /* 32px */
+  height: 2rem; /* 32px */
+}
+
+.fab-hidden {
+  transform: scale(0);
+  opacity: 0;
+  pointer-events: none;
+}
