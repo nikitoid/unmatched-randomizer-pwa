@@ -18,6 +18,7 @@ class FirebaseManager {
     this.firestoreFunctions = null;
     /** @type {import("firebase/firestore").Unsubscribe | null} */
     this.unsubscribe = null; // Для отписки от слушателя
+    this._isConnected = false; // Статус подключения
   }
 
   /**
@@ -53,6 +54,14 @@ class FirebaseManager {
    */
   isInitialized() {
     return !!this.app;
+  }
+
+  /**
+   * Возвращает текущий статус подключения к Firestore.
+   * @returns {boolean}
+   */
+  isConnected() {
+    return this._isConnected;
   }
 
   /**
@@ -148,7 +157,8 @@ class FirebaseManager {
    */
   connect() {
     if (!this.isOnline()) {
-      Toast.info("Нет подключения к сети. Облачные списки недоступны.");
+      Toast.info("Нет подключения к сети. Облачные функции недоступны.");
+      this._setStatus(false); // Устанавливаем статус "отключено"
       return;
     }
     if (!this.app || !this.db) {
@@ -162,7 +172,6 @@ class FirebaseManager {
       return;
     }
     this.subscribeToChanges();
-    console.log("[Firebase] Соединение установлено и данные слушаются.");
   }
 
   /**
@@ -172,6 +181,7 @@ class FirebaseManager {
     if (this.unsubscribe) {
       this.unsubscribe();
       this.unsubscribe = null;
+      this._setStatus(false);
       console.log("Слушатель Firestore отключен.");
     }
   }
@@ -216,10 +226,27 @@ class FirebaseManager {
       (error) => {
         console.error("Ошибка при получении облачных списков:", error);
         Toast.error("Ошибка синхронизации с облаком.");
+        this._setStatus(false); // Статус "отключено" при ошибке
         this.disconnect(); // Отключаемся при ошибке
       }
     );
     console.log("Слушатель Firestore активирован.");
+    this._setStatus(true);
+  }
+
+  /**
+   * Устанавливает статус подключения и уведомляет приложение.
+   * @param {boolean} isConnected - Новый статус подключения.
+   * @private
+   */
+  _setStatus(isConnected) {
+    if (this._isConnected === isConnected) return; // Ничего не делаем, если статус не изменился
+
+    this._isConnected = isConnected;
+    const event = new CustomEvent("firebase-status-changed", {
+      detail: { isConnected: this._isConnected },
+    });
+    window.dispatchEvent(event);
   }
 }
 

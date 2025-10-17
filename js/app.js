@@ -130,32 +130,8 @@ function initializePWA() {
 // --- Глобальное состояние и данные ---
 let heroLists = {};
 
-// --- Иконки для кнопки настроек ---
-const settingsIcons = {
-  default: `<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>`,
-  loading: `<svg class="w-6 h-6 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
-  success: `<svg class="w-6 h-6 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>`,
-};
-
-let settingsIconTimeout;
-
-/**
- * Обновляет иконку на кнопке настроек.
- * @param {'default' | 'loading' | 'success'} state - Новое состояние иконки.
- */
-function updateSettingsIcon(state) {
-  const settingsBtn = document.getElementById("settings-btn");
-  if (!settingsBtn) return;
-
-  clearTimeout(settingsIconTimeout);
-  settingsBtn.innerHTML = settingsIcons[state];
-
-  if (state === "success") {
-    settingsIconTimeout = setTimeout(() => {
-      settingsBtn.innerHTML = settingsIcons.default;
-    }, 1000);
-  }
-}
+// --- Иконки для кнопки настроек (удалено) ---
+// Логика смены иконок была убрана, так как автоматическая синхронизация при запуске удалена.
 
 /**
  * Обновляет выпадающий список героев на главном экране.
@@ -245,7 +221,6 @@ function initializeAppState() {
  * Обрабатывает обновление облачных списков.
  */
 function handleCloudListsUpdate(event) {
-  updateSettingsIcon("loading");
   const { cloudLists, source } = event.detail;
   const localLists = Storage.loadHeroLists() || {};
   let changed = false;
@@ -273,7 +248,7 @@ function handleCloudListsUpdate(event) {
         delete localLists[localName];
         changed = true;
         if (source !== "local") {
-          Toast.info(
+          Toast.success(
             `Список "${localName}" переименован в "${cloudMatch.name}".`
           );
         }
@@ -311,8 +286,6 @@ function handleCloudListsUpdate(event) {
 
   // Уведомление "Облачные списки синхронизированы" убрано по требованию.
   // Пользователь видит изменения в реальном времени, этого достаточно.
-
-  updateSettingsIcon("success");
 }
 
 /**
@@ -321,9 +294,6 @@ function handleCloudListsUpdate(event) {
 async function initFirebase() {
   // Немедленно выходим, если нет сети
   if (!navigator.onLine) {
-    console.log(
-      "[App] Нет подключения к сети. Инициализация Firebase отложена."
-    );
     return;
   }
 
@@ -343,7 +313,6 @@ async function initFirebase() {
     );
 
     firebaseManager.init(firebaseApp, firestore);
-    updateSettingsIcon("loading"); // Показываем загрузку при первом запуске
     // firebaseManager.fetchAllCloudLists(); // Больше не требуется, логика перенесена
     // console.log("[App] Firebase инициализирован и слушает данные.");
   } catch (error) {
@@ -387,20 +356,33 @@ document.addEventListener("DOMContentLoaded", () => {
   // --- Обработка статуса сети ---
   window.addEventListener("online", () => {
     console.log("[App] Сеть восстановлена.");
-    Toast.info("Подключение к сети восстановлено.", 2000);
-    // Если Firebase еще не был запущен, инициализируем его.
-    // Если уже был, просто включаем сеть.
-    if (!firebaseManager.isInitialized()) {
-      initFirebase();
+    Toast.info(
+      "Подключение к сети восстановлено. Перезайдите в 'Управление списками' для синхронизации БД",
+      3000
+    );
+
+    // Проверяем, открыто ли модальное окно управления списками.
+    // Если да, инициируем переподключение к Firebase.
+    const listManagerModal = document.querySelector(".modal-list-manager");
+    if (listManagerModal && !listManagerModal.classList.contains("hidden")) {
+      console.log(
+        "[App] Окно управления списками открыто, пытаемся переподключиться к Firebase..."
+      );
+      firebaseManager.connect();
     } else {
-      firebaseManager.goOnline();
+      // Если окно не открыто, просто инициализируем Firebase, если он еще не был запущен.
+      // Это сохраняет базовую логику для первого подключения.
+      if (!firebaseManager.isInitialized()) {
+        initFirebase();
+      }
     }
   });
 
   window.addEventListener("offline", () => {
-    console.log("[App] Сеть потеряна. Работа в оффлайн-режиме.");
-    Toast.warn("Подключение к сети потеряно.", 2000);
-    firebaseManager.goOffline();
+    console.log("[App] Сеть потеряна.");
+    Toast.info("Подключение к сети потеряно.", 2000);
+    // Корректно разрываем соединение и отписываемся от слушателя.
+    firebaseManager.disconnect();
   });
   // --- Конец обработки статуса сети ---
 

@@ -42,13 +42,22 @@ const ListManager = {
 
     this.modal = new Modal({
       type: "fullscreen",
-      title: "Управление списками",
+      title: `
+        <div class="flex items-center gap-3">
+          <span>Управление списками</span>
+          <span id="firebase-status-indicator"></span>
+        </div>
+      `,
       content: '<div class="modal-content-wrapper h-full"></div>',
       confirmText: null,
       onClose: () => {
         this.onUpdateCallback();
         this.isListenerAttached = false;
         window.removeEventListener("lists-updated", this.handleExternalUpdate);
+        window.removeEventListener(
+          "firebase-status-changed",
+          this.updateStatusIndicator
+        );
         firebaseManager.disconnect(); // Отключаемся от Firebase
       },
     });
@@ -59,6 +68,14 @@ const ListManager = {
     this.attachPersistentListener();
     this.handleExternalUpdate = this.handleExternalUpdate.bind(this);
     window.addEventListener("lists-updated", this.handleExternalUpdate);
+
+    // Привязываем и добавляем слушатель статуса Firebase
+    this.updateStatusIndicator = this.updateStatusIndicator.bind(this);
+    window.addEventListener(
+      "firebase-status-changed",
+      this.updateStatusIndicator
+    );
+
     this.render();
   },
 
@@ -153,6 +170,7 @@ const ListManager = {
       html = this.createEditorHTML();
     }
     this.container.innerHTML = html;
+    this.updateStatusIndicator(); // Устанавливаем начальное состояние индикатора
   },
 
   createManagerHTML() {
@@ -180,7 +198,7 @@ const ListManager = {
                   ${this.icons.upload} Выгрузить в облако
                 </a>
                 <a href="#" class="flex items-center gap-3 px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 ${
-                  isCloud ? "cursor-not-allowed text-gray-400" : ""
+                  isCloud ? "text-gray-400" : ""
                 }" data-action="rename">
                   ${this.icons.rename} Переименовать
                 </a>
@@ -327,7 +345,7 @@ const ListManager = {
         if (newName && !this.heroLists[newName]) {
           this.heroLists[newName] = { heroes: [], type: "local" };
           Storage.saveHeroLists(this.heroLists);
-          Toast.success(`Список "${newName}" создан.`);
+          Toast.success(`Создан локальный список "${newName}".`);
           this.listToEdit = newName;
           this.currentView = "editor";
           this.render();
@@ -404,7 +422,7 @@ const ListManager = {
           }
 
           Storage.saveHeroLists(this.heroLists);
-          Toast.success("Список переименован.");
+          Toast.info(`Список "${oldName}" переименован в "${newName}".`);
           this.render();
         }
       },
@@ -467,13 +485,13 @@ const ListManager = {
           if (Object.keys(this.heroLists).length === 0) {
             Storage.saveHeroLists({}, true);
             Toast.success(
-              `Список "${listName}" удален. Создан стартовый набор.`
+              `Локальный список "${listName}" удален. Создан стартовый набор.`
             );
             this.onUpdateCallback();
             this.modal.close();
           } else {
             Storage.saveHeroLists(this.heroLists, true);
-            Toast.success(`Список "${listName}" удален.`);
+            Toast.success(`Локальный список "${listName}" удален.`);
             this.render();
           }
         }
@@ -495,8 +513,23 @@ const ListManager = {
       Toast.success(`Список "${listName}" успешно загружен в облако.`);
       this.render();
     } else {
-      Toast.error("Ошибка загрузки. Проверьте консоль и соединение с сетью.");
+      Toast.error("Ошибка загрузки. Соединение с сетью отсутствует.");
     }
+  },
+
+  /**
+   * Обновляет визуальный индикатор статуса подключения к Firebase.
+   */
+  updateStatusIndicator() {
+    const indicator = document.getElementById("firebase-status-indicator");
+    if (!indicator) return;
+
+    const isConnected = firebaseManager.isConnected();
+    indicator.classList.toggle("status-connected", isConnected);
+    indicator.classList.toggle("status-disconnected", !isConnected);
+    indicator.title = isConnected
+      ? "Подключено к облаку"
+      : "Нет подключения к облаку";
   },
 };
 
