@@ -19,6 +19,7 @@ const ListManager = {
   isCopyRegex: /\(искл\.( \d+)?\)$/, // Регулярное выражение для обнаружения копий
   activeMenu: null, // Отслеживание активного меню
   lastScrollTop: 0, // Для логики FAB
+  scrollHandler: null, // Для хранения ссылки на обработчик прокрутки
 
   // ... (иконки остаются без изменений)
   icons: {
@@ -54,6 +55,7 @@ const ListManager = {
       onClose: () => {
         this.onUpdateCallback();
         this.isListenerAttached = false;
+        this.destroyFabScroll(); // Удаляем слушатель прокрутки
         window.removeEventListener("lists-updated", this.handleExternalUpdate);
         window.removeEventListener(
           "firebase-status-changed",
@@ -172,7 +174,10 @@ const ListManager = {
     }
     this.container.innerHTML = html;
     this.updateStatusIndicator(); // Устанавливаем начальное состояние индикатора
-    this.initFabScroll(); // Инициализируем логику для FAB
+    // Инициализируем логику для FAB только при создании вида менеджера
+    if (this.currentView === "manager") {
+      this.initFabScroll();
+    }
   },
 
   createManagerHTML() {
@@ -251,7 +256,7 @@ const ListManager = {
       .join("");
 
     return `
-        <div id="list-manager-content" class="space-y-3 pb-20">${listItems}</div>
+        <div id="list-manager-content" class="space-y-3 pb-24">${listItems}</div>
         <button id="fab-create-list" data-action="create" class="fab">
             ${this.icons.add}
         </button>`;
@@ -261,31 +266,49 @@ const ListManager = {
    * Инициализирует логику скрытия/показа FAB при прокрутке.
    */
   initFabScroll() {
-    const content = document.getElementById("list-manager-content");
     const fab = document.getElementById("fab-create-list");
-    if (!content || !fab) return;
+    const modal = this.modal.getElement();
+    if (!fab || !modal) return;
 
-    // Обертка для прокручиваемого содержимого модального окна
-    const scrollableContainer = content.closest(".modal-content");
-    if (!scrollableContainer) return;
+    const scrollableContent = modal.querySelector(".modal-content");
+    if (!scrollableContent) return;
 
-    this.lastScrollTop = scrollableContainer.scrollTop;
+    // Удаляем старый обработчик, если он есть, чтобы избежать дублирования
+    if (this.scrollHandler) {
+      scrollableContent.removeEventListener("scroll", this.scrollHandler);
+    }
 
-    scrollableContainer.addEventListener(
-      "scroll",
-      () => {
-        let st = scrollableContainer.scrollTop;
-        if (st > this.lastScrollTop) {
-          // Прокрутка вниз
-          fab.classList.add("fab-hidden");
-        } else {
-          // Прокрутка вверх
-          fab.classList.remove("fab-hidden");
-        }
-        this.lastScrollTop = st <= 0 ? 0 : st; // Для корректной работы с iOS
-      },
-      { passive: true }
-    );
+    this.lastScrollTop = scrollableContent.scrollTop;
+
+    this.scrollHandler = () => {
+      let st = scrollableContent.scrollTop;
+      if (st > this.lastScrollTop && st > 10) {
+        // Прокрутка вниз
+        fab.classList.add("fab-hidden");
+      } else {
+        // Прокрутка вверх
+        fab.classList.remove("fab-hidden");
+      }
+      this.lastScrollTop = st <= 0 ? 0 : st; // Для корректной работы с iOS
+    };
+
+    scrollableContent.addEventListener("scroll", this.scrollHandler, {
+      passive: true,
+    });
+  },
+
+  /**
+   * Удаляет слушатель события прокрутки.
+   */
+  destroyFabScroll() {
+    const modal = this.modal ? this.modal.getElement() : null;
+    if (this.scrollHandler && modal) {
+      const scrollableContent = modal.querySelector(".modal-content");
+      if (scrollableContent) {
+        scrollableContent.removeEventListener("scroll", this.scrollHandler);
+      }
+    }
+    this.scrollHandler = null;
   },
 
   toggleContextMenu(listName, forceShow) {
@@ -345,7 +368,7 @@ const ListManager = {
       this.heroLists[this.listToEdit].heroes = newHeroNames;
       Storage.saveHeroLists(this.heroLists);
     }
-    Toast.success(`Список "${this.listToEdit}" сохранен.`);
+    // Toast.success(`Список "${this.listToEdit}" сохранен.`);
 
     this.currentView = "manager";
     this.render();

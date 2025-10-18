@@ -111,6 +111,14 @@ export default class Modal {
     this.addEventListeners();
   }
 
+  /**
+   * Возвращает корневой DOM-элемент модального окна.
+   * @returns {HTMLElement|null}
+   */
+  getElement() {
+    return this.modalElement;
+  }
+
   addEventListeners() {
     this.overlayElement.addEventListener("click", this.boundClose);
     this.modalElement

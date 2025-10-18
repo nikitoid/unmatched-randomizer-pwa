@@ -41,7 +41,7 @@ body {
 
 /* --- Стили для плавающей кнопки (FAB) --- */
 .fab {
-  position: absolute;
+  position: fixed;
   bottom: 1.5rem; /* 24px */
   right: 1.5rem; /* 24px */
   width: 4rem; /* 64px */
