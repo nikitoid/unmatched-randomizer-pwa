@@ -428,7 +428,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (generation) {
         Storage.saveLastGeneration(generation);
-        Toast.success("Команды сгенерированы!");
+        // Toast.success("Команды сгенерированы!");
 
         const allUniqueHeroNames = [
           ...new Set(
