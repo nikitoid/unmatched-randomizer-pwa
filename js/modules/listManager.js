@@ -3,6 +3,19 @@ import Storage from "./storage.js";
 import Toast from "./toast.js";
 import { firebaseManager } from "./firebase.js";
 
+export const icons = {
+  rename: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg>`,
+  delete: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`,
+  star: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`,
+  starFilled: `<svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`,
+  back: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>`,
+  add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
+  cloud: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>`,
+  upload: `<svg class="w-5 h-5" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>`,
+  user: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>`,
+  dots: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>`,
+};
+
 /**
  * Модуль для управления списками героев.
  */
@@ -20,20 +33,7 @@ const ListManager = {
   activeMenu: null, // Отслеживание активного меню
   lastScrollTop: 0, // Для логики FAB
   scrollHandler: null, // Для хранения ссылки на обработчик прокрутки
-
-  // ... (иконки остаются без изменений)
-  icons: {
-    rename: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.5L15.232 5.232z"></path></svg>`,
-    delete: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>`,
-    star: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`,
-    starFilled: `<svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 24 24"><path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118L2.05 10.1c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"></path></svg>`,
-    back: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>`,
-    add: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>`,
-    cloud: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>`,
-    upload: `<svg class="w-5 h-5" fill="currentColor" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z"></path></svg>`,
-    user: `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>`,
-    dots: `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="12" cy="19" r="2"></circle></svg>`,
-  },
+  icons: icons,
 
   show(heroLists, onUpdate) {
     this.heroLists = { ...heroLists };
@@ -95,10 +95,7 @@ const ListManager = {
       const isCloud = newLists[listName].type === "cloud";
 
       if (isNew && isCloud) {
-        Toast.success(
-          `Список "${listName}" был добавлен`,
-          `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"/></svg>`
-        );
+        Toast.success(`Список "${listName}" был добавлен`, this.icons.cloud);
       }
     });
 
@@ -382,7 +379,6 @@ const ListManager = {
       this.heroLists[this.listToEdit].heroes = newHeroNames;
       Storage.saveHeroLists(this.heroLists);
     }
-    // Toast.success(`Список "${this.listToEdit}" сохранен.`);
 
     this.currentView = "manager";
     this.render();
@@ -412,21 +408,21 @@ const ListManager = {
 
         const newName = input.value.trim();
         if (this.isCopyRegex.test(newName)) {
-          Toast.error("Название списка не может содержать '(искл.)'.");
+          Toast.error("Название списка не может содержать '(искл.)'");
           return;
         }
 
         if (newName && !this.heroLists[newName]) {
           this.heroLists[newName] = { heroes: [], type: "local" };
           Storage.saveHeroLists(this.heroLists);
-          Toast.success(`Создан локальный список "${newName}".`);
+          Toast.success(`Создан локальный список "${newName}"`);
           this.listToEdit = newName;
           this.currentView = "editor";
           this.render();
         } else if (this.heroLists[newName]) {
-          Toast.error("Список с таким именем уже существует.");
+          Toast.error("Список с таким именем уже существует");
         } else {
-          Toast.error("Название не может быть пустым.");
+          Toast.error("Название не может быть пустым");
         }
       },
     }).open();
@@ -434,7 +430,7 @@ const ListManager = {
 
   handleRenameList(oldName) {
     if (this.isCopyRegex.test(oldName)) {
-      Toast.error("Временные списки не могут быть переименованы.");
+      Toast.error("Временные списки не могут быть переименованы");
       return;
     }
     const content = `<input type="text" id="rename-list-input" class="w-full bg-gray-200 dark:bg-gray-700 p-3 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-teal-500" value="${oldName}">`;
@@ -449,17 +445,17 @@ const ListManager = {
         const listData = this.heroLists[oldName];
 
         if (this.isCopyRegex.test(newName)) {
-          Toast.error("Название списка не может содержать '(искл.)'.");
+          Toast.error("Название списка не может содержать '(искл.)'");
           return;
         }
 
         if (!newName) {
-          Toast.error("Название не может быть пустым.");
+          Toast.error("Название не может быть пустым");
           return;
         }
 
         if (this.heroLists[newName]) {
-          Toast.error("Список с таким именем уже существует.");
+          Toast.error("Список с таким именем уже существует");
           return;
         }
 
@@ -473,7 +469,7 @@ const ListManager = {
             // Запрос успешно отправлен, но toast не показываем,
             // так как app.js покажет итоговый результат.
           } else {
-            Toast.error("Ошибка переименования в облаке.");
+            Toast.error("Ошибка переименования в облаке", this.icons.cloud);
           }
         } else {
           // Логика для локальных списков
@@ -496,7 +492,7 @@ const ListManager = {
           }
 
           Storage.saveHeroLists(this.heroLists);
-          Toast.info(`Список "${oldName}" переименован в "${newName}".`);
+          Toast.info(`Список "${oldName}" переименован в "${newName}"`);
           this.render();
         }
       },
@@ -508,7 +504,7 @@ const ListManager = {
     if (!listData) return;
 
     if (this.isCopyRegex.test(listName)) {
-      Toast.error("Временные списки не могут быть удалены отсюда.");
+      Toast.error("Временные списки не могут быть удалены отсюда");
       return;
     }
 
@@ -532,15 +528,11 @@ const ListManager = {
             delete this.heroLists[listName].id;
             Storage.saveHeroLists(this.heroLists, true);
             this.render(); // Сразу обновляем UI
-
-            // Показываем Toast после того, как модальное окно закроется
-            /* setTimeout(() => {
-              Toast.success(
-                `Список "${listName}" удален из облака и стал локальным.`
-              );
-            }, 300); */ // Задержка равна времени анимации модального окна
           } else {
-            Toast.error("Ошибка удаления из облака. Проверьте соединение.");
+            Toast.error(
+              "Ошибка удаления из облака. Проверьте соединение",
+              this.icons.cloud
+            );
           }
         } else {
           // --- Логика для локальных списков (без изменений) ---
@@ -559,13 +551,13 @@ const ListManager = {
           if (Object.keys(this.heroLists).length === 0) {
             Storage.saveHeroLists({}, true);
             Toast.success(
-              `Локальный список "${listName}" удален. Создан стартовый набор.`
+              `Локальный список "${listName}" удален. Создан стартовый набор`
             );
             this.onUpdateCallback();
             this.modal.close();
           } else {
             Storage.saveHeroLists(this.heroLists, true);
-            Toast.success(`Локальный список "${listName}" удален.`);
+            Toast.success(`Локальный список "${listName}" удален`);
             this.render();
           }
         }
@@ -584,10 +576,13 @@ const ListManager = {
       this.heroLists[listName].type = "cloud";
       this.heroLists[listName].id = newId;
       Storage.saveHeroLists(this.heroLists, true); // Сохраняем без обратной синхронизации
-      Toast.success(`Список "${listName}" успешно загружен в облако.`);
+      Toast.success(`Список "${listName}" успешно загружен`, this.icons.cloud);
       this.render();
     } else {
-      Toast.error("Ошибка загрузки. Соединение с сетью отсутствует.");
+      Toast.error(
+        "Ошибка загрузки. Соединение с сетью отсутствует",
+        this.icons.cloud
+      );
     }
   },
 

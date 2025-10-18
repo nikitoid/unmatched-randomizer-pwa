@@ -7,6 +7,7 @@ import Generator from "./modules/generator.js";
 import Results from "./modules/results.js";
 import ListManager from "./modules/listManager.js";
 import { firebaseManager } from "./modules/firebase.js";
+import { icons } from "./modules/listManager.js";
 
 // --- Инициализация темы ---
 Theme.init();
@@ -201,7 +202,7 @@ function initializeAppState() {
       "Ахиллес",
       "Кровавая Мэри",
       "Сунь Укун",
-      "Енанга",
+      "Ененга",
     ];
     heroLists = {
       "Стартовый набор": { heroes: starterHeroes, type: "local" },
@@ -211,7 +212,7 @@ function initializeAppState() {
     Storage.saveHeroLists(heroLists);
     Storage.saveDefaultList(defaultList);
     Storage.saveActiveList(defaultList);
-    Toast.info("Создан стартовый набор героев.");
+    Toast.info("Создан стартовый набор героев");
   }
 
   updateHeroSelect();
@@ -249,14 +250,18 @@ function handleCloudListsUpdate(event) {
         changed = true;
         if (source !== "local") {
           Toast.success(
-            `Список "${localName}" переименован в "${cloudMatch.name}".`
+            `Список "${localName}" переименован в "${cloudMatch.name}"`,
+            icons.cloud
           );
         }
       } else if (localHeroes !== cloudHeroes) {
         // Случай 2: Состав списка был изменен
         changed = true;
         if (source !== "local") {
-          Toast.info(`Список "${cloudMatch.name}" был обновлен в облаке.`);
+          Toast.info(
+            `Список "${cloudMatch.name}" был обновлен в облаке`,
+            icons.cloud
+          );
         }
       }
     } else {
@@ -267,7 +272,10 @@ function handleCloudListsUpdate(event) {
       // Уведомление теперь показывается только в listManager для мгновенной обратной связи.
       // Здесь просто молча синхронизируем состояние.
       if (source !== "local") {
-        Toast.info(`Список "${localName}" удален из облака и стал локальным.`);
+        Toast.info(
+          `Список "${localName}" удален из облака и стал локальным`,
+          icons.cloud
+        );
       }
     }
   }
@@ -320,7 +328,7 @@ async function initFirebase() {
       "[App] Не удалось загрузить или инициализировать Firebase SDK:",
       error
     );
-    Toast.error("Ошибка загрузки облачных сервисов.");
+    Toast.error("Ошибка загрузки облачных сервисов", icons.cloud);
   }
 }
 
@@ -358,7 +366,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log("[App] Сеть восстановлена.");
     Toast.info(
       "Подключение к сети восстановлено. Перезайдите в 'Управление списками' для синхронизации БД",
-      3000
+      icons.cloud
     );
 
     // Проверяем, открыто ли модальное окно управления списками.

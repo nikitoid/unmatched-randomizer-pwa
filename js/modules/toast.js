@@ -18,16 +18,20 @@ const icons = {
   warning: `<svg class="w-6 h-6 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>`,
 };
 
-function createToast(message, type, iconSVG = null) {
+function createToast(message, type, secondaryIconSVG = null) {
   const toastElement = document.createElement("div");
-  toastElement.className = `flex items-center w-full p-4 space-x-4 text-gray-200 bg-gray-800 rounded-lg shadow-lg transform transition-all duration-300 opacity-0 translate-x-full`;
+  toastElement.className = `flex items-center w-full p-4 space-x-3 text-gray-200 bg-gray-800 rounded-lg shadow-lg transform transition-all duration-300 opacity-0 translate-x-full`;
 
-  const icon = iconSVG || icons[type];
+  const mainIcon = icons[type];
+  const secondaryIconHTML = secondaryIconSVG
+    ? `<div class="icon secondary-icon">${secondaryIconSVG}</div>`
+    : "";
 
   toastElement.innerHTML = `
-        <div class="icon">${icon}</div>
-        <div class="text-sm font-normal">${message}</div>
-    `;
+      <div class="icon main-icon">${mainIcon}</div>
+      <div class="text-sm font-normal flex-grow">${message}</div>
+      ${secondaryIconHTML}
+  `;
 
   toastContainer.appendChild(toastElement);
 
@@ -48,11 +52,14 @@ function createToast(message, type, iconSVG = null) {
 }
 
 const Toast = {
-  success: (message, iconSVG = null) =>
-    createToast(message, "success", iconSVG),
-  error: (message) => createToast(message, "error"),
-  info: (message) => createToast(message, "info"),
-  warning: (message) => createToast(message, "warning"),
+  success: (message, secondaryIconSVG = null) =>
+    createToast(message, "success", secondaryIconSVG),
+  error: (message, secondaryIconSVG = null) =>
+    createToast(message, "error", secondaryIconSVG),
+  info: (message, secondaryIconSVG = null) =>
+    createToast(message, "info", secondaryIconSVG),
+  warning: (message, secondaryIconSVG = null) =>
+    createToast(message, "warning", secondaryIconSVG),
 };
 
 export default Toast;
