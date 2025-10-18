@@ -89,13 +89,52 @@ const ListManager = {
   handleExternalUpdate(event) {
     const { lists: newLists } = event.detail;
     const oldListNames = Object.keys(this.heroLists);
+    const oldLists = { ...this.heroLists }; // Сохраняем старые списки для сравнения
 
+    // Находим все облачные списки в новом наборе
     Object.keys(newLists).forEach((listName) => {
       const isNew = !oldListNames.includes(listName);
       const isCloud = newLists[listName].type === "cloud";
 
       if (isNew && isCloud) {
-        Toast.success(`Список "${listName}" был добавлен`, this.icons.cloud);
+        // Проверяем, возможно это переименованный список (старое имя было, но под другим именем)
+        const newId = newLists[listName].id;
+        const wasRenamed = oldListNames.some((oldName) => {
+          const oldList = oldLists[oldName];
+          return (
+            oldList &&
+            oldList.type === "cloud" &&
+            oldList.id === newId &&
+            oldName !== listName
+          );
+        });
+
+        // Показываем уведомление только если это действительно новый список, а не переименованный
+        if (!wasRenamed) {
+          Toast.success(`Список "${listName}" был добавлен`, this.icons.cloud);
+        }
+      }
+    });
+
+    // Проверяем, были ли переименованы или удалены какие-то списки
+    Object.keys(oldLists).forEach((oldName) => {
+      const oldList = oldLists[oldName];
+      if (oldList && oldList.type === "cloud" && oldList.id) {
+        // Ищем список с тем же ID в новых списках
+        const sameIdListName = Object.keys(newLists).find((listName) => {
+          const newList = newLists[listName];
+          return (
+            newList && newList.type === "cloud" && newList.id === oldList.id
+          );
+        });
+
+        if (!sameIdListName) {
+          // Список с таким ID больше не существует, возможно он был удален
+          // В этом случае ничего не делаем, так как уведомления об удалении обрабатываются в app.js
+        } else if (sameIdListName !== oldName) {
+          // Список был переименован
+          // Уведомление об этом уже показывается в app.js, поэтому здесь не нужно дублировать
+        }
       }
     });
 
@@ -107,7 +146,10 @@ const ListManager = {
    * @param {object} newLists - Новый полный объект списков.
    */
   updateLists(newLists) {
+    // Обновляем списки
     this.heroLists = { ...newLists };
+
+    // Перерисовываем UI
     this.render();
   },
 
